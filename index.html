@@ -298,7 +298,7 @@
   <div class="topbar">
     <div class="topbar-left">
       <span class="topbar-logo">☀️ Solar Future</span>
-      <span id="ver-badge" style="font-size:0.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:0.4rem;padding:0.1rem 0.4rem;background:var(--bg)">v1.4</span>
+      <span id="ver-badge" style="font-size:0.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:0.4rem;padding:0.1rem 0.4rem;background:var(--bg)">v1.6</span>
       <span class="user-badge" id="topbar-user">—</span>
     </div>
     <div class="topbar-right">
@@ -500,6 +500,16 @@
     </div>
 
     <div class="admin-card">
+      <h3>🧮 Számítás beállításai</h3>
+      <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:1rem">
+        Az értékek azonnal érvénybe lépnek, nem kell menteni. Az oldal újratöltésekor visszaállnak az alapértékekre – 
+        ha tartósan változtatni akarsz, szólj és beégetem az új értéket.
+      </p>
+      <div id="calc-settings-grid" style="display:grid;gap:0.75rem"></div>
+      <div id="calc-preview" style="margin-top:1rem;background:var(--bg);border:1px solid var(--border);border-radius:0.75rem;padding:1rem;font-size:0.85rem;display:none"></div>
+    </div>
+
+    <div class="admin-card">
       <h3>📋 Kalkulátor nevek szerkesztése</h3>
       <div id="calc-names-form" style="display:grid;gap:0.5rem"></div>
       <div class="btn-row" style="margin-top:1rem">
@@ -516,7 +526,16 @@
 // ADATOK
 // ============================================================
 const SHEETS_API = 'https://script.google.com/macros/s/AKfycbwcELD2MLNn3-9Odjsc8ullBmI7zHJtZmmrcqb19HjDcFc4YNnr7BnLJ6c3hjBf3SPj/exec';
-const APP_VERSION = 'v1.5';
+const APP_VERSION = 'v1.6';
+
+// Számítási paraméterek - admin felületen módosíthatók
+const CALC_SETTINGS = {
+  haszonkulcs:   { label: 'Haszonkulcs (szorzó)', value: 1.38, min: 1.0, max: 3.0, step: 0.01, desc: 'Anyag + munkadíj összegét ezzel szorozzuk. 1.38 = 38% felár.' },
+  afa:           { label: 'ÁFA kulcs (%)', value: 27, min: 0, max: 30, step: 1, desc: 'Jelenlegi általános ÁFA kulcs Magyarországon.' },
+  munkadij_alap: { label: 'Munkadíj 0–5 kW (Ft/kW)', value: 50000, min: 10000, max: 200000, step: 1000, desc: 'Az első 5 kW-ig ennyibe kerül kW-onként a munkadíj.' },
+  munkadij_extra:{ label: 'Munkadíj 5 kW felett (Ft/kW)', value: 12500, min: 1000, max: 100000, step: 500, desc: '5 kW felett minden további kW-ra ennyit számolunk.' },
+  munkadij_hatar:{ label: 'Munkadíj sávhatár (kW)', value: 5, min: 1, max: 20, step: 0.5, desc: 'Ennyi kW-ig érvényes az alapdíj, felette az extra díj.' },
+};
 const INVALID_CODES = new Set([1003009, 1003010, 5100004, 1003016, 1003017, 1003018, 1002002, 1001001, 1001002, 1001003, 1001004, 1001005, 1001006, 1001007, 1001008, 3005005, 1004023, 1004024, 1004025, 3003001, 3003002, 3003003, 3003004, 3003005, 3002001, 3002002, 3002003, 3002004, 3002005, 4003002, 4003003, 4003004, 4003005, 4003008, 4003009, 5002013, 5002014, 2100001, 2100002, 5002020, 2009001, 2009002, 2008001, 2008003, 2008004, 2008005, 2008006, 1005009, 1005011, 1005012, 1005015, 1005016, 1005018, 1005022, 1005025, 1005026, 1004001, 1004002, 1004003, 1004004, 1004005, 1004006, 1004007, 1004008, 1004009, 1004010, 1004011, 1004012, 1004013, 1004014, 1004015, 1004016, 1004017, 1004018, 1004019, 1004020, 1004021, 1004022, 1003001, 1004026, 1003005]);
 const COMPAT_MAP = {"1002001": [5100001, 5002001, 5002002, 5002003, 5002004, 5002005, 5002006, 5002007, 5002008, 5002009, 5002010, 5002011, 5002012, 5002013, 5002014, 5002015, 5002016, 5002017, 5002018, 5002020, 5100002, 5100004], "1002005": [5100001, 5002001, 5002002, 5002003, 5002004, 5002005, 5002006, 5002007, 5002008, 5002009, 5002010, 5002011, 5002012, 5002013, 5002014, 5002015, 5002016, 5002017, 5002018, 5002020, 5100002, 5100004], "1002006": [5100001, 5002001, 5002002, 5002003, 5002004, 5002005, 5002006, 5002007, 5002008, 5002009, 5002010, 5002011, 5002012, 5002013, 5002014, 5002015, 5002016, 5002017, 5002018, 5002020, 5100002, 5100004], "1002007": [5100001, 5002001, 5002002, 5002003, 5002004, 5002005, 5002006, 5002007, 5002008, 5002009, 5002010, 5002011, 5002012, 5002013, 5002014, 5002015, 5002016, 5002017, 5002018, 5002020, 5100002, 5100004], "1002008": [5100001, 5002001, 5002002, 5002003, 5002004, 5002005, 5002006, 5002007, 5002008, 5002009, 5002010, 5002011, 5002012, 5002013, 5002014, 5002015, 5002016, 5002017, 5002018, 5002020, 5100002, 5100004], "1002009": [5100001, 5002001, 5002002, 5002003, 5002004, 5002005, 5002006, 5002007, 5002008, 5002009, 5002010, 5002011, 5002012, 5002013, 5002014, 5002015, 5002016, 5002017, 5002018, 5002020, 5100002, 5100004], "1002010": [5100001, 5002001, 5002002, 5002003, 5002004, 5002005, 5002006, 5002007, 5002008, 5002009, 5002010, 5002011, 5002012, 5002013, 5002014, 5002015, 5002016, 5002017, 5002018, 5002020, 5100002, 5100004], "1002011": [5100001, 5002001, 5002002, 5002003, 5002004, 5002005, 5002006, 5002007, 5002008, 5002009, 5002010, 5002011, 5002012, 5002013, 5002014, 5002015, 5002016, 5002017, 5002018, 5002019, 5002020, 3002001, 3002002, 3002003, 3002004, 3002005, 5100002, 5100004], "1002012": [5100001, 5002001, 5002002, 5002003, 5002004, 5002005, 5002006, 5002007, 5002008, 5002009, 5002010, 5002011, 5002012, 5002013, 5002014, 5002015, 5002016, 5002017, 5002018, 5002019, 5002020, 3002001, 3002002, 3002003, 3002004, 3002005, 5100002, 5100004], "1002013": [5100001, 5002001, 5002002, 5002003, 5002004, 5002005, 5002006, 5002007, 5002008, 5002009, 5002010, 5002011, 5002012, 5002013, 5002014, 5002015, 5002016, 5002017, 5002018, 5002019, 5002020, 3002001, 3002002, 3002003, 3002004, 3002005, 5100002, 5100004], "1002014": [5100001, 5002001, 5002002, 5002003, 5002004, 5002005, 5002006, 5002007, 5002008, 5002009, 5002010, 5002011, 5002012, 5002013, 5002014, 5002015, 5002016, 5002017, 5002018, 5002019, 5002020, 3002001, 3002002, 3002003, 3002004, 3002005, 5100002, 5100004], "1003001": [5100001, 3003001, 3003002, 3003003, 3003004, 3003005, 5100002, 5100004], "1003002": [5100001, 5100002, 5100004], "1003003": [5100001, 5100002, 5100004], "1003004": [5100001, 5100002, 5100004], "1003005": [5100001, 5100002, 5100004], "1003006": [5100001, 5100002, 5100004], "1003007": [5100001, 5100002, 5100004], "1003008": [5100001, 5100002, 5100004], "1003009": [5100001, 5100002, 5100004], "1003010": [5100001, 5100002, 5100004], "1003011": [5100001, 5100002, 5100004], "1003012": [5100001, 5100002, 5100004], "1003013": [5100001, 5100002, 5100004], "1003014": [5100001, 5100002, 5100004], "1003015": [5100001, 5100002, 5100004], "1003016": [5100001, 3003001, 3003002, 3003003, 3003004, 3003005, 5100002, 5100004], "1003017": [5100001, 3003001, 3003002, 3003003, 3003004, 3003005, 5100002, 5100004], "1003018": [5100001, 3003001, 3003002, 3003003, 3003004, 3003005, 5100002, 5100004], "1004001": [5100001, 5100002, 5100004], "1004002": [5100001, 5100002, 5100004], "1004003": [5100001, 5100002, 5100004], "1004004": [5100001, 5100002, 5100004], "1004005": [5100001, 5100002, 5100004], "1004006": [5100001, 5100002, 5100004], "1004007": [5100001, 5100002, 5100004], "1004008": [5100001, 5100002, 5100004], "1004009": [5100001, 5100002, 5100004], "1004010": [5100001, 5100002, 5100004], "1004011": [5100001, 5100002, 5100004], "1004012": [5100001, 5100002, 5100004], "1004013": [5100001, 5100002, 5100004], "1004014": [5100001, 5100002, 5100004], "1004015": [5100001, 5100002, 5100004], "1004016": [5100001, 5100002, 5100004], "1004017": [5100001, 5100002, 5100004], "1004018": [5100001, 5100002, 5100004], "1004019": [5100001, 5100002, 5100004], "1004020": [5100001, 5100002, 5100004], "1004021": [5100001, 5100002, 5100004], "1004022": [5100001, 5100002, 5100004], "1004023": [5100001, 5100002, 5100004], "1004024": [5100001, 5100002, 5100004], "1004025": [5100001, 5100002, 5100004], "1004026": [5100001, 5100002, 5100004], "1005001": [5100001, 5100002, 5100004], "1005002": [5100001, 5100002, 5100004], "1005003": [5100001, 5100002, 5100004], "1005004": [5100001, 5100002, 5100004], "1005005": [5100001, 5100002, 5100004], "1005006": [5100001, 5100002, 5100004], "1005007": [5100001, 5100002, 5100004], "1005008": [5100001, 5100002, 5100004], "1005010": [5100001, 5100002, 5100004], "1005013": [5100001, 5100002, 5100004], "1005014": [5100001, 5100002, 5100004], "1005017": [5100001, 5100002, 5100004], "1005019": [5100001, 5100002, 5100004], "1005020": [5100001, 5100002, 5100004], "1005021": [5100001, 5100002, 5100004], "1005023": [5100001, 5100002, 5100004], "1005024": [5100001, 5100002, 5100004], "1005025": [5100001, 5100002, 5100004], "1005026": [5100001, 5100002, 5100004], "1005027": [5100001, 3005001, 3005002, 3005011, 5100003, 5100002, 5100004], "1005028": [5100001, 3005001, 3005002, 3005011, 5100003, 5100002, 5100004], "1005029": [5100001, 3005001, 3005002, 3005011, 5100003, 5100002, 5100004], "1005030": [5100001, 3005001, 3005002, 3005011, 5100003, 5100002, 5100004], "1005031": [5100001, 3005001, 3005002, 3005011, 5100003, 5100002, 5100004], "1005032": [5100001, 3005001, 3005002, 3005011, 5100003, 5100002, 5100004], "1005033": [5100001, 5100003, 5100002, 5100004, 3005003, 3005004, 3005006, 3005007, 3005008], "1005034": [5100001, 5100003, 5100002, 5100004, 3005003, 3005004, 3005006, 3005007, 3005008], "1005035": [5100001, 5100003, 5100002, 5100004, 3005003, 3005004, 3005006, 3005007, 3005008], "1010001": [5100001, 5100002, 5100004, 3011001, 3011002, 5010001, 5010002], "1010002": [5100001, 5100002, 5100004, 3011001, 3011002, 5010001, 5010002], "1010003": [5100001, 5100002, 5100004, 3011001, 3011002, 5010001, 5010002], "1010004": [5100001, 5100002, 5100004, 3011001, 3011002, 5010001, 5010002], "1010005": [5100001, 5100002, 5100004, 3011001, 3011002, 5010001, 5010002], "1010006": [5100001, 5100002, 5100004, 3011001, 3011002, 5010001, 5010002], "1012001": [5100001, 5100002, 5100004, 3012001, 3012002], "1012002": [5100001, 5100002, 5100004, 3012001, 3012002], "1012003": [5100001, 5100002, 5100004, 3012001, 3012002], "1012004": [5100001, 5100002, 5100004, 3012001, 3012002], "1012005": [5100001, 5100002, 5100004, 3012001, 3012002], "1012006": [5100001, 5100002, 5100004, 3012001, 3012002], "1012007": [5100001, 5100002, 5100004, 3012001, 3012002], "1012008": [5100001, 5100002, 5100004, 3012001, 3012002], "1012009": [5100001, 5100002, 5100004, 3012001, 3012002], "1012010": [5100001, 5100002, 5100004, 3012001, 3012002], "2014001": [5100001, 5100002, 5100004], "2014002": [5100001, 5100002, 5100004], "2014003": [5100001, 5100002, 5100004], "2014004": [5100001, 5100002, 5100004], "2014005": [5100001, 5100002, 5100004], "1005036": [5100001, 3005002, 3005011, 5100002, 5100004], "1005037": [5100001, 3005002, 3005011, 5100002, 5100004], "1005038": [5100001, 3005002, 3005011, 5100002, 5100004], "1005039": [5100001, 3005002, 3005011, 5100002, 5100004], "1005040": [5100001, 3005002, 3005011, 5100002, 5100004], "1005041": [5100001, 5100003, 5100002, 5100004, 3005009, 3005010], "1005042": [5100001, 5100003, 5100002, 5100004, 3005009, 3005010], "1005043": [5100001, 5100003, 5100002, 5100004, 3005009, 3005010], "1005044": [5100001, 5100003, 5100002, 5100004, 3005009, 3005010], "1005045": [5100001, 5100003, 5100002, 5100004, 3005009, 3005010], "1005046": [5100001, 5100003, 5100002, 5100004, 3005009, 3005010], "1005047": [5100001, 5100003, 5100002, 5100004, 3005009, 3005010], "1010007": [5100001, 5100002, 5100004, 3011001, 3011002], "1010008": [5100001, 5100002, 5100004, 3011001, 3011002], "1010009": [5100001, 5100002, 5100004, 3011001, 3011002], "1010010": [5100001, 5100002, 5100004, 3011001, 3011002], "1010011": [5100001, 5100002, 3011001, 3011002], "1010012": [5100001, 5100002, 3011001, 3011002, 3011003, 3011004, 3011005], "1010013": [5100001, 5100002, 3011001, 3011002, 3011003, 3011004, 3011005], "1010014": [5100001, 5100002, 3011001, 3011002, 3011003, 3011004, 3011005], "1010015": [5100001, 5100002, 3011001, 3011002, 3011003, 3011004, 3011005], "1010016": [5100001, 5100002, 3011001, 3011002, 3011003, 3011004, 3011005], "1010017": [5100001, 5100002, 3011001, 3011002, 3011003, 3011004, 3011005], "1010018": [5100001, 5100002, 3011001, 3011002, 3011003, 3011004, 3011005], "3005012": [5100002], "1015001": [5100001]};
 let PRODUCTS = {"panels":[{"name":"Napelem Astronergy 480","code":2009004,"kw":0.48,"huf":18868.03},{"name":"Napelem Astronergy 450","code":2009005,"kw":0.45,"huf":18245.03},{"name":"Napelem Yingli 430W","code":1013001,"kw":0.43,"huf":18512.03},{"name":"Napelem RISEN ENERGY RSM96 D.Glass 450W","code":1016001,"kw":0.45,"huf":20000.0}],"inverters":[{"name":"Inverter SMA CORE-1 STP 50-40 - 3","code":1002001,"huf":1103601.55},{"name":"Inverter SMA STP 3.0-3AV-40 - 3","code":1002005,"huf":293344.41},{"name":"Inverter SMA STP 4.0-3AV-40 - 3","code":1002006,"huf":313280.44},{"name":"Inverter SMA STP 5.0-3AV-40 - 3","code":1002007,"huf":338200.47},{"name":"Inverter SMA STP 6.0-3AV-40 - 3","code":1002008,"huf":373800.53},{"name":"Inverter SMA STP 8.0-3AV-40 - 3","code":1002009,"huf":483448.68},{"name":"Inverter SMA STP 10.0-3AV-40 - 3","code":1002010,"huf":500892.7},{"name":"Inverter SMA STP X 12","code":1002011,"huf":573872.81},{"name":"Inverter SMA STP X 15","code":1002012,"huf":612320.86},{"name":"Inverter SMA STP X 20","code":1002013,"huf":652904.92},{"name":"Inverter SMA STP X 25","code":1002014,"huf":764333.07},{"name":"Inverter Solar Edge SE10K","code":1003002,"huf":506588.71},{"name":"Inverter Solar Edge SE12.5K","code":1003003,"huf":374156.53},{"name":"Inverter Solar Edge SE16K","code":1003004,"huf":438948.62},{"name":"Inverter Solar Edge SE25K","code":1003006,"huf":593808.83},{"name":"Inverter Solar Edge SE30K","code":1003007,"huf":462800.65},{"name":"Inverter Solar Edge SE33.3K","code":1003008,"huf":481312.68},{"name":"Inverter Solar Edge SE5K","code":1003011,"huf":292632.41},{"name":"Inverter Solar Edge SE6K","code":1003012,"huf":288360.41},{"name":"Inverter Solar Edge SE7K","code":1003013,"huf":301888.42},{"name":"Inverter Solar Edge SE8K","code":1003014,"huf":375224.53},{"name":"Inverter Solar Edge SE9K","code":1003015,"huf":390176.55},{"name":"Inverter Sofarsolar 3.3KTLX-G3","code":1005001,"huf":170880.24},{"name":"Inverter Sofarsolar 4.4KTLX-G3","code":1005002,"huf":174440.24},{"name":"Inverter Sofarsolar 5.5KTLX-G3","code":1005003,"huf":184408.26},{"name":"Inverter Sofarsolar 6.6KTLX-G3","code":1005004,"huf":192952.27},{"name":"Inverter Sofarsolar 8.8KTLX-G3","code":1005005,"huf":198292.28},{"name":"Inverter Sofarsolar 11KTLX-G3","code":1005006,"huf":203276.29},{"name":"Inverter Sofarsolar 12KTLX-G3","code":1005007,"huf":223924.31},{"name":"Inverter Sofarsolar 15KTLX-G3","code":1005008,"huf":259880.36},{"name":"Inverter Sofarsolar 20KTLX-G3","code":1005010,"huf":314348.44},{"name":"Inverter Sofarsolar 25KTLX-G3","code":1005013,"huf":341760.48},{"name":"Inverter Sofarsolar 30KTLX-G3","code":1005014,"huf":375936.53},{"name":"Inverter Sofarsolar 40KTLX-G3","code":1005017,"huf":433964.61},{"name":"Inverter Sofarsolar 50KTLX-G3","code":1005019,"huf":509080.72},{"name":"Inverter Sofarsolar 60KTLX-G3","code":1005020,"huf":724461.02},{"name":"Inverter Sofarsolar 80KTLX-G3","code":1005021,"huf":875049.23},{"name":"Inverter Sofarsolar 110KTL","code":1005023,"huf":956929.34},{"name":"Inverter Sofarsolar 125KTL","code":1005024,"huf":987545.39},{"name":"Inverter Sofarsolar HYD 5KTL-3PH","code":1005027,"huf":334996.47},{"name":"Inverter Sofarsolar HYD 6KTL-3PH","code":1005028,"huf":369528.52},{"name":"Inverter Sofarsolar HYD 8KTL-3PH","code":1005029,"huf":417944.59},{"name":"Inverter Sofarsolar HYD 10KTL-3PH","code":1005030,"huf":424708.6},{"name":"Inverter Sofarsolar HYD 15KTL-3PH","code":1005031,"huf":528304.74},{"name":"Inverter Sofarsolar HYD 20KTL-3PH","code":1005032,"huf":562836.79},{"name":"Inverter Sofarsolar HYD 40K-T1","code":1005033,"huf":1308301.84},{"name":"Inverter Sofarsolar HYD 50K-T1","code":1005034,"huf":1343189.89},{"name":"Inverter Sofarsolar HYD 60K-T1","code":1005035,"huf":1430410.01},{"name":"Inverter Hoymiles HMS-500","code":1010001,"huf":46992.07},{"name":"Inverter Hoymiles HMS-900","code":1010002,"huf":69776.1},{"name":"Inverter Hoymiles HMS-1000","code":1010003,"huf":72268.1},{"name":"Inverter Hoymiles HMS-1600","code":1010004,"huf":90780.13},{"name":"Inverter Hoymiles HMS-1800","code":1010005,"huf":95764.13},{"name":"Inverter Hoymiles HMS-2000","code":1010006,"huf":98256.14},{"name":"Inverter Deye SUN-5K-SG04LP3-EU","code":1012001,"huf":495552.7},{"name":"Inverter Deye SUN-5K-SG05LP3-EU","code":1012002,"huf":495552.7},{"name":"Inverter Deye SUN-6K-SG04LP3-EU","code":1012003,"huf":585976.82},{"name":"Inverter Deye SUN-8K-SG05LP3-EUSM2","code":1012004,"huf":558564.78},{"name":"Inverter Deye SUN-10K-SG05LP3-EU","code":1012005,"huf":502672.71},{"name":"Inverter Deye SUN-10K-SG05LP3-EUSM2","code":1012006,"huf":502672.71},{"name":"Inverter Deye SUN-12K-SG04LP3-EU","code":1012007,"huf":509080.72},{"name":"Inverter Deye SUN-15K-SG05LP3-EUSM2","code":1012008,"huf":665720.94},{"name":"Inverter Deye SUN-18K-SG05LP3-EUSM2","code":1012009,"huf":802781.13},{"name":"Inverter Deye SUN-20K-SG05LP3-EUSM2","code":1012010,"huf":861521.21},{"name":"Inverter FOX ESS T5-G3","code":2014001,"huf":229976.32},{"name":"Inverter FOX ESS T6-G3","code":2014002,"huf":236028.33},{"name":"Inverter FOX ESS T8-G3","code":2014003,"huf":253116.36},{"name":"Inverter FOX ESS T10-G3","code":2014004,"huf":278392.39},{"name":"Inverter FOX ESS T12-G3","code":2014005,"huf":305092.43},{"name":"Inverter SOFAR ESI-5K-T1","code":1005036,"huf":352084.49},{"name":"Inverter SOFAR ESI-6.5K-T1","code":1005037,"huf":383412.54},{"name":"Inverter SOFAR ESI-8K-T1","code":1005038,"huf":431828.61},{"name":"Inverter SOFAR ESI-10K-T1","code":1005039,"huf":445356.63},{"name":"Inverter SOFAR ESI-12K-T1","code":1005040,"huf":487008.68},{"name":"Inverter Sofar HYD-5K-LT1 LV","code":1005041,"huf":328232.46},{"name":"Inverter Sofar HYD-6K-LT1 LV","code":1005042,"huf":355644.5},{"name":"Inverter Sofar HYD-8K-LT1 LV","code":1005043,"huf":373088.52},{"name":"Inverter Sofar HYD-10K-LT1 LV","code":1005044,"huf":393736.55},{"name":"Inverter Sofar HYD-12K-LT1 LV","code":1005045,"huf":435032.61},{"name":"Inverter Sofar HYD-15K-LT1 LV","code":1005046,"huf":476684.67},{"name":"Inverter Sofar HYD-20K-LT1 LV","code":1005047,"huf":607692.85},{"name":"Hoymiles HYT-5.0HV-EUG1 HV","code":1010007,"huf":405270.0},{"name":"Hoymiles HYT-6.0HV-EUG1 HV","code":1010008,"huf":410400.0},{"name":"Hoymiles HYT-8.0HV-EUG1 HV","code":1010009,"huf":420660.0},{"name":"Hoymiles HYT-10.0HV-EUG1 HV","code":1010010,"huf":433485.0},{"name":"Hoymiles HYT-12.0HV-EUG1 HV","code":1010011,"huf":459135.0},{"name":"Hoymiles HIT-5L-G3 LV","code":1010012,"huf":487350.0},{"name":"Hoymiles HIT-6L-G3 LV","code":1010013,"huf":497610.0},{"name":"Hoymiles HIT-8L-G3 LV","code":1010014,"huf":510435.0},{"name":"Hoymiles HIT-10L-G3 LV","code":1010015,"huf":551475.0},{"name":"Hoymiles HIT-12L-G3 LV","code":1010016,"huf":636120.0},{"name":"Hoymiles HIT-15L-G3 LV","code":1010017,"huf":713070.0},{"name":"Hoymiles HIT-20L-G3 LV","code":1010018,"huf":769500.0},{"name":"AKKU SOFAR Powermagic 125kW/258kWh","code":3005012,"huf":15842022.25},{"name":"Inverter Sigen Hybrid 2,5 SP2","code":1015001,"huf":168500.0}],"optik":[{"name":"Optimalizátor SolarEdge P601","code":4003001,"huf":21716.03},{"name":"Optimalizátor SolarEdge S500","code":4003007,"huf":17088.02},{"name":"Optimalizátor TIGO TS4","code":4007001,"huf":12460.02}],"tarts":[{"name":"Cserepes","code":1,"base":200000.0,"per_kw":33000.0},{"name":"Trapézsín","code":2,"base":200000.0,"per_kw":33000.0},{"name":"Lapostetős","code":3,"base":250000.0,"per_kw":55000.0},{"name":"Földre telepített","code":4,"base":250000.0,"per_kw":55000.0}],"egyeb":[{"name":"AKKU Deye AI-W5.1-B akkumulátor 5.12kWh","code":3012001,"huf":311856.44,"cat":"EGYEB"},{"name":"AKKU Deye AI-W5.1-B akkumulátor vezérlő modul + talp","code":3012002,"huf":250980.35,"cat":"EGYEB"},{"name":"AKKU Hoymiles LB-16D-G3 IP65 LV","code":3011005,"huf":625860.0,"cat":"EGYEB"},{"name":"AKKU Hoymiles LB-5D-G2 IP20 LV","code":3011003,"huf":292410.0,"cat":"EGYEB"},{"name":"AKKU Hoymiles LB-6D-G3 IP65 LV","code":3011004,"huf":328320.0,"cat":"EGYEB"},{"name":"AKKU Marstek B2500D (2,24KWh)","code":3011001,"huf":187256.26,"cat":"EGYEB"},{"name":"AKKU Marstek Venus E (5,12KWh) - sziget","code":3011002,"huf":468140.66,"cat":"EGYEB"},{"name":"AKKU SOFAR CBS5000-BCU Vezérlő","code":3005004,"huf":355644.5,"cat":"EGYEB"},{"name":"AKKU SOFAR CBS5000-BMU aksi","code":3005003,"huf":338556.48,"cat":"EGYEB"},{"name":"AKKU SOFAR CBS8000 64kWh","code":3005006,"huf":4420102.21,"cat":"EGYEB"},{"name":"AKKU SOFAR CBS8000 80kWh","code":3005007,"huf":5110743.18,"cat":"EGYEB"},{"name":"AKKU SOFAR CBS8000 96kWh","code":3005008,"huf":5766852.1,"cat":"EGYEB"},{"name":"AKKU Sofar SF-16kWh-L1 LV","code":3005010,"huf":511216.72,"cat":"EGYEB"},{"name":"AKKU Sofar SF-5kWh-L1 LV","code":3005009,"huf":203632.29,"cat":"EGYEB"},{"name":"Extra nyomvonal (25 méter fölött)","code":5100001,"huf":17800.03,"cat":"EGYEB"},{"name":"Garancia SMA +10év 0-5.0KW","code":5002007,"huf":117337.76,"cat":"EGYEB"},{"name":"Garancia SMA +10év 10.1-25.0KW","code":5002009,"huf":264009.97,"cat":"EGYEB"},{"name":"Garancia SMA +10év 25.1-50.0KW","code":5002010,"huf":351942.09,"cat":"EGYEB"},{"name":"Garancia SMA +10év 5.1-10.0KW","code":5002008,"huf":158405.98,"cat":"EGYEB"},{"name":"Garancia SMA +10év 50.1-90.0KW","code":5002011,"huf":469422.26,"cat":"EGYEB"},{"name":"Garancia SMA +10év 90.1-150.0KW","code":5002012,"huf":586688.82,"cat":"EGYEB"},{"name":"Garancia SMA +15év 10.1-25.0KW","code":5002015,"huf":396014.96,"cat":"EGYEB"},{"name":"Garancia SMA +15év 25.1-50.0KW","code":5002016,"huf":528019.94,"cat":"EGYEB"},{"name":"Garancia SMA +15év 50.1-90.0KW","code":5002017,"huf":704026.59,"cat":"EGYEB"},{"name":"Garancia SMA +15év 90.1-150.0KW","code":5002018,"huf":880033.24,"cat":"EGYEB"},{"name":"Garancia SMA +5év 0-5.0KW","code":5002001,"huf":58668.88,"cat":"EGYEB"},{"name":"Garancia SMA +5év 10.1-25.0KW","code":5002003,"huf":132004.99,"cat":"EGYEB"},{"name":"Garancia SMA +5év 25.1-50.0KW","code":5002004,"huf":176149.05,"cat":"EGYEB"},{"name":"Garancia SMA +5év 5.1-10.0KW","code":5002002,"huf":79202.99,"cat":"EGYEB"},{"name":"Garancia SMA +5év 50.1-90.0KW","code":5002005,"huf":234675.53,"cat":"EGYEB"},{"name":"Garancia SMA +5év 90.1-150.0KW","code":5002006,"huf":293344.41,"cat":"EGYEB"},{"name":"Hoymiles 1F vezérlő","code":5010001,"huf":320400.45,"cat":"EGYEB"},{"name":"Hoymiles 3F vezérlő","code":5010002,"huf":356000.5,"cat":"EGYEB"},{"name":"Huaweii Luna 10KW","code":3006002,"huf":1302454.0,"cat":"EGYEB"},{"name":"Huaweii Luna 15KW","code":3006003,"huf":1953681.0,"cat":"EGYEB"},{"name":"Huaweii Luna 5KW","code":3006001,"huf":651227.0,"cat":"EGYEB"},{"name":"Huaweii Luna vezérlő","code":3006004,"huf":325554.0,"cat":"EGYEB"},{"name":"Munkadíj Akkumulátor bekötés","code":5100003,"huf":35600.05,"cat":"EGYEB"},{"name":"SMA Sunny Home Magaer 2.0","code":5002019,"huf":149164.21,"cat":"EGYEB"},{"name":"Sofarsolar BTS 5K","code":3005002,"huf":355644.5,"cat":"EGYEB"},{"name":"Sofarsolar BTS 5K - Fűtött","code":3005011,"huf":365968.51,"cat":"EGYEB"},{"name":"Sofarsolar BTS vezérlő","code":3005001,"huf":74404.1,"cat":"EGYEB"},{"name":"Tűzeseti leválasztó","code":5100002,"huf":53400.07,"cat":"EGYEB"}]};
@@ -634,7 +653,22 @@ function doLogout() {
 function buildCalcTabs() {
   const tabs = document.getElementById('calc-tabs');
   const names = getCalcNames();
-  const calcs = currentUser.isAdmin ? [1,2,3,4,5,6] : (currentUser.calcs || [1]);
+  // Ensure calcs is always an array of numbers (Sheets returns "5,6" as string sometimes)
+  let calcs;
+  if (currentUser.isAdmin) {
+    calcs = [1,2,3,4,5,6];
+  } else {
+    const raw = currentUser.calcs;
+    if (Array.isArray(raw)) {
+      calcs = raw.map(Number).filter(n => n >= 1 && n <= 6);
+    } else if (typeof raw === 'string') {
+      calcs = raw.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+    } else if (typeof raw === 'number') {
+      calcs = [raw];
+    } else {
+      calcs = [1];
+    }
+  }
   tabs.innerHTML = '';
   calcs.forEach((c, i) => {
     const btn = document.createElement('button');
@@ -670,8 +704,7 @@ function showAdmin() {
   document.getElementById('result-bar').classList.remove('visible');
   renderUserTable();
   renderCalcNamesForm();
-  renderNewUserCalcCheckboxes();
-  populatePasswordUserSelect();
+  renderCalcSettings();
 }
 
 // ============================================================
@@ -956,23 +989,27 @@ function calculate() {
 
   // === MUNKADÍJ ===
   const rendszerKw = panelSel.kw * panelQty;
+  const md_alap = CALC_SETTINGS.munkadij_alap.value;
+  const md_extra = CALC_SETTINGS.munkadij_extra.value;
+  const md_hatar = CALC_SETTINGS.munkadij_hatar.value;
   let munkadij = 0;
-  if (rendszerKw <= 5) {
-    munkadij = rendszerKw * 50000;
+  if (rendszerKw <= md_hatar) {
+    munkadij = rendszerKw * md_alap;
   } else {
-    munkadij = (rendszerKw - 5) * 12500 + 5 * 50000;
+    munkadij = md_hatar * md_alap + (rendszerKw - md_hatar) * md_extra;
   }
 
   // === SZÁMÍTÁS ===
-  const HASONKULCS = 1.38;
+  const HASONKULCS = CALC_SETTINGS.haszonkulcs.value;
+  const AFА_KULCS = CALC_SETTINGS.afa.value / 100;
   const netto = (anyagok + munkadij) * HASONKULCS;
-  const afa = netto * 0.27;
-  const brutto = netto * 1.27;
+  const afa = netto * AFА_KULCS;
+  const brutto = netto * (1 + AFА_KULCS);
 
   // Kedvezmény
   const nettoKedv = netto * (1 - discount / 100);
-  const afaKedv = nettoKedv * 0.27;
-  const bruttoKedv = nettoKedv * 1.27;
+  const afaKedv = nettoKedv * AFА_KULCS;
+  const bruttoKedv = nettoKedv * (1 + AFА_KULCS);
 
   const kwNetKedv = rendszerKw > 0 ? nettoKedv / rendszerKw : 0;
   const kwGrossKedv = rendszerKw > 0 ? bruttoKedv / rendszerKw : 0;
@@ -1144,6 +1181,67 @@ function changeOtherPassword() {
   saveUsers(users);
   document.getElementById('pw-other-new').value = '';
   showToast(`✅ ${users[idx].name || users[idx].email} jelszava megváltoztatva!`);
+}
+
+function renderCalcSettings() {
+  const grid = document.getElementById('calc-settings-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  Object.entries(CALC_SETTINGS).forEach(([key, s]) => {
+    grid.innerHTML += `
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:0.75rem;padding:0.85rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">
+          <span style="font-size:0.85rem;font-weight:600">${s.label}</span>
+          <input type="number" value="${s.value}" min="${s.min}" max="${s.max}" step="${s.step}"
+            style="background:var(--surface2);border:1px solid var(--sun);border-radius:0.5rem;padding:0.3rem 0.6rem;color:var(--sun);font-weight:700;font-size:0.9rem;width:100px;text-align:center;outline:none"
+            onchange="updateCalcSetting('${key}', this.value)">
+        </div>
+        <div style="font-size:0.75rem;color:var(--text-muted)">${s.desc}</div>
+        <div style="margin-top:0.5rem;font-size:0.75rem;color:var(--text-muted)">
+          Alapértelmezett: <strong style="color:var(--text)">${s.value}</strong>
+        </div>
+      </div>`;
+  });
+  updateCalcPreview();
+}
+
+function updateCalcSetting(key, val) {
+  CALC_SETTINGS[key].value = parseFloat(val) || CALC_SETTINGS[key].value;
+  updateCalcPreview();
+}
+
+function updateCalcPreview() {
+  const preview = document.getElementById('calc-preview');
+  if (!preview) return;
+  const s = CALC_SETTINGS;
+  const hatar = s.munkadij_hatar.value;
+  const alap = s.munkadij_alap.value;
+  const extra = s.munkadij_extra.value;
+  const afa = s.afa.value;
+  const hk = s.haszonkulcs.value;
+  
+  // Example: 10 panel × 450W = 4.5 kW
+  const kw = 4.5;
+  const md = kw <= hatar ? kw * alap : hatar * alap + (kw - hatar) * extra;
+  const fmt = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
+  const pct = n => (n * 100 - 100).toFixed(0) + '%';
+  
+  preview.style.display = 'block';
+  preview.innerHTML = `
+    <div style="font-size:0.8rem;font-weight:700;margin-bottom:0.75rem;color:var(--sun)">📊 Számítás menete – példa: 10 × 450W napelem (4,5 kW)</div>
+    <div style="display:grid;gap:0.4rem;font-size:0.8rem">
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">Munkadíj (${kw} kW ≤ ${hatar} kW):</span><strong>${fmt(md)}</strong></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">Anyagköltség (példa):</span><strong>1 500 000 Ft</strong></div>
+      <div style="border-top:1px solid var(--border);margin:0.25rem 0"></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">Összesen (anyag + munkadíj):</span><strong>${fmt(1500000 + md)}</strong></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">× haszonkulcs (${hk} = +${pct(hk)}):</span><strong>${fmt((1500000 + md) * hk)}</strong></div>
+      <div style="display:flex;justify-content:space-between;color:var(--text-muted)"><span>ÁFA (${afa}%):</span><strong>${fmt((1500000 + md) * hk * afa/100)}</strong></div>
+      <div style="border-top:1px solid var(--sun);margin:0.25rem 0"></div>
+      <div style="display:flex;justify-content:space-between;font-size:0.9rem"><span style="color:var(--sun);font-weight:700">Bruttó végösszeg:</span><strong style="color:var(--sun)">${fmt((1500000 + md) * hk * (1 + afa/100))}</strong></div>
+    </div>
+    <div style="margin-top:0.75rem;font-size:0.75rem;color:var(--text-muted)">
+      Képlet: <code style="background:var(--surface2);padding:0.1rem 0.4rem;border-radius:0.3rem">(anyag + munkadíj) × ${hk} × ${1 + afa/100}</code>
+    </div>`;
 }
 
 function saveCalcNames() {
