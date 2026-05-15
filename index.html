@@ -227,6 +227,16 @@
   .checkbox-group input[type=checkbox] { accent-color: var(--sun); }
   .btn-row { display: flex; gap: 0.5rem; justify-content: flex-end; }
   
+  /* ADMIN TABS */
+  .admin-tab {
+    border: 1px solid var(--border); background: var(--bg); color: var(--text-muted);
+    border-radius: 0.6rem 0.6rem 0 0; padding: 0.5rem 1rem; font-size: 0.82rem;
+    cursor: pointer; transition: all 0.2s; white-space: nowrap; border-bottom: none;
+    margin-bottom: -1px;
+  }
+  .admin-tab:hover { color: var(--sun); border-color: var(--sun); }
+  .admin-tab.active { background: var(--surface); color: var(--sun); border-color: var(--sun); font-weight: 700; }
+
   .toast {
     position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
     background: var(--green); color: #fff; padding: 0.75rem 1.5rem;
@@ -298,7 +308,7 @@
   <div class="topbar">
     <div class="topbar-left">
       <span class="topbar-logo">☀️ Solar Future</span>
-      <span id="ver-badge" style="font-size:0.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:0.4rem;padding:0.1rem 0.4rem;background:var(--bg)">v1.7</span>
+      <span id="ver-badge" style="font-size:0.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:0.4rem;padding:0.1rem 0.4rem;background:var(--bg)">v1.8</span>
       <span class="user-badge" id="topbar-user">—</span>
     </div>
     <div class="topbar-right">
@@ -488,6 +498,16 @@
 
   <!-- ADMIN PANEL -->
   <div id="admin-panel">
+    <!-- ADMIN TABS -->
+    <div style="display:flex;gap:0.5rem;padding:1rem 1rem 0;border-bottom:1px solid var(--border);margin-bottom:1rem;overflow-x:auto">
+      <button class="admin-tab active" onclick="switchAdminTab('users')" id="atab-users">👥 Felhasználók</button>
+      <button class="admin-tab" onclick="switchAdminTab('calc')" id="atab-calc">🧮 Számítás</button>
+      <button class="admin-tab" onclick="switchAdminTab('detail')" id="atab-detail">🔍 Részletező</button>
+      <button class="admin-tab" onclick="switchAdminTab('names')" id="atab-names">📋 Nevek</button>
+    </div>
+
+    <!-- TAB: FELHASZNÁLÓK -->
+    <div id="atab-content-users">
     <div class="admin-card">
       <h3>👥 Felhasználók kezelése</h3>
       <table class="user-table" id="user-table">
@@ -524,6 +544,10 @@
       </p>
     </div>
 
+    </div><!-- /atab-content-users -->
+
+    <!-- TAB: SZÁMÍTÁS -->
+    <div id="atab-content-calc" style="display:none">
     <div class="admin-card">
       <h3>🧮 Számítás beállításai</h3>
       <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:1rem">
@@ -534,6 +558,29 @@
       <div id="calc-preview" style="margin-top:1rem;background:var(--bg);border:1px solid var(--border);border-radius:0.75rem;padding:1rem;font-size:0.85rem;display:none"></div>
     </div>
 
+    </div><!-- /atab-content-calc -->
+
+    <!-- TAB: RÉSZLETEZŐ -->
+    <div id="atab-content-detail" style="display:none">
+    <div class="admin-card" id="detail-card">
+      <h3>🔍 Számítás részletező</h3>
+      <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem">
+        Töltsd ki a kalkulátort, majd kattints a „Részletező frissítése" gombra az összehasonlításhoz.
+      </p>
+      <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap">
+        <button class="btn-primary" onclick="refreshDetail()">🔄 Részletező frissítése</button>
+        <span style="color:var(--text-muted);font-size:0.8rem;align-self:center">Az aktuális kalkulátor állását mutatja</span>
+      </div>
+      <div id="detail-content">
+        <div style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:2rem">
+          Még nincs adat – töltsd ki a kalkulátort és kattints a frissítésre.
+        </div>
+      </div>
+    </div>
+    </div><!-- /atab-content-detail -->
+
+    <!-- TAB: NEVEK -->
+    <div id="atab-content-names" style="display:none">
     <div class="admin-card">
       <h3>📋 Kalkulátor nevek szerkesztése</h3>
       <div id="calc-names-form" style="display:grid;gap:0.5rem"></div>
@@ -541,7 +588,8 @@
         <button class="btn-primary" onclick="saveCalcNames()">Nevek mentése</button>
       </div>
     </div>
-  </div>
+    </div><!-- /atab-content-names -->
+  </div><!-- /admin-panel -->
 </div>
 
 <div class="toast" id="toast"></div>
@@ -551,7 +599,7 @@
 // ADATOK
 // ============================================================
 const SHEETS_API = 'https://script.google.com/macros/s/AKfycbwcELD2MLNn3-9Odjsc8ullBmI7zHJtZmmrcqb19HjDcFc4YNnr7BnLJ6c3hjBf3SPj/exec';
-const APP_VERSION = 'v1.7';
+const APP_VERSION = 'v1.8';
 
 // Számítási paraméterek - admin felületen módosíthatók
 const CALC_SETTINGS = {
@@ -761,9 +809,254 @@ function showAdmin() {
   document.getElementById('calc-view').style.display = 'none';
   document.getElementById('admin-panel').style.display = 'block';
   document.getElementById('result-bar').classList.remove('visible');
+  switchAdminTab('users');
   renderUserTable();
   renderCalcNamesForm();
   renderCalcSettings();
+}
+
+function switchAdminTab(tab) {
+  ['users','calc','detail','names'].forEach(t => {
+    const content = document.getElementById('atab-content-' + t);
+    const btn = document.getElementById('atab-' + t);
+    if (content) content.style.display = t === tab ? 'block' : 'none';
+    if (btn) btn.classList.toggle('active', t === tab);
+  });
+  if (tab === 'detail') refreshDetail();
+  if (tab === 'calc') renderCalcSettings();
+  if (tab === 'names') renderCalcNamesForm();
+}
+
+// ============================================================
+// RÉSZLETEZŐ
+// ============================================================
+function refreshDetail() {
+  const container = document.getElementById('detail-content');
+  if (!container) return;
+
+  const panelSel  = searchState.panel.selected;
+  const panelQty  = parseInt(document.getElementById('panel-qty')?.value) || 0;
+  const tartCode  = parseInt(document.getElementById('tart-select')?.value) || 0;
+  const inv1Sel   = searchState.inv1.selected;
+  const inv1Qty   = parseInt(document.getElementById('inv1-qty')?.value) || 0;
+  const inv2Sel   = searchState.inv2.selected;
+  const inv2Qty   = parseInt(document.getElementById('inv2-qty')?.value) || 0;
+  const optiSel   = searchState.opti.selected;
+  const optiQty   = parseInt(document.getElementById('opti-qty')?.value) || 0;
+  const discount  = parseFloat(document.getElementById('discount-val')?.value) || 0;
+  const mode      = getActiveMode();
+
+  if (!panelSel || panelQty === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:2rem">Nincs kiválasztott napelem – töltsd ki a kalkulátort!</div>';
+    return;
+  }
+
+  const fmt  = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
+  const fmtn = n => Math.round(n).toLocaleString('hu-HU');
+  const rendszerKw = panelSel.kw * panelQty;
+
+  // --- ANYAGOK ---
+  const panelCost = panelSel.huf * panelQty;
+
+  let tartCost = 0;
+  let tartName = '—';
+  if (tartCode) {
+    const tart = PRODUCTS.tarts.find(t => Number(t.code) === tartCode || (PRODUCTS.tarts.indexOf(t)+1) === tartCode);
+    if (tart) {
+      const extraKw = Math.max(0, rendszerKw - 3);
+      tartCost = tart.base + extraKw * tart.per_kw;
+      tartName = tart.name;
+    }
+  }
+
+  const inv1Cost = inv1Sel ? inv1Sel.huf * inv1Qty : 0;
+  const inv2Cost = inv2Sel ? inv2Sel.huf * inv2Qty : 0;
+  const optiCost = optiSel ? optiSel.huf * optiQty : 0;
+
+  let egyebRows = [];
+  let egyebCost = 0;
+  extraRows.forEach(row => {
+    if (row.product && row.qty > 0) {
+      const cost = row.product.huf * row.qty;
+      egyebRows.push({ name: row.product.name, qty: row.qty, egysegar: row.product.huf, cost });
+      egyebCost += cost;
+    }
+  });
+
+  const anyagok = panelCost + tartCost + inv1Cost + inv2Cost + optiCost + egyebCost;
+
+  // --- MUNKADÍJ ---
+  const AFА = CALC_SETTINGS.afa.value / 100;
+  let munkadij = 0;
+  let munkadijLabel = '';
+  let netto = 0;
+  let napok = 0;
+
+  if (mode === 'regi') {
+    const md_alap  = CALC_SETTINGS.munkadij_alap.value;
+    const md_extra = CALC_SETTINGS.munkadij_extra.value;
+    const md_hatar = CALC_SETTINGS.munkadij_hatar.value;
+    if (rendszerKw <= md_hatar) {
+      munkadij = rendszerKw * md_alap;
+      munkadijLabel = `${rendszerKw.toFixed(2)} kW × ${fmt(md_alap)}/kW`;
+    } else {
+      munkadij = md_hatar * md_alap + (rendszerKw - md_hatar) * md_extra;
+      munkadijLabel = `${md_hatar} kW × ${fmt(md_alap)} + ${(rendszerKw-md_hatar).toFixed(2)} kW × ${fmt(md_extra)}`;
+    }
+    netto = (anyagok + munkadij) * CALC_SETTINGS.haszonkulcs.value;
+  } else {
+    napok = (() => {
+      const manualNapEl = document.getElementById('manual-nap');
+      if (manualNapEl && manualNapEl.value) return parseInt(manualNapEl.value);
+      return calcDaysForKw(rendszerKw);
+    })();
+    const napi  = CALC_SETTINGS.napi_munkadij.value;
+    const felár = CALC_SETTINGS.munkadij_pct.value / 100;
+    munkadij = napok * napi * (1 + felár);
+    munkadijLabel = `${napok} nap × ${fmt(napi)}${felár > 0 ? ' × ' + (1+felár) : ''}`;
+    netto = anyagok + munkadij;
+  }
+
+  const nettoKedv   = netto * (1 - discount/100);
+  const afaKedv     = nettoKedv * AFА;
+  const bruttoKedv  = nettoKedv * (1 + AFА);
+  const kwNetKedv   = rendszerKw > 0 ? nettoKedv / rendszerKw : 0;
+  const kwGrossKedv = rendszerKw > 0 ? bruttoKedv / rendszerKw : 0;
+
+  const modeLabel = mode === 'regi'
+    ? `📐 Régi mód (haszonkulcs: ×${CALC_SETTINGS.haszonkulcs.value})`
+    : `🆕 Új mód (napi díj: ${fmt(CALC_SETTINGS.napi_munkadij.value)})`;
+
+  const rowStyle = 'display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--border);font-size:0.83rem';
+  const hdrStyle = 'font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin:1rem 0 0.4rem';
+  const subStyle = 'color:var(--text-muted);font-size:0.75rem';
+
+  let html = `
+    <div style="background:var(--bg);border:1px solid var(--sun);border-radius:0.75rem;padding:1rem;margin-bottom:0.75rem;font-size:0.82rem">
+      <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem">
+        <span style="color:var(--text-muted)">Kalkulátor:</span><strong>Kalkulátor ${activeCalc} – ${modeLabel}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem">
+        <span style="color:var(--text-muted)">Rendszer mérete:</span><strong>${rendszerKw.toFixed(3)} kW</strong>
+      </div>
+      ${discount > 0 ? `<div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">Kedvezmény:</span><strong style="color:var(--red)">−${discount}%</strong></div>` : ''}
+    </div>
+
+    <div style="${hdrStyle}">🔆 Napelemek</div>
+    <div style="${rowStyle}">
+      <span>${panelSel.name} <span style="${subStyle}">(${panelQty} db × ${fmt(panelSel.huf)})</span></span>
+      <strong>${fmt(panelCost)}</strong>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:0.2rem 0;font-size:0.75rem;color:var(--text-muted)">
+      <span>Napelem egységár</span><span>${fmt(panelSel.huf)}/db</span>
+    </div>`;
+
+  if (tartCost > 0) {
+    const tart = PRODUCTS.tarts.find(t => Number(t.code) === tartCode || (PRODUCTS.tarts.indexOf(t)+1) === tartCode);
+    html += `
+    <div style="${hdrStyle}">🏗️ Tartószerkezet</div>
+    <div style="${rowStyle}">
+      <span>${tartName} <span style="${subStyle}">(alap: ${fmt(tart?.base||0)} + ${Math.max(0,rendszerKw-3).toFixed(2)} kW × ${fmt(tart?.per_kw||0)})</span></span>
+      <strong>${fmt(tartCost)}</strong>
+    </div>`;
+  }
+
+  if (inv1Sel && inv1Qty > 0) {
+    html += `
+    <div style="${hdrStyle}">⚡ Inverterek</div>
+    <div style="${rowStyle}">
+      <span>${inv1Sel.name} <span style="${subStyle}">(${inv1Qty} db × ${fmt(inv1Sel.huf)})</span></span>
+      <strong>${fmt(inv1Cost)}</strong>
+    </div>`;
+    if (inv2Sel && inv2Qty > 0) html += `
+    <div style="${rowStyle}">
+      <span>${inv2Sel.name} <span style="${subStyle}">(${inv2Qty} db × ${fmt(inv2Sel.huf)})</span></span>
+      <strong>${fmt(inv2Cost)}</strong>
+    </div>`;
+  }
+
+  if (optiSel && optiQty > 0) {
+    html += `
+    <div style="${hdrStyle}">🔧 Optimalizátor</div>
+    <div style="${rowStyle}">
+      <span>${optiSel.name} <span style="${subStyle}">(${optiQty} db × ${fmt(optiSel.huf)})</span></span>
+      <strong>${fmt(optiCost)}</strong>
+    </div>`;
+  }
+
+  if (egyebRows.length > 0) {
+    html += `<div style="${hdrStyle}">📦 Egyéb termékek</div>`;
+    egyebRows.forEach(r => {
+      html += `<div style="${rowStyle}">
+        <span>${r.name} <span style="${subStyle}">(${r.qty} db × ${fmt(r.egysegar)})</span></span>
+        <strong>${fmt(r.cost)}</strong>
+      </div>`;
+    });
+  }
+
+  // Összesítő
+  html += `
+    <div style="border-top:2px solid var(--border);margin-top:0.75rem;padding-top:0.75rem">
+      <div style="${rowStyle}">
+        <span style="font-weight:600">Anyagköltség összesen</span><strong>${fmt(anyagok)}</strong>
+      </div>
+      <div style="${rowStyle}">
+        <span>Munkadíj <span style="${subStyle}">(${munkadijLabel})</span></span>
+        <strong>${fmt(munkadij)}</strong>
+      </div>`;
+
+  if (mode === 'regi') {
+    html += `
+      <div style="${rowStyle}">
+        <span style="color:var(--text-muted)">Bekerülési ár összesen</span><span>${fmt(anyagok + munkadij)}</span>
+      </div>
+      <div style="${rowStyle}">
+        <span style="color:var(--text-muted)">× ${CALC_SETTINGS.haszonkulcs.value} haszonkulcs</span><span>${fmt(netto)}</span>
+      </div>`;
+  } else {
+    html += `
+      <div style="${rowStyle}">
+        <span style="color:var(--text-muted)">Nettó összesen (anyag + munkadíj)</span><span>${fmt(netto)}</span>
+      </div>`;
+  }
+
+  if (discount > 0) {
+    html += `<div style="${rowStyle}"><span style="color:var(--red)">Kedvezmény (−${discount}%)</span><span style="color:var(--red)">−${fmt(netto - nettoKedv)}</span></div>`;
+  }
+
+  html += `
+      <div style="display:flex;justify-content:space-between;padding:0.4rem 0;font-size:0.83rem">
+        <span style="color:var(--text-muted)">ÁFA (${CALC_SETTINGS.afa.value}%)</span>
+        <span>${fmt(afaKedv)}</span>
+      </div>
+    </div>
+
+    <!-- VÉGEREDMÉNY -->
+    <div style="background:linear-gradient(135deg,var(--surface),var(--surface2));border:1px solid var(--sun);border-radius:0.75rem;padding:1rem;margin-top:0.75rem">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;text-align:center">
+        <div>
+          <div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.2rem">Nettó ár</div>
+          <div style="font-size:1.1rem;font-weight:800">${fmt(nettoKedv)}</div>
+        </div>
+        <div>
+          <div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.2rem">Bruttó ár</div>
+          <div style="font-size:1.3rem;font-weight:800;color:var(--sun)">${fmt(bruttoKedv)}</div>
+        </div>
+        <div>
+          <div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.2rem">kW ár nettó</div>
+          <div style="font-size:0.95rem;font-weight:700;color:var(--green)">${fmt(kwNetKedv)}/kW</div>
+        </div>
+        <div>
+          <div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.2rem">kW ár bruttó</div>
+          <div style="font-size:0.95rem;font-weight:700;color:var(--green)">${fmt(kwGrossKedv)}/kW</div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:0.75rem;font-size:0.72rem;color:var(--text-muted);text-align:center">
+      Frissítve: ${new Date().toLocaleTimeString('hu-HU')}
+    </div>`;
+
+  container.innerHTML = html;
 }
 
 // ============================================================
