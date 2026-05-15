@@ -325,7 +325,7 @@
   <div class="topbar">
     <div class="topbar-left">
       <span class="topbar-logo">☀️ Solar Future</span>
-      <span id="ver-badge" style="font-size:0.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:0.4rem;padding:0.1rem 0.4rem;background:var(--bg)">v1.9 – 2026-05-15 08:10</span>
+      <span id="ver-badge" style="font-size:0.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:0.4rem;padding:0.1rem 0.4rem;background:var(--bg)">v1.9 – 2026-05-15 08:26</span>
       <span class="user-badge" id="topbar-user">—</span>
     </div>
     <div class="topbar-right">
@@ -641,7 +641,7 @@
 // ADATOK
 // ============================================================
 const SHEETS_API = 'https://script.google.com/macros/s/AKfycbwcELD2MLNn3-9Odjsc8ullBmI7zHJtZmmrcqb19HjDcFc4YNnr7BnLJ6c3hjBf3SPj/exec';
-const APP_VERSION = 'v1.9 – 2026-05-15 08:10';
+const APP_VERSION = 'v1.9 – 2026-05-15 08:26';
 
 // Számítási paraméterek - admin felületen módosíthatók
 const CALC_SETTINGS = {
@@ -996,23 +996,51 @@ async function saveAjanlat() {
   const bruttoKedv = nettoKedv * (1 + AFА);
   const names = getCalcNames();
 
+  const fmt = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
   const payload = {
-    ertekesito:    currentUser.name || currentUser.email,
-    kalkulator:    names[activeCalc] || 'Kalkulátor ' + activeCalc,
-    mod:           mode === 'regi' ? 'Régi' : 'Új',
-    napelem:       panelSel.name,
-    napelemDb:     panelQty,
-    rendszerKw:    Math.round(rendszerKw * 1000) / 1000,
-    tartoszerkezet: tartName,
-    inverter1:     inv1Sel ? `${inv1Sel.name} (${inv1Qty} db)` : '',
-    inverter2:     inv2Sel && inv2Qty > 0 ? `${inv2Sel.name} (${inv2Qty} db)` : '',
-    optimalizator: optiSel && optiQty > 0 ? `${optiSel.name} (${optiQty} db)` : '',
+    ertekesito:       currentUser.name || currentUser.email,
+    kalkulator:       names[activeCalc] || 'Kalkulátor ' + activeCalc,
+    mod:              mode === 'regi' ? 'Régi' : 'Új',
+    // Napelem
+    napelem:          panelSel.name,
+    napelemDb:        panelQty,
+    napelemEgysegar:  Math.round(panelSel.huf),
+    napelemOsszeg:    Math.round(panelCost),
+    rendszerKw:       Math.round(rendszerKw * 1000) / 1000,
+    // Tartószerkezet
+    tartoszerkezet:   tartName,
+    tartoszerkezetOsszeg: Math.round(tartCost),
+    // Inverter 1
+    inverter1:        inv1Sel ? inv1Sel.name : '',
+    inverter1Db:      inv1Sel ? inv1Qty : 0,
+    inverter1Egysegar: inv1Sel ? Math.round(inv1Sel.huf) : 0,
+    inverter1Osszeg:  Math.round(inv1Cost),
+    // Inverter 2
+    inverter2:        inv2Sel && inv2Qty > 0 ? inv2Sel.name : '',
+    inverter2Db:      inv2Sel && inv2Qty > 0 ? inv2Qty : 0,
+    inverter2Egysegar: inv2Sel && inv2Qty > 0 ? Math.round(inv2Sel.huf) : 0,
+    inverter2Osszeg:  Math.round(inv2Cost),
+    // Optimalizátor
+    optimalizator:    optiSel && optiQty > 0 ? optiSel.name : '',
+    optimalizatorDb:  optiSel && optiQty > 0 ? optiQty : 0,
+    optimalizatorEgysegar: optiSel && optiQty > 0 ? Math.round(optiSel.huf) : 0,
+    optimalizatorOsszeg: Math.round(optiCost),
+    // Egyéb tételek
     tetelek,
-    anyagköltseg:  Math.round(anyagköltseg),
-    munkadij:      Math.round(munkadij),
-    kedvezmeny:    discount,
-    netto:         Math.round(nettoKedv),
-    brutto:        Math.round(bruttoKedv)
+    egyebOsszeg:      Math.round(egyebCost),
+    // Összesítők
+    anyagköltseg:     Math.round(anyagköltseg),
+    munkadij:         Math.round(munkadij),
+    bekerulesi:       Math.round(anyagköltseg + munkadij),
+    haszonkulcs:      mode === 'regi' ? CALC_SETTINGS.haszonkulcs.value : 1,
+    nettoKedvNelkul:  Math.round(netto),
+    kedvezmeny:       discount,
+    kedvezmenyOsszeg: Math.round(netto - nettoKedv),
+    netto:            Math.round(nettoKedv),
+    afa:              Math.round(nettoKedv * CALC_SETTINGS.afa.value / 100),
+    brutto:           Math.round(bruttoKedv),
+    kwArNetto:        Math.round(rendszerKw > 0 ? nettoKedv / rendszerKw : 0),
+    kwArBrutto:       Math.round(rendszerKw > 0 ? bruttoKedv / rendszerKw : 0),
   };
 
   try {
