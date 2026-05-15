@@ -1,4 +1,21 @@
 <!DOCTYPE html>
+<!--
+  ============================================================
+  Solar Future – Árazó
+  Verzió: v1.9 – 2026-05-15 08:10
+  Utolsó módosítás: 2026-05-15 08:10
+  
+  Változások v1.9-ben:
+  - Google Sheets felhasználókezelés (Felhasználók lap)
+  - Ajánlat mentés (💾 gomb → Sheets Ajánlatok lap)
+  - Admin: 📁 Ajánlatok tab (utolsó 20 mentett ajánlat)
+  - Régi és Új számítási mód kalkulátoronként
+  - Kompatibilitás szűrő (inverter → egyéb termékek)
+  - x-es árú termékek kiszűrve
+  - Tartószerkezet képlet: alap + (kW-3) × per_kW
+  - Verziószám + időbélyeg a topbarban
+  ============================================================
+-->
 <html lang="hu">
 <head>
 <meta charset="UTF-8">
@@ -308,7 +325,7 @@
   <div class="topbar">
     <div class="topbar-left">
       <span class="topbar-logo">☀️ Solar Future</span>
-      <span id="ver-badge" style="font-size:0.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:0.4rem;padding:0.1rem 0.4rem;background:var(--bg)">v1.9</span>
+      <span id="ver-badge" style="font-size:0.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:0.4rem;padding:0.1rem 0.4rem;background:var(--bg)">v1.9 – 2026-05-15 08:10</span>
       <span class="user-badge" id="topbar-user">—</span>
     </div>
     <div class="topbar-right">
@@ -624,7 +641,7 @@
 // ADATOK
 // ============================================================
 const SHEETS_API = 'https://script.google.com/macros/s/AKfycbwcELD2MLNn3-9Odjsc8ullBmI7zHJtZmmrcqb19HjDcFc4YNnr7BnLJ6c3hjBf3SPj/exec';
-const APP_VERSION = 'v1.9';
+const APP_VERSION = 'v1.9 – 2026-05-15 08:10';
 
 // Számítási paraméterek - admin felületen módosíthatók
 const CALC_SETTINGS = {
