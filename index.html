@@ -2,25 +2,34 @@
 <!--
   ============================================================
   Solar Future – Árazó
-  Verzió: v2.2 – 2026-05-29 12:06
-  Utolsó módosítás: 2026-05-29 12:06 (Budapest)
-  
+  Verzió: v2.3 – 2026-05-29 15:24
+  Utolsó módosítás: 2026-05-29 15:24 (Budapest)
+ 
+  Változások v2.3-ban:
+  - SofarCloud közvetlen böngészős integráció
+  - Megtérülés kalkulátor (📊 tab)
+  - PVGIS API automatikus lekérés
+  - Sávos áramár számítás (lakossági/céges)
+  - Cashflow táblázat + grafikonok
+ 
+  Változások v2.2-ban:
+  - Megtérülés kalkulátor alap struktúra
+  - Főoldal navigáció (Árazó / Megtérülés tab)
+ 
   Változások v2.1-ben:
-  - Session kezelés: 4 órás munkamenet
-  - Session visszaszámláló óra a jobb alsó sarokban
-  - 5 perccel lejárat előtt figyelmeztetés + automata mentés
-  - Munkamenet meghosszabbítás gombbal
-  - Verziószám budapesti időbélyeggel
-  
+  - Session visszaszámláló óra (jobb alsó sarok)
+  - Villogó figyelmeztetés 30 perc / 5 perc / 1 percnél
+ 
   Változások v2.0-ban:
-  - Session figyelmeztetés modal (5 perc előtt)
-  - Automatikus ajánlat mentés lejárat előtt
-  
+  - Session kezelés: 4 órás munkamenet
+  - 5 perccel lejárat előtt figyelmeztetés modal + automata mentés
+  - Munkamenet meghosszabbítás gombbal
+ 
   Változások v1.9-ben:
   - Google Sheets felhasználókezelés
-  - Ajánlat mentés (Sheets Ajánlatok lap)
+  - Ajánlat mentés (💾 gomb → Sheets Ajánlatok lap)
   - Régi és Új számítási mód kalkulátoronként
-  - Kompatibilitás szűrő
+  - Kompatibilitás szűrő (inverter → egyéb termékek)
   - Tartószerkezet képlet: alap + (kW-3) × per_kW
   ============================================================
 -->
@@ -46,7 +55,7 @@
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
-
+ 
   /* LOGIN */
   #login-screen {
     display: flex; align-items: center; justify-content: center;
@@ -77,7 +86,7 @@
   }
   .btn-login:hover { background: var(--sun-dark); }
   .login-error { color: var(--red); text-align: center; margin-top: 0.75rem; font-size: 0.9rem; display: none; }
-
+ 
   /* APP */
   #app { display: none; }
   .topbar {
@@ -99,7 +108,7 @@
   }
   .btn-sm:hover { border-color: var(--sun); color: var(--sun); }
   .btn-sm.danger:hover { border-color: var(--red); color: var(--red); }
-
+ 
   /* CALC SELECTOR */
   .calc-tabs {
     display: flex; gap: 0.5rem; padding: 1rem; overflow-x: auto;
@@ -111,7 +120,7 @@
     cursor: pointer; transition: all 0.2s; color: var(--text-muted); white-space: nowrap;
   }
   .calc-tab.active { background: var(--sun); color: #000; border-color: var(--sun); font-weight: 700; }
-
+ 
   /* MAIN CONTENT */
   .main { padding: 1rem; max-width: 700px; margin: 0 auto; }
   .section { margin-bottom: 1.2rem; }
@@ -150,7 +159,7 @@
   .dropdown-item:hover { background: var(--surface); }
   .dropdown-item:last-child { border-bottom: none; }
   .dropdown-empty { padding: 0.75rem 1rem; color: var(--text-muted); font-size: 0.85rem; }
-
+ 
   /* NUMBER INPUT */
   .num-input {
     background: var(--bg); border: 1px solid var(--border);
@@ -159,7 +168,7 @@
     transition: border-color 0.2s;
   }
   .num-input:focus { border-color: var(--sun); }
-
+ 
   /* SELECT */
   .sel-input {
     width: 100%; background: var(--bg); border: 1px solid var(--border);
@@ -168,7 +177,7 @@
     appearance: none; cursor: pointer;
   }
   .sel-input:focus { border-color: var(--sun); }
-
+ 
   /* EXTRA ITEMS */
   .extra-list { display: grid; gap: 0.5rem; }
   .extra-row { display: grid; grid-template-columns: 1fr auto auto; gap: 0.5rem; align-items: center; }
@@ -182,11 +191,11 @@
     background: transparent; border: none; color: var(--red); cursor: pointer;
     font-size: 1.1rem; padding: 0.25rem; line-height: 1;
   }
-
+ 
   /* KEDVEZMÉNY */
   .discount-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 1rem; }
   input[type=range] { width: 100%; accent-color: var(--sun); }
-
+ 
   /* RESULTS */
   .results-card {
     background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%);
@@ -206,7 +215,7 @@
     margin-top: 0.75rem;
   }
   .kw-badge strong { color: var(--sun); }
-
+ 
   /* ADMIN */
   #admin-panel {
     display: none; padding: 1rem; max-width: 700px; margin: 0 auto;
@@ -262,7 +271,7 @@
   }
   .main-nav-tab:hover { color: var(--sun); }
   .main-nav-tab.active { color: var(--sun); border-bottom-color: var(--sun); }
-
+ 
   /* MEGTÉRÜLÉS KALKULÁTOR */
   #megterules-view {
     display: none; padding: 1rem; max-width: 800px; margin: 0 auto;
@@ -284,7 +293,7 @@
   }
   .mt-field input:focus, .mt-field select:focus { border-color: var(--sun); }
   .mt-field .unit { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem; }
-
+ 
   /* Toggle switch */
   .mt-toggle { display: flex; background: var(--bg); border: 1px solid var(--border); border-radius: 0.6rem; overflow: hidden; }
   .mt-toggle button {
@@ -292,7 +301,7 @@
     padding: 0.6rem; font-size: 0.85rem; cursor: pointer; transition: all 0.2s;
   }
   .mt-toggle button.active { background: var(--sun); color: #000; font-weight: 700; }
-
+ 
   /* Eredmény kártyák */
   .mt-result-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 1rem; }
   @media (max-width: 500px) { .mt-result-grid { grid-template-columns: 1fr 1fr; } }
@@ -306,7 +315,7 @@
   .mt-kpi-value.green { color: var(--green); }
   .mt-kpi-value.white { color: var(--text); font-size: 1rem; }
   .mt-kpi-sub { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.2rem; }
-
+ 
   /* Táblázat */
   .mt-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
   .mt-table th { background: var(--bg); color: var(--text-muted); padding: 0.5rem 0.6rem; text-align: right; font-size: 0.7rem; text-transform: uppercase; border-bottom: 1px solid var(--border); }
@@ -316,10 +325,10 @@
   .mt-table tr.megtérült td { color: var(--green); font-weight: 700; }
   .mt-table tr.megtérült td:first-child { color: var(--green); }
   .mt-table .total-row td { border-top: 2px solid var(--border); font-weight: 700; color: var(--sun); }
-
+ 
   /* Grafikon */
   .mt-chart-wrap { position: relative; height: 220px; }
-
+ 
   /* SofarCloud panel */
   .sofar-panel {
     background: linear-gradient(135deg, #0a1628, #0f2040);
@@ -331,7 +340,7 @@
   .sofar-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); }
   .sofar-dot.connected { background: var(--green); animation: pulse-dot 2s infinite; }
   @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.4} }
-
+ 
   /* ADMIN TABS */
   .admin-tab {
     border: 1px solid var(--border); background: var(--bg); color: var(--text-muted);
@@ -341,7 +350,7 @@
   }
   .admin-tab:hover { color: var(--sun); border-color: var(--sun); }
   .admin-tab.active { background: var(--surface); color: var(--sun); border-color: var(--sun); font-weight: 700; }
-
+ 
   /* SESSION ÓRA */
   #session-clock {
     position: fixed; bottom: 5.5rem; right: 1rem; z-index: 490;
@@ -358,12 +367,12 @@
   #session-clock.danger  { border-color: var(--red);  color: var(--red);  animation: pulse-border 0.5s ease-in-out infinite; }
   #session-clock-icon { font-size: 0.9rem; }
   #session-clock-time { font-weight: 700; font-variant-numeric: tabular-nums; min-width: 3.2rem; }
-
+ 
   @keyframes pulse-border {
     0%, 100% { opacity: 1; }
     50%       { opacity: 0.5; }
   }
-
+ 
   .toast {
     position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
     background: var(--green); color: #fff; padding: 0.75rem 1.5rem;
@@ -398,7 +407,7 @@
     border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.3rem; margin-top: 0.1rem;
   }
   .rbar-sub span { color: var(--green); font-weight: 600; }
-
+ 
   @media (max-width: 400px) {
     .rbar-val { font-size: 0.85rem; }
     .rbar-val.brutto { font-size: 0.95rem; }
@@ -407,7 +416,7 @@
 </style>
 </head>
 <body>
-
+ 
 <!-- LOGIN -->
 <div id="login-screen">
   <div class="login-card">
@@ -429,13 +438,13 @@
     <div class="login-error" id="login-error">Hibás email cím vagy jelszó.</div>
   </div>
 </div>
-
+ 
 <!-- APP -->
 <div id="app">
   <div class="topbar">
     <div class="topbar-left">
       <span class="topbar-logo">☀️ Solar Future</span>
-      <span id="ver-badge" style="font-size:0.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:0.4rem;padding:0.1rem 0.4rem;background:var(--bg)">v2.2 – 2026-05-29 12:06</span>
+      <span id="ver-badge" style="font-size:0.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:0.4rem;padding:0.1rem 0.4rem;background:var(--bg)">v2.3 – 2026-05-29 15:24</span>
       <span class="user-badge" id="topbar-user">—</span>
     </div>
     <div class="topbar-right">
@@ -444,13 +453,13 @@
       <button class="btn-sm danger" onclick="doLogout()">Kilépés</button>
     </div>
   </div>
-
+ 
   <!-- FŐ NAVIGÁCIÓ -->
   <div id="main-nav" style="background:var(--surface);border-bottom:2px solid var(--border);padding:0 1rem;display:flex;gap:0;display:none">
     <button class="main-nav-tab active" id="nav-arazas" onclick="switchMainTab('arazas')">🧮 Árazó</button>
     <button class="main-nav-tab" id="nav-megterules" onclick="switchMainTab('megterules')">📊 Megtérülés</button>
   </div>
-
+ 
   <!-- CALC SELECTOR -->
   <div class="calc-tabs" id="calc-tabs"></div>
   <!-- SZINKRON ÁLLAPOT -->
@@ -483,10 +492,10 @@
       <option value="30">+30%</option>
     </select>
   </div>
-
+ 
   <!-- KALKULATOR -->
   <div class="main" id="calc-view">
-
+ 
     <!-- NAPELEMEK -->
     <div class="section">
       <div class="section-title">🔆 Napelemek</div>
@@ -507,7 +516,7 @@
         </div>
       </div>
     </div>
-
+ 
     <!-- TARTÓSZERKEZET -->
     <div class="section">
       <div class="section-title">🏗️ Tartószerkezet</div>
@@ -520,7 +529,7 @@
         </div>
       </div>
     </div>
-
+ 
     <!-- INVERTEREK -->
     <div class="section">
       <div class="section-title">⚡ Inverter</div>
@@ -551,7 +560,7 @@
         </div>
       </div>
     </div>
-
+ 
     <!-- OPTIMALIZÁTOR -->
     <div class="section">
       <div class="section-title">🔧 Optimalizátor</div>
@@ -569,7 +578,7 @@
         </div>
       </div>
     </div>
-
+ 
     <!-- EGYÉB -->
     <div class="section">
       <div class="section-title">📦 Egyéb termékek</div>
@@ -578,7 +587,7 @@
         <button class="btn-add-extra" onclick="addExtraRow()">+ Kiegészítő hozzáadása</button>
       </div>
     </div>
-
+ 
     <!-- KEDVEZMÉNY -->
     <div class="section">
       <div class="section-title">🏷️ Kedvezmény</div>
@@ -592,10 +601,10 @@
         </div>
       </div>
     </div>
-
+ 
     <div style="height:8rem"></div>
   </div>
-
+ 
   <!-- FIXÁLT EREDMÉNYSÁV -->
   <div id="result-bar">
     <div id="result-bar-inner">
@@ -632,10 +641,10 @@
       </div>
     </div>
   </div>
-
+ 
   <!-- MEGTÉRÜLÉS KALKULÁTOR -->
   <div id="megterules-view">
-
+ 
     <!-- SofarCloud integráció -->
     <div class="sofar-panel" id="sofar-panel">
       <h3>🔌 SofarCloud – Meglévő rendszer adatai</h3>
@@ -655,10 +664,10 @@
       </div>
       <div id="sofar-data-preview" style="display:none;margin-top:0.75rem;font-size:0.78rem;color:var(--text-muted)"></div>
       <div style="margin-top:0.5rem;font-size:0.72rem;color:#4da6ff;opacity:0.7">
-        💡 A Station ID az eu.sofarcloud.com/plants/plantDetail/<strong style="color:#4da6ff">64438458</strong> URL-ből olvasható ki
+        💡 A Station ID az eu.sofarcloud.com/plants/plantDetail/<strong style="color:#4da6ff">65491568</strong> URL-ből olvasható ki &nbsp;|&nbsp; <a href="https://eu.sofarcloud.com/plants/plantList" target="_blank" style="color:#4da6ff">Rendszerek listája →</a>
       </div>
     </div>
-
+ 
     <!-- Ügyfél típus -->
     <div class="mt-card">
       <h3>👤 Ügyfél és rendszer adatok</h3>
@@ -706,7 +715,7 @@
         </div>
       </div>
     </div>
-
+ 
     <!-- Áramár beállítás -->
     <div class="mt-card">
       <h3>⚡ Áramár beállítás</h3>
@@ -716,7 +725,7 @@
           <button id="toggle-ceges" onclick="setUgyfelTipus('ceges')">🏢 Céges</button>
         </div>
       </div>
-
+ 
       <!-- Lakossági panel -->
       <div id="lakossagi-panel">
         <div class="mt-grid" style="margin-bottom:0.75rem">
@@ -751,7 +760,7 @@
         </div>
         <div id="mt-ar-info" style="margin-top:0.5rem;font-size:0.78rem;color:var(--text-muted);background:var(--bg);border-radius:0.5rem;padding:0.5rem 0.75rem;display:none"></div>
       </div>
-
+ 
       <!-- Céges panel -->
       <div id="ceges-panel" style="display:none">
         <div class="mt-grid">
@@ -775,7 +784,7 @@
         </div>
       </div>
     </div>
-
+ 
     <!-- Rendszer paraméterek -->
     <div class="mt-card">
       <h3>⚙️ Rendszer paraméterek</h3>
@@ -795,16 +804,16 @@
         </div>
       </div>
     </div>
-
+ 
     <!-- PVGIS státusz -->
     <div id="pvgis-status-bar" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:0.75rem;padding:0.6rem 1rem;margin-bottom:1rem;font-size:0.8rem;color:var(--text-muted);display:flex;align-items:center;gap:0.5rem">
       <span id="pvgis-status-icon">⏳</span>
       <span id="pvgis-status-text">PVGIS adatok betöltése...</span>
     </div>
-
+ 
     <!-- EREDMÉNYEK -->
     <div id="mt-results" style="display:none">
-
+ 
       <!-- KPI kártyák -->
       <div class="mt-result-grid">
         <div class="mt-kpi highlight">
@@ -838,7 +847,7 @@
           <div class="mt-kpi-sub">kWh/kWp/év</div>
         </div>
       </div>
-
+ 
       <!-- Grafikon -->
       <div class="mt-card">
         <h3>📈 Kumulált megtakarítás vs. beruházás</h3>
@@ -846,7 +855,7 @@
           <canvas id="mt-chart-megterules"></canvas>
         </div>
       </div>
-
+ 
       <!-- Havi termelés grafikon -->
       <div class="mt-card">
         <h3>📅 Várható havi termelés (PVGIS)</h3>
@@ -854,7 +863,7 @@
           <canvas id="mt-chart-havi"></canvas>
         </div>
       </div>
-
+ 
       <!-- Éves cashflow táblázat -->
       <div class="mt-card">
         <h3>📋 Éves megtakarítás táblázat</h3>
@@ -874,18 +883,18 @@
           </table>
         </div>
       </div>
-
+ 
     </div><!-- /mt-results -->
-
+ 
     <!-- Üres állapot -->
     <div id="mt-empty" style="text-align:center;padding:3rem 1rem;color:var(--text-muted)">
       <div style="font-size:3rem;margin-bottom:1rem">📊</div>
       <div style="font-size:1rem;margin-bottom:0.5rem">Töltsd ki a paramétereket a megtérülési kalkuláció elindításához</div>
       <div style="font-size:0.8rem">A kWp és a rendszer ára az árazóból automatikusan átvehető</div>
     </div>
-
+ 
   </div><!-- /megterules-view -->
-
+ 
   <!-- ADMIN PANEL -->
   <div id="admin-panel">
     <!-- ADMIN TABS -->
@@ -896,7 +905,7 @@
       <button class="admin-tab" onclick="switchAdminTab('detail')" id="atab-detail">🔍 Részletező</button>
       <button class="admin-tab" onclick="switchAdminTab('names')" id="atab-names">📋 Nevek</button>
     </div>
-
+ 
     <!-- TAB: FELHASZNÁLÓK -->
     <div id="atab-content-users">
     <div class="admin-card">
@@ -913,7 +922,7 @@
         <tbody id="user-table-body"></tbody>
       </table>
     </div>
-
+ 
     <div class="admin-card">
       <h3>➕ Felhasználók kezelése</h3>
       <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem">
@@ -927,16 +936,16 @@
         📊 Megnyitom a Sheets-t
       </a>
     </div>
-
+ 
     <div class="admin-card">
       <h3>🔑 Jelszó módosítása</h3>
       <p style="color:var(--text-muted);font-size:0.85rem">
         Jelszót a Google Sheets „Felhasználók" lapján tudsz módosítani – a B oszlopban írjd át az új jelszót, majd frissítsd az appot a 🔄 gombbal.
       </p>
     </div>
-
+ 
     </div><!-- /atab-content-users -->
-
+ 
     <!-- TAB: AJÁNLATOK -->
     <div id="atab-content-ajanlatok" style="display:none">
     <div class="admin-card">
@@ -956,7 +965,7 @@
       </div>
     </div>
     </div><!-- /atab-content-ajanlatok -->
-
+ 
     <!-- TAB: SZÁMÍTÁS -->
     <div id="atab-content-calc" style="display:none">
     <div class="admin-card">
@@ -968,9 +977,9 @@
       <div id="calc-settings-grid" style="display:grid;gap:0.75rem"></div>
       <div id="calc-preview" style="margin-top:1rem;background:var(--bg);border:1px solid var(--border);border-radius:0.75rem;padding:1rem;font-size:0.85rem;display:none"></div>
     </div>
-
+ 
     </div><!-- /atab-content-calc -->
-
+ 
     <!-- TAB: RÉSZLETEZŐ -->
     <div id="atab-content-detail" style="display:none">
     <div class="admin-card" id="detail-card">
@@ -989,7 +998,7 @@
       </div>
     </div>
     </div><!-- /atab-content-detail -->
-
+ 
     <!-- TAB: NEVEK -->
     <div id="atab-content-names" style="display:none">
     <div class="admin-card">
@@ -1002,15 +1011,15 @@
     </div><!-- /atab-content-names -->
   </div><!-- /admin-panel -->
 </div>
-
+ 
 <div class="toast" id="toast"></div>
-
+ 
 <!-- SESSION ÓRA (sarok) -->
 <div id="session-clock" onclick="extendSession()" title="Kattints a meghosszabbításhoz">
   <span id="session-clock-icon">🕐</span>
   <span id="session-clock-time">—</span>
 </div>
-
+ 
 <!-- SESSION FIGYELMEZTETÉS -->
 <div id="session-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9998;align-items:center;justify-content:center">
   <div style="background:var(--surface);border:2px solid var(--sun);border-radius:1.5rem;padding:2rem;max-width:420px;width:90%;text-align:center;box-shadow:0 25px 50px rgba(0,0,0,0.6)">
@@ -1035,14 +1044,14 @@
     <div style="margin-top:1rem;font-size:0.75rem;color:var(--text-muted)" id="autosave-status"></div>
   </div>
 </div>
-
+ 
 <script>
 // ============================================================
 // ADATOK
 // ============================================================
 const SHEETS_API = 'https://script.google.com/macros/s/AKfycbwcELD2MLNn3-9Odjsc8ullBmI7zHJtZmmrcqb19HjDcFc4YNnr7BnLJ6c3hjBf3SPj/exec';
-const APP_VERSION = 'v2.2 – 2026-05-29 12:06';
-
+const APP_VERSION = 'v2.3 – 2026-05-29 15:24';
+ 
 // Számítási paraméterek - admin felületen módosíthatók
 const CALC_SETTINGS = {
   // KÖZÖS
@@ -1061,7 +1070,7 @@ const CALC_SETTINGS = {
   nap_hatar_4:      { label: '4 nap kW határ – Új', value: 80.1, min: 20, max: 200, step: 0.1, desc: '80,1 kW-ig 4 nap.', mode: 'uj' },
   nap_hatar_5:      { label: '5 nap kW határ – Új', value: 100.1, min: 25, max: 250, step: 0.1, desc: '100,1 kW-ig 5 nap.', mode: 'uj' },
 };
-
+ 
 // Napok számítása az Új módban
 function calcDaysForKw(kw) {
   const s = CALC_SETTINGS;
@@ -1076,14 +1085,14 @@ function calcDaysForKw(kw) {
 const INVALID_CODES = new Set([1003009, 1003010, 5100004, 1003016, 1003017, 1003018, 1002002, 1001001, 1001002, 1001003, 1001004, 1001005, 1001006, 1001007, 1001008, 3005005, 1004023, 1004024, 1004025, 3003001, 3003002, 3003003, 3003004, 3003005, 3002001, 3002002, 3002003, 3002004, 3002005, 4003002, 4003003, 4003004, 4003005, 4003008, 4003009, 5002013, 5002014, 2100001, 2100002, 5002020, 2009001, 2009002, 2008001, 2008003, 2008004, 2008005, 2008006, 1005009, 1005011, 1005012, 1005015, 1005016, 1005018, 1005022, 1005025, 1005026, 1004001, 1004002, 1004003, 1004004, 1004005, 1004006, 1004007, 1004008, 1004009, 1004010, 1004011, 1004012, 1004013, 1004014, 1004015, 1004016, 1004017, 1004018, 1004019, 1004020, 1004021, 1004022, 1003001, 1004026, 1003005]);
 const COMPAT_MAP = {"1002001": [5100001, 5002001, 5002002, 5002003, 5002004, 5002005, 5002006, 5002007, 5002008, 5002009, 5002010, 5002011, 5002012, 5002013, 5002014, 5002015, 5002016, 5002017, 5002018, 5002020, 5100002, 5100004], "1002005": [5100001, 5002001, 5002002, 5002003, 5002004, 5002005, 5002006, 5002007, 5002008, 5002009, 5002010, 5002011, 5002012, 5002013, 5002014, 5002015, 5002016, 5002017, 5002018, 5002020, 5100002, 5100004], "1002006": [5100001, 5002001, 5002002, 5002003, 5002004, 5002005, 5002006, 5002007, 5002008, 5002009, 5002010, 5002011, 5002012, 5002013, 5002014, 5002015, 5002016, 5002017, 5002018, 5002020, 5100002, 5100004], "1002007": [5100001, 5002001, 5002002, 5002003, 5002004, 5002005, 5002006, 5002007, 5002008, 5002009, 5002010, 5002011, 5002012, 5002013, 5002014, 5002015, 5002016, 5002017, 5002018, 5002020, 5100002, 5100004], "1002008": [5100001, 5002001, 5002002, 5002003, 5002004, 5002005, 5002006, 5002007, 5002008, 5002009, 5002010, 5002011, 5002012, 5002013, 5002014, 5002015, 5002016, 5002017, 5002018, 5002020, 5100002, 5100004], "1002009": [5100001, 5002001, 5002002, 5002003, 5002004, 5002005, 5002006, 5002007, 5002008, 5002009, 5002010, 5002011, 5002012, 5002013, 5002014, 5002015, 5002016, 5002017, 5002018, 5002020, 5100002, 5100004], "1002010": [5100001, 5002001, 5002002, 5002003, 5002004, 5002005, 5002006, 5002007, 5002008, 5002009, 5002010, 5002011, 5002012, 5002013, 5002014, 5002015, 5002016, 5002017, 5002018, 5002020, 5100002, 5100004], "1002011": [5100001, 5002001, 5002002, 5002003, 5002004, 5002005, 5002006, 5002007, 5002008, 5002009, 5002010, 5002011, 5002012, 5002013, 5002014, 5002015, 5002016, 5002017, 5002018, 5002019, 5002020, 3002001, 3002002, 3002003, 3002004, 3002005, 5100002, 5100004], "1002012": [5100001, 5002001, 5002002, 5002003, 5002004, 5002005, 5002006, 5002007, 5002008, 5002009, 5002010, 5002011, 5002012, 5002013, 5002014, 5002015, 5002016, 5002017, 5002018, 5002019, 5002020, 3002001, 3002002, 3002003, 3002004, 3002005, 5100002, 5100004], "1002013": [5100001, 5002001, 5002002, 5002003, 5002004, 5002005, 5002006, 5002007, 5002008, 5002009, 5002010, 5002011, 5002012, 5002013, 5002014, 5002015, 5002016, 5002017, 5002018, 5002019, 5002020, 3002001, 3002002, 3002003, 3002004, 3002005, 5100002, 5100004], "1002014": [5100001, 5002001, 5002002, 5002003, 5002004, 5002005, 5002006, 5002007, 5002008, 5002009, 5002010, 5002011, 5002012, 5002013, 5002014, 5002015, 5002016, 5002017, 5002018, 5002019, 5002020, 3002001, 3002002, 3002003, 3002004, 3002005, 5100002, 5100004], "1003001": [5100001, 3003001, 3003002, 3003003, 3003004, 3003005, 5100002, 5100004], "1003002": [5100001, 5100002, 5100004], "1003003": [5100001, 5100002, 5100004], "1003004": [5100001, 5100002, 5100004], "1003005": [5100001, 5100002, 5100004], "1003006": [5100001, 5100002, 5100004], "1003007": [5100001, 5100002, 5100004], "1003008": [5100001, 5100002, 5100004], "1003009": [5100001, 5100002, 5100004], "1003010": [5100001, 5100002, 5100004], "1003011": [5100001, 5100002, 5100004], "1003012": [5100001, 5100002, 5100004], "1003013": [5100001, 5100002, 5100004], "1003014": [5100001, 5100002, 5100004], "1003015": [5100001, 5100002, 5100004], "1003016": [5100001, 3003001, 3003002, 3003003, 3003004, 3003005, 5100002, 5100004], "1003017": [5100001, 3003001, 3003002, 3003003, 3003004, 3003005, 5100002, 5100004], "1003018": [5100001, 3003001, 3003002, 3003003, 3003004, 3003005, 5100002, 5100004], "1004001": [5100001, 5100002, 5100004], "1004002": [5100001, 5100002, 5100004], "1004003": [5100001, 5100002, 5100004], "1004004": [5100001, 5100002, 5100004], "1004005": [5100001, 5100002, 5100004], "1004006": [5100001, 5100002, 5100004], "1004007": [5100001, 5100002, 5100004], "1004008": [5100001, 5100002, 5100004], "1004009": [5100001, 5100002, 5100004], "1004010": [5100001, 5100002, 5100004], "1004011": [5100001, 5100002, 5100004], "1004012": [5100001, 5100002, 5100004], "1004013": [5100001, 5100002, 5100004], "1004014": [5100001, 5100002, 5100004], "1004015": [5100001, 5100002, 5100004], "1004016": [5100001, 5100002, 5100004], "1004017": [5100001, 5100002, 5100004], "1004018": [5100001, 5100002, 5100004], "1004019": [5100001, 5100002, 5100004], "1004020": [5100001, 5100002, 5100004], "1004021": [5100001, 5100002, 5100004], "1004022": [5100001, 5100002, 5100004], "1004023": [5100001, 5100002, 5100004], "1004024": [5100001, 5100002, 5100004], "1004025": [5100001, 5100002, 5100004], "1004026": [5100001, 5100002, 5100004], "1005001": [5100001, 5100002, 5100004], "1005002": [5100001, 5100002, 5100004], "1005003": [5100001, 5100002, 5100004], "1005004": [5100001, 5100002, 5100004], "1005005": [5100001, 5100002, 5100004], "1005006": [5100001, 5100002, 5100004], "1005007": [5100001, 5100002, 5100004], "1005008": [5100001, 5100002, 5100004], "1005010": [5100001, 5100002, 5100004], "1005013": [5100001, 5100002, 5100004], "1005014": [5100001, 5100002, 5100004], "1005017": [5100001, 5100002, 5100004], "1005019": [5100001, 5100002, 5100004], "1005020": [5100001, 5100002, 5100004], "1005021": [5100001, 5100002, 5100004], "1005023": [5100001, 5100002, 5100004], "1005024": [5100001, 5100002, 5100004], "1005025": [5100001, 5100002, 5100004], "1005026": [5100001, 5100002, 5100004], "1005027": [5100001, 3005001, 3005002, 3005011, 5100003, 5100002, 5100004], "1005028": [5100001, 3005001, 3005002, 3005011, 5100003, 5100002, 5100004], "1005029": [5100001, 3005001, 3005002, 3005011, 5100003, 5100002, 5100004], "1005030": [5100001, 3005001, 3005002, 3005011, 5100003, 5100002, 5100004], "1005031": [5100001, 3005001, 3005002, 3005011, 5100003, 5100002, 5100004], "1005032": [5100001, 3005001, 3005002, 3005011, 5100003, 5100002, 5100004], "1005033": [5100001, 5100003, 5100002, 5100004, 3005003, 3005004, 3005006, 3005007, 3005008], "1005034": [5100001, 5100003, 5100002, 5100004, 3005003, 3005004, 3005006, 3005007, 3005008], "1005035": [5100001, 5100003, 5100002, 5100004, 3005003, 3005004, 3005006, 3005007, 3005008], "1010001": [5100001, 5100002, 5100004, 3011001, 3011002, 5010001, 5010002], "1010002": [5100001, 5100002, 5100004, 3011001, 3011002, 5010001, 5010002], "1010003": [5100001, 5100002, 5100004, 3011001, 3011002, 5010001, 5010002], "1010004": [5100001, 5100002, 5100004, 3011001, 3011002, 5010001, 5010002], "1010005": [5100001, 5100002, 5100004, 3011001, 3011002, 5010001, 5010002], "1010006": [5100001, 5100002, 5100004, 3011001, 3011002, 5010001, 5010002], "1012001": [5100001, 5100002, 5100004, 3012001, 3012002], "1012002": [5100001, 5100002, 5100004, 3012001, 3012002], "1012003": [5100001, 5100002, 5100004, 3012001, 3012002], "1012004": [5100001, 5100002, 5100004, 3012001, 3012002], "1012005": [5100001, 5100002, 5100004, 3012001, 3012002], "1012006": [5100001, 5100002, 5100004, 3012001, 3012002], "1012007": [5100001, 5100002, 5100004, 3012001, 3012002], "1012008": [5100001, 5100002, 5100004, 3012001, 3012002], "1012009": [5100001, 5100002, 5100004, 3012001, 3012002], "1012010": [5100001, 5100002, 5100004, 3012001, 3012002], "2014001": [5100001, 5100002, 5100004], "2014002": [5100001, 5100002, 5100004], "2014003": [5100001, 5100002, 5100004], "2014004": [5100001, 5100002, 5100004], "2014005": [5100001, 5100002, 5100004], "1005036": [5100001, 3005002, 3005011, 5100002, 5100004], "1005037": [5100001, 3005002, 3005011, 5100002, 5100004], "1005038": [5100001, 3005002, 3005011, 5100002, 5100004], "1005039": [5100001, 3005002, 3005011, 5100002, 5100004], "1005040": [5100001, 3005002, 3005011, 5100002, 5100004], "1005041": [5100001, 5100003, 5100002, 5100004, 3005009, 3005010], "1005042": [5100001, 5100003, 5100002, 5100004, 3005009, 3005010], "1005043": [5100001, 5100003, 5100002, 5100004, 3005009, 3005010], "1005044": [5100001, 5100003, 5100002, 5100004, 3005009, 3005010], "1005045": [5100001, 5100003, 5100002, 5100004, 3005009, 3005010], "1005046": [5100001, 5100003, 5100002, 5100004, 3005009, 3005010], "1005047": [5100001, 5100003, 5100002, 5100004, 3005009, 3005010], "1010007": [5100001, 5100002, 5100004, 3011001, 3011002], "1010008": [5100001, 5100002, 5100004, 3011001, 3011002], "1010009": [5100001, 5100002, 5100004, 3011001, 3011002], "1010010": [5100001, 5100002, 5100004, 3011001, 3011002], "1010011": [5100001, 5100002, 3011001, 3011002], "1010012": [5100001, 5100002, 3011001, 3011002, 3011003, 3011004, 3011005], "1010013": [5100001, 5100002, 3011001, 3011002, 3011003, 3011004, 3011005], "1010014": [5100001, 5100002, 3011001, 3011002, 3011003, 3011004, 3011005], "1010015": [5100001, 5100002, 3011001, 3011002, 3011003, 3011004, 3011005], "1010016": [5100001, 5100002, 3011001, 3011002, 3011003, 3011004, 3011005], "1010017": [5100001, 5100002, 3011001, 3011002, 3011003, 3011004, 3011005], "1010018": [5100001, 5100002, 3011001, 3011002, 3011003, 3011004, 3011005], "3005012": [5100002], "1015001": [5100001]};
 let PRODUCTS = {"panels":[{"name":"Napelem Astronergy 480","code":2009004,"kw":0.48,"huf":18868.03},{"name":"Napelem Astronergy 450","code":2009005,"kw":0.45,"huf":18245.03},{"name":"Napelem Yingli 430W","code":1013001,"kw":0.43,"huf":18512.03},{"name":"Napelem RISEN ENERGY RSM96 D.Glass 450W","code":1016001,"kw":0.45,"huf":20000.0}],"inverters":[{"name":"Inverter SMA CORE-1 STP 50-40 - 3","code":1002001,"huf":1103601.55},{"name":"Inverter SMA STP 3.0-3AV-40 - 3","code":1002005,"huf":293344.41},{"name":"Inverter SMA STP 4.0-3AV-40 - 3","code":1002006,"huf":313280.44},{"name":"Inverter SMA STP 5.0-3AV-40 - 3","code":1002007,"huf":338200.47},{"name":"Inverter SMA STP 6.0-3AV-40 - 3","code":1002008,"huf":373800.53},{"name":"Inverter SMA STP 8.0-3AV-40 - 3","code":1002009,"huf":483448.68},{"name":"Inverter SMA STP 10.0-3AV-40 - 3","code":1002010,"huf":500892.7},{"name":"Inverter SMA STP X 12","code":1002011,"huf":573872.81},{"name":"Inverter SMA STP X 15","code":1002012,"huf":612320.86},{"name":"Inverter SMA STP X 20","code":1002013,"huf":652904.92},{"name":"Inverter SMA STP X 25","code":1002014,"huf":764333.07},{"name":"Inverter Solar Edge SE10K","code":1003002,"huf":506588.71},{"name":"Inverter Solar Edge SE12.5K","code":1003003,"huf":374156.53},{"name":"Inverter Solar Edge SE16K","code":1003004,"huf":438948.62},{"name":"Inverter Solar Edge SE25K","code":1003006,"huf":593808.83},{"name":"Inverter Solar Edge SE30K","code":1003007,"huf":462800.65},{"name":"Inverter Solar Edge SE33.3K","code":1003008,"huf":481312.68},{"name":"Inverter Solar Edge SE5K","code":1003011,"huf":292632.41},{"name":"Inverter Solar Edge SE6K","code":1003012,"huf":288360.41},{"name":"Inverter Solar Edge SE7K","code":1003013,"huf":301888.42},{"name":"Inverter Solar Edge SE8K","code":1003014,"huf":375224.53},{"name":"Inverter Solar Edge SE9K","code":1003015,"huf":390176.55},{"name":"Inverter Sofarsolar 3.3KTLX-G3","code":1005001,"huf":170880.24},{"name":"Inverter Sofarsolar 4.4KTLX-G3","code":1005002,"huf":174440.24},{"name":"Inverter Sofarsolar 5.5KTLX-G3","code":1005003,"huf":184408.26},{"name":"Inverter Sofarsolar 6.6KTLX-G3","code":1005004,"huf":192952.27},{"name":"Inverter Sofarsolar 8.8KTLX-G3","code":1005005,"huf":198292.28},{"name":"Inverter Sofarsolar 11KTLX-G3","code":1005006,"huf":203276.29},{"name":"Inverter Sofarsolar 12KTLX-G3","code":1005007,"huf":223924.31},{"name":"Inverter Sofarsolar 15KTLX-G3","code":1005008,"huf":259880.36},{"name":"Inverter Sofarsolar 20KTLX-G3","code":1005010,"huf":314348.44},{"name":"Inverter Sofarsolar 25KTLX-G3","code":1005013,"huf":341760.48},{"name":"Inverter Sofarsolar 30KTLX-G3","code":1005014,"huf":375936.53},{"name":"Inverter Sofarsolar 40KTLX-G3","code":1005017,"huf":433964.61},{"name":"Inverter Sofarsolar 50KTLX-G3","code":1005019,"huf":509080.72},{"name":"Inverter Sofarsolar 60KTLX-G3","code":1005020,"huf":724461.02},{"name":"Inverter Sofarsolar 80KTLX-G3","code":1005021,"huf":875049.23},{"name":"Inverter Sofarsolar 110KTL","code":1005023,"huf":956929.34},{"name":"Inverter Sofarsolar 125KTL","code":1005024,"huf":987545.39},{"name":"Inverter Sofarsolar HYD 5KTL-3PH","code":1005027,"huf":334996.47},{"name":"Inverter Sofarsolar HYD 6KTL-3PH","code":1005028,"huf":369528.52},{"name":"Inverter Sofarsolar HYD 8KTL-3PH","code":1005029,"huf":417944.59},{"name":"Inverter Sofarsolar HYD 10KTL-3PH","code":1005030,"huf":424708.6},{"name":"Inverter Sofarsolar HYD 15KTL-3PH","code":1005031,"huf":528304.74},{"name":"Inverter Sofarsolar HYD 20KTL-3PH","code":1005032,"huf":562836.79},{"name":"Inverter Sofarsolar HYD 40K-T1","code":1005033,"huf":1308301.84},{"name":"Inverter Sofarsolar HYD 50K-T1","code":1005034,"huf":1343189.89},{"name":"Inverter Sofarsolar HYD 60K-T1","code":1005035,"huf":1430410.01},{"name":"Inverter Hoymiles HMS-500","code":1010001,"huf":46992.07},{"name":"Inverter Hoymiles HMS-900","code":1010002,"huf":69776.1},{"name":"Inverter Hoymiles HMS-1000","code":1010003,"huf":72268.1},{"name":"Inverter Hoymiles HMS-1600","code":1010004,"huf":90780.13},{"name":"Inverter Hoymiles HMS-1800","code":1010005,"huf":95764.13},{"name":"Inverter Hoymiles HMS-2000","code":1010006,"huf":98256.14},{"name":"Inverter Deye SUN-5K-SG04LP3-EU","code":1012001,"huf":495552.7},{"name":"Inverter Deye SUN-5K-SG05LP3-EU","code":1012002,"huf":495552.7},{"name":"Inverter Deye SUN-6K-SG04LP3-EU","code":1012003,"huf":585976.82},{"name":"Inverter Deye SUN-8K-SG05LP3-EUSM2","code":1012004,"huf":558564.78},{"name":"Inverter Deye SUN-10K-SG05LP3-EU","code":1012005,"huf":502672.71},{"name":"Inverter Deye SUN-10K-SG05LP3-EUSM2","code":1012006,"huf":502672.71},{"name":"Inverter Deye SUN-12K-SG04LP3-EU","code":1012007,"huf":509080.72},{"name":"Inverter Deye SUN-15K-SG05LP3-EUSM2","code":1012008,"huf":665720.94},{"name":"Inverter Deye SUN-18K-SG05LP3-EUSM2","code":1012009,"huf":802781.13},{"name":"Inverter Deye SUN-20K-SG05LP3-EUSM2","code":1012010,"huf":861521.21},{"name":"Inverter FOX ESS T5-G3","code":2014001,"huf":229976.32},{"name":"Inverter FOX ESS T6-G3","code":2014002,"huf":236028.33},{"name":"Inverter FOX ESS T8-G3","code":2014003,"huf":253116.36},{"name":"Inverter FOX ESS T10-G3","code":2014004,"huf":278392.39},{"name":"Inverter FOX ESS T12-G3","code":2014005,"huf":305092.43},{"name":"Inverter SOFAR ESI-5K-T1","code":1005036,"huf":352084.49},{"name":"Inverter SOFAR ESI-6.5K-T1","code":1005037,"huf":383412.54},{"name":"Inverter SOFAR ESI-8K-T1","code":1005038,"huf":431828.61},{"name":"Inverter SOFAR ESI-10K-T1","code":1005039,"huf":445356.63},{"name":"Inverter SOFAR ESI-12K-T1","code":1005040,"huf":487008.68},{"name":"Inverter Sofar HYD-5K-LT1 LV","code":1005041,"huf":328232.46},{"name":"Inverter Sofar HYD-6K-LT1 LV","code":1005042,"huf":355644.5},{"name":"Inverter Sofar HYD-8K-LT1 LV","code":1005043,"huf":373088.52},{"name":"Inverter Sofar HYD-10K-LT1 LV","code":1005044,"huf":393736.55},{"name":"Inverter Sofar HYD-12K-LT1 LV","code":1005045,"huf":435032.61},{"name":"Inverter Sofar HYD-15K-LT1 LV","code":1005046,"huf":476684.67},{"name":"Inverter Sofar HYD-20K-LT1 LV","code":1005047,"huf":607692.85},{"name":"Hoymiles HYT-5.0HV-EUG1 HV","code":1010007,"huf":405270.0},{"name":"Hoymiles HYT-6.0HV-EUG1 HV","code":1010008,"huf":410400.0},{"name":"Hoymiles HYT-8.0HV-EUG1 HV","code":1010009,"huf":420660.0},{"name":"Hoymiles HYT-10.0HV-EUG1 HV","code":1010010,"huf":433485.0},{"name":"Hoymiles HYT-12.0HV-EUG1 HV","code":1010011,"huf":459135.0},{"name":"Hoymiles HIT-5L-G3 LV","code":1010012,"huf":487350.0},{"name":"Hoymiles HIT-6L-G3 LV","code":1010013,"huf":497610.0},{"name":"Hoymiles HIT-8L-G3 LV","code":1010014,"huf":510435.0},{"name":"Hoymiles HIT-10L-G3 LV","code":1010015,"huf":551475.0},{"name":"Hoymiles HIT-12L-G3 LV","code":1010016,"huf":636120.0},{"name":"Hoymiles HIT-15L-G3 LV","code":1010017,"huf":713070.0},{"name":"Hoymiles HIT-20L-G3 LV","code":1010018,"huf":769500.0},{"name":"AKKU SOFAR Powermagic 125kW/258kWh","code":3005012,"huf":15842022.25},{"name":"Inverter Sigen Hybrid 2,5 SP2","code":1015001,"huf":168500.0}],"optik":[{"name":"Optimalizátor SolarEdge P601","code":4003001,"huf":21716.03},{"name":"Optimalizátor SolarEdge S500","code":4003007,"huf":17088.02},{"name":"Optimalizátor TIGO TS4","code":4007001,"huf":12460.02}],"tarts":[{"name":"Cserepes","code":1,"base":200000.0,"per_kw":33000.0},{"name":"Trapézsín","code":2,"base":200000.0,"per_kw":33000.0},{"name":"Lapostetős","code":3,"base":250000.0,"per_kw":55000.0},{"name":"Földre telepített","code":4,"base":250000.0,"per_kw":55000.0}],"egyeb":[{"name":"AKKU Deye AI-W5.1-B akkumulátor 5.12kWh","code":3012001,"huf":311856.44,"cat":"EGYEB"},{"name":"AKKU Deye AI-W5.1-B akkumulátor vezérlő modul + talp","code":3012002,"huf":250980.35,"cat":"EGYEB"},{"name":"AKKU Hoymiles LB-16D-G3 IP65 LV","code":3011005,"huf":625860.0,"cat":"EGYEB"},{"name":"AKKU Hoymiles LB-5D-G2 IP20 LV","code":3011003,"huf":292410.0,"cat":"EGYEB"},{"name":"AKKU Hoymiles LB-6D-G3 IP65 LV","code":3011004,"huf":328320.0,"cat":"EGYEB"},{"name":"AKKU Marstek B2500D (2,24KWh)","code":3011001,"huf":187256.26,"cat":"EGYEB"},{"name":"AKKU Marstek Venus E (5,12KWh) - sziget","code":3011002,"huf":468140.66,"cat":"EGYEB"},{"name":"AKKU SOFAR CBS5000-BCU Vezérlő","code":3005004,"huf":355644.5,"cat":"EGYEB"},{"name":"AKKU SOFAR CBS5000-BMU aksi","code":3005003,"huf":338556.48,"cat":"EGYEB"},{"name":"AKKU SOFAR CBS8000 64kWh","code":3005006,"huf":4420102.21,"cat":"EGYEB"},{"name":"AKKU SOFAR CBS8000 80kWh","code":3005007,"huf":5110743.18,"cat":"EGYEB"},{"name":"AKKU SOFAR CBS8000 96kWh","code":3005008,"huf":5766852.1,"cat":"EGYEB"},{"name":"AKKU Sofar SF-16kWh-L1 LV","code":3005010,"huf":511216.72,"cat":"EGYEB"},{"name":"AKKU Sofar SF-5kWh-L1 LV","code":3005009,"huf":203632.29,"cat":"EGYEB"},{"name":"Extra nyomvonal (25 méter fölött)","code":5100001,"huf":17800.03,"cat":"EGYEB"},{"name":"Garancia SMA +10év 0-5.0KW","code":5002007,"huf":117337.76,"cat":"EGYEB"},{"name":"Garancia SMA +10év 10.1-25.0KW","code":5002009,"huf":264009.97,"cat":"EGYEB"},{"name":"Garancia SMA +10év 25.1-50.0KW","code":5002010,"huf":351942.09,"cat":"EGYEB"},{"name":"Garancia SMA +10év 5.1-10.0KW","code":5002008,"huf":158405.98,"cat":"EGYEB"},{"name":"Garancia SMA +10év 50.1-90.0KW","code":5002011,"huf":469422.26,"cat":"EGYEB"},{"name":"Garancia SMA +10év 90.1-150.0KW","code":5002012,"huf":586688.82,"cat":"EGYEB"},{"name":"Garancia SMA +15év 10.1-25.0KW","code":5002015,"huf":396014.96,"cat":"EGYEB"},{"name":"Garancia SMA +15év 25.1-50.0KW","code":5002016,"huf":528019.94,"cat":"EGYEB"},{"name":"Garancia SMA +15év 50.1-90.0KW","code":5002017,"huf":704026.59,"cat":"EGYEB"},{"name":"Garancia SMA +15év 90.1-150.0KW","code":5002018,"huf":880033.24,"cat":"EGYEB"},{"name":"Garancia SMA +5év 0-5.0KW","code":5002001,"huf":58668.88,"cat":"EGYEB"},{"name":"Garancia SMA +5év 10.1-25.0KW","code":5002003,"huf":132004.99,"cat":"EGYEB"},{"name":"Garancia SMA +5év 25.1-50.0KW","code":5002004,"huf":176149.05,"cat":"EGYEB"},{"name":"Garancia SMA +5év 5.1-10.0KW","code":5002002,"huf":79202.99,"cat":"EGYEB"},{"name":"Garancia SMA +5év 50.1-90.0KW","code":5002005,"huf":234675.53,"cat":"EGYEB"},{"name":"Garancia SMA +5év 90.1-150.0KW","code":5002006,"huf":293344.41,"cat":"EGYEB"},{"name":"Hoymiles 1F vezérlő","code":5010001,"huf":320400.45,"cat":"EGYEB"},{"name":"Hoymiles 3F vezérlő","code":5010002,"huf":356000.5,"cat":"EGYEB"},{"name":"Huaweii Luna 10KW","code":3006002,"huf":1302454.0,"cat":"EGYEB"},{"name":"Huaweii Luna 15KW","code":3006003,"huf":1953681.0,"cat":"EGYEB"},{"name":"Huaweii Luna 5KW","code":3006001,"huf":651227.0,"cat":"EGYEB"},{"name":"Huaweii Luna vezérlő","code":3006004,"huf":325554.0,"cat":"EGYEB"},{"name":"Munkadíj Akkumulátor bekötés","code":5100003,"huf":35600.05,"cat":"EGYEB"},{"name":"SMA Sunny Home Magaer 2.0","code":5002019,"huf":149164.21,"cat":"EGYEB"},{"name":"Sofarsolar BTS 5K","code":3005002,"huf":355644.5,"cat":"EGYEB"},{"name":"Sofarsolar BTS 5K - Fűtött","code":3005011,"huf":365968.51,"cat":"EGYEB"},{"name":"Sofarsolar BTS vezérlő","code":3005001,"huf":74404.1,"cat":"EGYEB"},{"name":"Tűzeseti leválasztó","code":5100002,"huf":53400.07,"cat":"EGYEB"}]};
-
+ 
 // ============================================================
 // TERMÉK SZŰRÉS (invalid + kompatibilitás)
 // ============================================================
 function isValidProduct(code) {
   return !INVALID_CODES.has(Number(code));
 }
-
+ 
 function getCompatibleCodes() {
   const inv1 = searchState.inv1 ? searchState.inv1.selected : null;
   const inv2 = searchState.inv2 ? searchState.inv2.selected : null;
@@ -1096,13 +1105,13 @@ function getCompatibleCodes() {
   });
   return codes.size > 0 ? codes : null;
 }
-
+ 
 function filterByCompat(products) {
   const compatCodes = getCompatibleCodes();
   if (!compatCodes) return products;
   return products.filter(p => compatCodes.has(p.code));
 }
-
+ 
 // ============================================================
 // FELHASZNÁLÓKEZELÉS (localStorage-ban tárolva, hashelt jelszó)
 // ============================================================
@@ -1115,46 +1124,46 @@ function hashPass(pass) {
   }
   return h.toString(36);
 }
-
+ 
 const DEFAULT_CALC_NAMES = {
   1: 'Kalkulátor 1', 2: 'Kalkulátor 2', 3: 'Kalkulátor 3',
   4: 'Kalkulátor 4', 5: 'Kalkulátor 5', 6: 'Kalkulátor 6'
 };
 const DEFAULT_CALC_MODES = { 1:'regi', 2:'regi', 3:'regi', 4:'regi', 5:'regi', 6:'regi' };
-
+ 
 function getCalcModes() {
   try { return JSON.parse(localStorage.getItem('sf_calc_modes') || 'null') || {...DEFAULT_CALC_MODES}; } catch { return {...DEFAULT_CALC_MODES}; }
 }
 function saveCalcModes(m) { localStorage.setItem('sf_calc_modes', JSON.stringify(m)); }
-
+ 
 function getActiveMode() {
   const modes = getCalcModes();
   return modes[activeCalc] || 'regi';
 }
-
+ 
 function getCalcNames() {
   try { return JSON.parse(localStorage.getItem('sf_calc_names') || 'null') || {...DEFAULT_CALC_NAMES}; } catch { return {...DEFAULT_CALC_NAMES}; }
 }
 function saveCalcNamesData(n) { localStorage.setItem('sf_calc_names', JSON.stringify(n)); }
-
+ 
 // Felhasználók a Google Sheets-ből töltődnek be
 let SHEETS_USERS = [];
-
+ 
 function getUsers() {
   return SHEETS_USERS.length > 0 ? SHEETS_USERS : [];
 }
-
+ 
 function saveUsers(u) {
   // Nem mentünk localStorage-ba - a Sheets az egyetlen forrás
   // Jelszóváltoztatáshoz a Sheets-t kell módosítani
 }
-
+ 
 // ============================================================
 // LOGIN / LOGOUT
 // ============================================================
 let currentUser = null;
 let activeCalc = 1;
-
+ 
 function doLogin() {
   const email = document.getElementById('login-email').value.trim().toLowerCase();
   const pass = document.getElementById('login-pass').value;
@@ -1185,11 +1194,11 @@ function doLogin() {
   const mainNav = document.getElementById('main-nav');
   if (mainNav) mainNav.style.display = 'flex';
 }
-
+ 
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && document.getElementById('login-screen').style.display !== 'none') doLogin();
 });
-
+ 
 function doLogout() {
   // Session timerek törlése
   clearTimeout(sessionTimer);
@@ -1199,7 +1208,7 @@ function doLogout() {
   localStorage.removeItem(SESSION_KEY);
   const overlay = document.getElementById('session-overlay');
   if (overlay) overlay.style.display = 'none';
-
+ 
   currentUser = null;
   const mainNavEl = document.getElementById('main-nav');
   if (mainNavEl) mainNavEl.style.display = 'none';
@@ -1209,7 +1218,7 @@ function doLogout() {
   document.getElementById('login-pass').value = '';
   document.getElementById('admin-btn').style.display = 'none';
 }
-
+ 
 // ============================================================
 // KALKULÁTOR FÜLEK
 // ============================================================
@@ -1248,7 +1257,7 @@ function buildCalcTabs() {
   });
   activeCalc = calcs[0];
 }
-
+ 
 // ============================================================
 // KALKULÁTOR MEGJELENÍTÉS
 // ============================================================
@@ -1261,7 +1270,7 @@ function showCalc() {
   addExtraRow(); // default 1 extra sor
   initModeUI();
 }
-
+ 
 function showAdmin() {
   document.getElementById('calc-view').style.display = 'none';
   document.getElementById('admin-panel').style.display = 'block';
@@ -1271,7 +1280,7 @@ function showAdmin() {
   renderCalcNamesForm();
   renderCalcSettings();
 }
-
+ 
 function switchAdminTab(tab) {
   ['users','ajanlatok','calc','detail','names'].forEach(t => {
     const el = document.getElementById('atab-content-' + t);
@@ -1284,12 +1293,12 @@ function switchAdminTab(tab) {
   if (tab === 'names') renderCalcNamesForm();
   if (tab === 'ajanlatok') loadAjanlatok();
 }
-
+ 
 async function loadAjanlatok() {
   const container = document.getElementById('ajanlatok-list');
   if (!container) return;
   container.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:1rem">⏳ Betöltés a Sheets-ből...</div>';
-
+ 
   try {
     const data = await new Promise((resolve, reject) => {
       const cbName = 'sfaj_' + Date.now();
@@ -1300,15 +1309,15 @@ async function loadAjanlatok() {
       script.onerror = () => { clearTimeout(timeout); reject(new Error('error')); };
       document.head.appendChild(script);
     });
-
+ 
     if (!data.ajanlatok || data.ajanlatok.length === 0) {
       container.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:1rem">Még nincs mentett ajánlat.</div>';
       return;
     }
-
+ 
     const fmt = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
     let html = `<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.75rem">${data.ajanlatok.length} mentett ajánlat</div>`;
-
+ 
     // Show last 20, newest first
     const list = [...data.ajanlatok].reverse().slice(0, 20);
     list.forEach((a, i) => {
@@ -1332,32 +1341,32 @@ async function loadAjanlatok() {
         </div>
       </div>`;
     });
-
+ 
     if (data.ajanlatok.length > 20) {
       html += `<div style="text-align:center;color:var(--text-muted);font-size:0.8rem;padding:0.5rem">+ ${data.ajanlatok.length - 20} régebbi ajánlat a Sheets-ben</div>`;
     }
-
+ 
     container.innerHTML = html;
   } catch(err) {
     container.innerHTML = `<div style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:1rem">⚠️ Nem sikerült betölteni. Nyisd meg a Sheets-t közvetlenül.</div>`;
   }
 }
-
+ 
 // ============================================================
 // RÉSZLETEZŐ
 // ============================================================
 async function saveAjanlat(silent = false) {
   const btn = document.getElementById('save-btn');
-
+ 
   const panelSel = searchState.panel.selected;
   const panelQty = parseInt(document.getElementById('panel-qty')?.value) || 0;
   if (!panelSel || panelQty === 0) {
     if (!silent) showToast('⚠️ Nincs kiválasztott napelem!');
     return;
   }
-
+ 
   if (btn && !silent) { btn.textContent = '⏳ Mentés...'; btn.disabled = true; }
-
+ 
   const tartCode  = parseInt(document.getElementById('tart-select')?.value) || 0;
   const inv1Sel   = searchState.inv1.selected;
   const inv1Qty   = parseInt(document.getElementById('inv1-qty')?.value) || 0;
@@ -1368,7 +1377,7 @@ async function saveAjanlat(silent = false) {
   const discount  = parseFloat(document.getElementById('discount-val')?.value) || 0;
   const mode      = getActiveMode();
   const rendszerKw = panelSel.kw * panelQty;
-
+ 
   // Costs
   const panelCost = panelSel.huf * panelQty;
   let tartCost = 0, tartName = '';
@@ -1379,7 +1388,7 @@ async function saveAjanlat(silent = false) {
   const inv1Cost = inv1Sel ? inv1Sel.huf * inv1Qty : 0;
   const inv2Cost = inv2Sel ? inv2Sel.huf * inv2Qty : 0;
   const optiCost = optiSel ? optiSel.huf * optiQty : 0;
-
+ 
   const tetelek = [];
   let egyebCost = 0;
   extraRows.forEach(row => {
@@ -1388,11 +1397,11 @@ async function saveAjanlat(silent = false) {
       egyebCost += row.product.huf * row.qty;
     }
   });
-
+ 
   const anyagköltseg = panelCost + tartCost + inv1Cost + inv2Cost + optiCost + egyebCost;
   const AFА = CALC_SETTINGS.afa.value / 100;
   let munkadij = 0, netto = 0;
-
+ 
   if (mode === 'regi') {
     const md_alap = CALC_SETTINGS.munkadij_alap.value;
     const md_extra = CALC_SETTINGS.munkadij_extra.value;
@@ -1407,11 +1416,11 @@ async function saveAjanlat(silent = false) {
     munkadij = napok * CALC_SETTINGS.napi_munkadij.value * (1 + CALC_SETTINGS.munkadij_pct.value/100);
     netto = anyagköltseg + munkadij;
   }
-
+ 
   const nettoKedv  = netto * (1 - discount/100);
   const bruttoKedv = nettoKedv * (1 + AFА);
   const names = getCalcNames();
-
+ 
   const fmt = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
   const payload = {
     ertekesito:       currentUser.name || currentUser.email,
@@ -1458,7 +1467,7 @@ async function saveAjanlat(silent = false) {
     kwArNetto:        Math.round(rendszerKw > 0 ? nettoKedv / rendszerKw : 0),
     kwArBrutto:       Math.round(rendszerKw > 0 ? bruttoKedv / rendszerKw : 0),
   };
-
+ 
   try {
     await fetch(SHEETS_API, {
       method: 'POST',
@@ -1478,11 +1487,11 @@ async function saveAjanlat(silent = false) {
     throw err; // silent módban továbbadjuk a hibát
   }
 }
-
+ 
 function refreshDetail() {
   const container = document.getElementById('detail-content');
   if (!container) return;
-
+ 
   const panelSel  = searchState.panel.selected;
   const panelQty  = parseInt(document.getElementById('panel-qty')?.value) || 0;
   const tartCode  = parseInt(document.getElementById('tart-select')?.value) || 0;
@@ -1494,19 +1503,19 @@ function refreshDetail() {
   const optiQty   = parseInt(document.getElementById('opti-qty')?.value) || 0;
   const discount  = parseFloat(document.getElementById('discount-val')?.value) || 0;
   const mode      = getActiveMode();
-
+ 
   if (!panelSel || panelQty === 0) {
     container.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:2rem">Nincs kiválasztott napelem – töltsd ki a kalkulátort!</div>';
     return;
   }
-
+ 
   const fmt  = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
   const fmtn = n => Math.round(n).toLocaleString('hu-HU');
   const rendszerKw = panelSel.kw * panelQty;
-
+ 
   // --- ANYAGOK ---
   const panelCost = panelSel.huf * panelQty;
-
+ 
   let tartCost = 0;
   let tartName = '—';
   if (tartCode) {
@@ -1517,11 +1526,11 @@ function refreshDetail() {
       tartName = tart.name;
     }
   }
-
+ 
   const inv1Cost = inv1Sel ? inv1Sel.huf * inv1Qty : 0;
   const inv2Cost = inv2Sel ? inv2Sel.huf * inv2Qty : 0;
   const optiCost = optiSel ? optiSel.huf * optiQty : 0;
-
+ 
   let egyebRows = [];
   let egyebCost = 0;
   extraRows.forEach(row => {
@@ -1531,16 +1540,16 @@ function refreshDetail() {
       egyebCost += cost;
     }
   });
-
+ 
   const anyagok = panelCost + tartCost + inv1Cost + inv2Cost + optiCost + egyebCost;
-
+ 
   // --- MUNKADÍJ ---
   const AFА = CALC_SETTINGS.afa.value / 100;
   let munkadij = 0;
   let munkadijLabel = '';
   let netto = 0;
   let napok = 0;
-
+ 
   if (mode === 'regi') {
     const md_alap  = CALC_SETTINGS.munkadij_alap.value;
     const md_extra = CALC_SETTINGS.munkadij_extra.value;
@@ -1565,21 +1574,21 @@ function refreshDetail() {
     munkadijLabel = `${napok} nap × ${fmt(napi)}${felár > 0 ? ' × ' + (1+felár) : ''}`;
     netto = anyagok + munkadij;
   }
-
+ 
   const nettoKedv   = netto * (1 - discount/100);
   const afaKedv     = nettoKedv * AFА;
   const bruttoKedv  = nettoKedv * (1 + AFА);
   const kwNetKedv   = rendszerKw > 0 ? nettoKedv / rendszerKw : 0;
   const kwGrossKedv = rendszerKw > 0 ? bruttoKedv / rendszerKw : 0;
-
+ 
   const modeLabel = mode === 'regi'
     ? `📐 Régi mód (haszonkulcs: ×${CALC_SETTINGS.haszonkulcs.value})`
     : `🆕 Új mód (napi díj: ${fmt(CALC_SETTINGS.napi_munkadij.value)})`;
-
+ 
   const rowStyle = 'display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--border);font-size:0.83rem';
   const hdrStyle = 'font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin:1rem 0 0.4rem';
   const subStyle = 'color:var(--text-muted);font-size:0.75rem';
-
+ 
   let html = `
     <div style="background:var(--bg);border:1px solid var(--sun);border-radius:0.75rem;padding:1rem;margin-bottom:0.75rem;font-size:0.82rem">
       <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem">
@@ -1590,7 +1599,7 @@ function refreshDetail() {
       </div>
       ${discount > 0 ? `<div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">Kedvezmény:</span><strong style="color:var(--red)">−${discount}%</strong></div>` : ''}
     </div>
-
+ 
     <div style="${hdrStyle}">🔆 Napelemek</div>
     <div style="${rowStyle}">
       <span>${panelSel.name} <span style="${subStyle}">(${panelQty} db × ${fmt(panelSel.huf)})</span></span>
@@ -1599,7 +1608,7 @@ function refreshDetail() {
     <div style="display:flex;justify-content:space-between;padding:0.2rem 0;font-size:0.75rem;color:var(--text-muted)">
       <span>Napelem egységár</span><span>${fmt(panelSel.huf)}/db</span>
     </div>`;
-
+ 
   if (tartCost > 0) {
     const tart = PRODUCTS.tarts.find(t => Number(t.code) === tartCode || (PRODUCTS.tarts.indexOf(t)+1) === tartCode);
     html += `
@@ -1609,7 +1618,7 @@ function refreshDetail() {
       <strong>${fmt(tartCost)}</strong>
     </div>`;
   }
-
+ 
   if (inv1Sel && inv1Qty > 0) {
     html += `
     <div style="${hdrStyle}">⚡ Inverterek</div>
@@ -1623,7 +1632,7 @@ function refreshDetail() {
       <strong>${fmt(inv2Cost)}</strong>
     </div>`;
   }
-
+ 
   if (optiSel && optiQty > 0) {
     html += `
     <div style="${hdrStyle}">🔧 Optimalizátor</div>
@@ -1632,7 +1641,7 @@ function refreshDetail() {
       <strong>${fmt(optiCost)}</strong>
     </div>`;
   }
-
+ 
   if (egyebRows.length > 0) {
     html += `<div style="${hdrStyle}">📦 Egyéb termékek</div>`;
     egyebRows.forEach(r => {
@@ -1642,7 +1651,7 @@ function refreshDetail() {
       </div>`;
     });
   }
-
+ 
   // Összesítő
   html += `
     <div style="border-top:2px solid var(--border);margin-top:0.75rem;padding-top:0.75rem">
@@ -1653,7 +1662,7 @@ function refreshDetail() {
         <span>Munkadíj <span style="${subStyle}">(${munkadijLabel})</span></span>
         <strong>${fmt(munkadij)}</strong>
       </div>`;
-
+ 
   if (mode === 'regi') {
     html += `
       <div style="${rowStyle}">
@@ -1668,18 +1677,18 @@ function refreshDetail() {
         <span style="color:var(--text-muted)">Nettó összesen (anyag + munkadíj)</span><span>${fmt(netto)}</span>
       </div>`;
   }
-
+ 
   if (discount > 0) {
     html += `<div style="${rowStyle}"><span style="color:var(--red)">Kedvezmény (−${discount}%)</span><span style="color:var(--red)">−${fmt(netto - nettoKedv)}</span></div>`;
   }
-
+ 
   html += `
       <div style="display:flex;justify-content:space-between;padding:0.4rem 0;font-size:0.83rem">
         <span style="color:var(--text-muted)">ÁFA (${CALC_SETTINGS.afa.value}%)</span>
         <span>${fmt(afaKedv)}</span>
       </div>
     </div>
-
+ 
     <!-- VÉGEREDMÉNY -->
     <div style="background:linear-gradient(135deg,var(--surface),var(--surface2));border:1px solid var(--sun);border-radius:0.75rem;padding:1rem;margin-top:0.75rem">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;text-align:center">
@@ -1704,10 +1713,10 @@ function refreshDetail() {
     <div style="margin-top:0.75rem;font-size:0.72rem;color:var(--text-muted);text-align:center">
       Frissítve: ${new Date().toLocaleTimeString('hu-HU')}
     </div>`;
-
+ 
   container.innerHTML = html;
 }
-
+ 
 // ============================================================
 // TARTÓSZERKEZET SELECT
 // ============================================================
@@ -1719,7 +1728,7 @@ function buildTartSelect() {
     sel.innerHTML += `<option value="${val}">${t.name}</option>`;
   });
 }
-
+ 
 // ============================================================
 // KERESŐS DROPDOWN
 // ============================================================
@@ -1730,7 +1739,7 @@ const searchState = {
   opti:  { selected: null, list: PRODUCTS.optik.filter(p => isValidProduct(p.code)) },
 };
 let closeTimer = {};
-
+ 
 function filterSearch(key) {
   const input = document.getElementById(`${key}-input`);
   const dropdown = document.getElementById(`${key}-dropdown`);
@@ -1755,7 +1764,7 @@ function filterSearch(key) {
   input.classList.remove('has-value');
   calculate();
 }
-
+ 
 function openDropdown(key) {
   clearTimeout(closeTimer[key]);
   const input = document.getElementById(`${key}-input`);
@@ -1772,13 +1781,13 @@ function openDropdown(key) {
   });
   if (items.length > 0) dropdown.classList.add('open');
 }
-
+ 
 function closeDropdown(key) {
   closeTimer[key] = setTimeout(() => {
     document.getElementById(`${key}-dropdown`).classList.remove('open');
   }, 200);
 }
-
+ 
 function selectItem(key, product) {
   searchState[key].selected = product;
   document.getElementById(`${key}-input`).value = product.name;
@@ -1790,7 +1799,7 @@ function selectItem(key, product) {
   }
   calculate();
 }
-
+ 
 function checkExtraCompatibility() {
   const compatCodes = getCompatibleCodes();
   if (!compatCodes) return;
@@ -1807,25 +1816,25 @@ function checkExtraCompatibility() {
     }
   });
 }
-
+ 
 // ============================================================
 // EXTRA SOROK (egyéb termékek)
 // ============================================================
 let extraRows = [];
 let extraIdCounter = 0;
-
+ 
 function addExtraRow() {
   const id = ++extraIdCounter;
   extraRows.push({ id, product: null, qty: 1 });
   renderExtraRows();
 }
-
+ 
 function removeExtraRow(id) {
   extraRows = extraRows.filter(r => r.id !== id);
   renderExtraRows();
   calculate();
 }
-
+ 
 function renderExtraRows() {
   const container = document.getElementById('extra-list');
   container.innerHTML = '';
@@ -1852,9 +1861,9 @@ function renderExtraRows() {
     container.appendChild(div);
   });
 }
-
+ 
 let extraCloseTimer = {};
-
+ 
 function filterExtra(id) {
   const input = document.getElementById(`extra-input-${id}`);
   const dropdown = document.getElementById(`extra-dropdown-${id}`);
@@ -1875,7 +1884,7 @@ function filterExtra(id) {
   if (row) { row.product = null; input.classList.remove('has-value'); }
   calculate();
 }
-
+ 
 function openExtraDropdown(id) {
   clearTimeout(extraCloseTimer[id]);
   const input = document.getElementById(`extra-input-${id}`);
@@ -1894,14 +1903,14 @@ function openExtraDropdown(id) {
   });
   if (items.length > 0) dropdown.classList.add('open');
 }
-
+ 
 function closeExtraDropdown(id) {
   extraCloseTimer[id] = setTimeout(() => {
     const d = document.getElementById(`extra-dropdown-${id}`);
     if (d) d.classList.remove('open');
   }, 200);
 }
-
+ 
 function selectExtra(id, product) {
   const row = extraRows.find(r => r.id === id);
   if (row) { row.product = product; }
@@ -1911,13 +1920,13 @@ function selectExtra(id, product) {
   if (dropdown) dropdown.classList.remove('open');
   calculate();
 }
-
+ 
 function updateExtraQty(id, val) {
   const row = extraRows.find(r => r.id === id);
   if (row) row.qty = parseInt(val) || 1;
   calculate();
 }
-
+ 
 // ============================================================
 // KEDVEZMÉNY
 // ============================================================
@@ -1926,7 +1935,7 @@ function syncDiscount(val) {
   document.getElementById('discount-val').value = val;
   calculate();
 }
-
+ 
 // ============================================================
 // SZÁMÍTÁS
 // ============================================================
@@ -1941,7 +1950,7 @@ function calculate() {
   const optiSel = searchState.opti.selected;
   const optiQty = parseInt(document.getElementById('opti-qty').value) || 0;
   const discount = parseFloat(document.getElementById('discount-val').value) || 0;
-
+ 
   // Napelem kW info
   if (panelSel) {
     const kw = panelSel.kw * panelQty;
@@ -1949,19 +1958,19 @@ function calculate() {
   } else {
     document.getElementById('panel-kw-info').textContent = '';
   }
-
+ 
   const bar = document.getElementById('result-bar');
   bar.classList.add('visible');
-
+ 
   if (!panelSel || panelQty === 0) {
     document.getElementById('rbar-empty').style.display = 'block';
     document.getElementById('rbar-full').style.display = 'none';
     return;
   }
-
+ 
   // === ANYAGKÖLTSÉG ===
   const panelCost = panelSel.huf * panelQty;
-
+ 
   // Tartószerkezet: alap + per_kw * rendszer_kw
   let tartCost = 0;
   if (tartCode) {
@@ -1973,21 +1982,21 @@ function calculate() {
       tartCost = tart.base + extraKw * tart.per_kw;
     }
   }
-
+ 
   // Inverter
   const invCost = (inv1Sel ? inv1Sel.huf * inv1Qty : 0) + (inv2Sel ? inv2Sel.huf * inv2Qty : 0);
-
+ 
   // Optimalizátor
   const optiCost = optiSel ? optiSel.huf * optiQty : 0;
-
+ 
   // Egyéb
   let egyebCost = 0;
   extraRows.forEach(row => {
     if (row.product && row.qty > 0) egyebCost += row.product.huf * row.qty;
   });
-
+ 
   const anyagok = panelCost + tartCost + invCost + optiCost + egyebCost;
-
+ 
   // === MUNKADÍJ + SZÁMÍTÁS ===
   const rendszerKw = panelSel.kw * panelQty;
   const AFА_KULCS = CALC_SETTINGS.afa.value / 100;
@@ -1996,7 +2005,7 @@ function calculate() {
   let netto = 0;
   let javasoltNap = 0;
   let tenylegNap = 0;
-
+ 
   if (mode === 'regi') {
     // RÉGI MÓD: (anyag + munkadíj) × haszonkulcs
     const md_alap  = CALC_SETTINGS.munkadij_alap.value;
@@ -2021,18 +2030,18 @@ function calculate() {
     const jnEl = document.getElementById('javasolt-nap');
     if (jnEl) jnEl.textContent = javasoltNap + ' nap (' + rendszerKw.toFixed(2) + ' kW)';
   }
-
+ 
   const afa = netto * AFА_KULCS;
   const brutto = netto * (1 + AFА_KULCS);
-
+ 
   // Kedvezmény
   const nettoKedv = netto * (1 - discount / 100);
   const afaKedv = nettoKedv * AFА_KULCS;
   const bruttoKedv = nettoKedv * (1 + AFА_KULCS);
-
+ 
   const kwNetKedv = rendszerKw > 0 ? nettoKedv / rendszerKw : 0;
   const kwGrossKedv = rendszerKw > 0 ? bruttoKedv / rendszerKw : 0;
-
+ 
   // MEGJELENÍTÉS
   const fmt = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
   document.getElementById('res-brutto').textContent = fmt(bruttoKedv);
@@ -2054,11 +2063,11 @@ function calculate() {
     (optiCost ? ` | Opti: ${fmt(optiCost)}` : '') +
     (egyebCost ? ` | Egyéb: ${fmt(egyebCost)}` : '') +
     ` | Munkadíj: ${fmt(munkadij)}` + modeLabel;
-
+ 
   document.getElementById('rbar-empty').style.display = 'none';
   document.getElementById('rbar-full').style.display = 'block';
 }
-
+ 
 function resetCalc() {
   // Reset search fields
   ['panel','inv1','inv2','opti'].forEach(k => {
@@ -2082,7 +2091,7 @@ function resetCalc() {
   extraIdCounter = 0;
   document.getElementById('extra-list').innerHTML = '';
 }
-
+ 
 // ============================================================
 // ADMIN: FELHASZNÁLÓ TÁBLA
 // ============================================================
@@ -2103,7 +2112,7 @@ function renderUserTable() {
     </tr>`;
   });
 }
-
+ 
 function deleteUser(idx) {
   if (!confirm('Biztosan törlöd ezt a felhasználót?')) return;
   const users = getUsers();
@@ -2112,7 +2121,7 @@ function deleteUser(idx) {
   renderUserTable();
   showToast('Felhasználó törölve.');
 }
-
+ 
 function renderNewUserCalcCheckboxes() {
   const names = getCalcNames();
   const container = document.getElementById('new-calcs-group');
@@ -2123,19 +2132,19 @@ function renderNewUserCalcCheckboxes() {
     </label>`;
   });
 }
-
+ 
 function addUser() {
   const email = document.getElementById('new-email').value.trim().toLowerCase();
   const pass = document.getElementById('new-pass').value;
   const name = document.getElementById('new-name').value.trim();
   const isAdmin = document.getElementById('new-is-admin').checked;
   const checkedCalcs = [...document.querySelectorAll('input[name="new-calc"]:checked')].map(cb => parseInt(cb.value));
-
+ 
   if (!email || !pass) { alert('Email és jelszó megadása kötelező!'); return; }
   const users = getUsers();
   if (users.find(u => u.email === email)) { alert('Ez az email cím már foglalt!'); return; }
   if (!isAdmin && checkedCalcs.length === 0) { alert('Legalább egy kalkulátort jelölj be!'); return; }
-
+ 
   users.push({ email, pass: hashPass(pass), name, isAdmin, calcs: isAdmin ? [1,2,3,4,5,6] : checkedCalcs });
   saveUsers(users);
   document.getElementById('new-email').value = '';
@@ -2146,7 +2155,7 @@ function addUser() {
   renderUserTable();
   showToast('✅ Felhasználó hozzáadva!');
 }
-
+ 
 // ============================================================
 // ADMIN: KALKULÁTOR NEVEK
 // ============================================================
@@ -2162,18 +2171,18 @@ function renderCalcNamesForm() {
     </div>`;
   });
 }
-
+ 
 function changePassword() {
   const current = document.getElementById('pw-current').value;
   const newPw = document.getElementById('pw-new').value;
   const newPw2 = document.getElementById('pw-new2').value;
   const errEl = document.getElementById('pw-error');
   errEl.style.display = 'none';
-
+ 
   const users = getUsers();
   const idx = users.findIndex(u => u.email === currentUser.email);
   if (idx === -1) return;
-
+ 
   if (users[idx].pass !== hashPass(current)) {
     errEl.textContent = '❌ A jelenlegi jelszó helytelen.'; errEl.style.display = 'block'; return;
   }
@@ -2190,13 +2199,13 @@ function changePassword() {
   document.getElementById('pw-new2').value = '';
   showToast('✅ Jelszó sikeresen megváltoztatva!');
 }
-
+ 
 function populatePasswordUserSelect() {
   const sel = document.getElementById('pw-user-select');
   const users = getUsers();
   sel.innerHTML = users.map((u,i) => `<option value="${i}">${u.name || u.email} (${u.email})</option>`).join('');
 }
-
+ 
 function changeOtherPassword() {
   const idx = parseInt(document.getElementById('pw-user-select').value);
   const newPw = document.getElementById('pw-other-new').value;
@@ -2207,7 +2216,7 @@ function changeOtherPassword() {
   document.getElementById('pw-other-new').value = '';
   showToast(`✅ ${users[idx].name || users[idx].email} jelszava megváltoztatva!`);
 }
-
+ 
 function setCalcMode(mode) {
   const modes = getCalcModes();
   modes[activeCalc] = mode;
@@ -2227,23 +2236,23 @@ function setCalcMode(mode) {
   if (manualNap) manualNap.value = '';
   calculate();
 }
-
+ 
 function updateMunkadijPct(val) {
   CALC_SETTINGS.munkadij_pct.value = parseFloat(val) || 0;
   calculate();
 }
-
+ 
 function initModeUI() {
   const mode = getActiveMode();
   setCalcMode(mode);
 }
-
+ 
 function renderCalcSettings() {
   const grid = document.getElementById('calc-settings-grid');
   if (!grid) return;
   const modes = getCalcModes();
   const names = getCalcNames();
-
+ 
   // Per-calculator mode settings
   let modeHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">Kalkulátorok módja</div><div style="display:grid;gap:0.5rem">';
   [1,2,3,4,5,6].forEach(c => {
@@ -2259,12 +2268,12 @@ function renderCalcSettings() {
     </div>`;
   });
   modeHtml += '</div></div>';
-
+ 
   // Parameter settings grouped by mode
   let regiHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">📐 Régi számítás paraméterei</div><div style="display:grid;gap:0.5rem">';
   let ujHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">🆕 Új számítás paraméterei</div><div style="display:grid;gap:0.5rem">';
   let bothHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">⚙️ Közös paraméterek</div><div style="display:grid;gap:0.5rem">';
-
+ 
   Object.entries(CALC_SETTINGS).forEach(([key, s]) => {
     const row = `<div style="background:var(--bg);border:1px solid var(--border);border-radius:0.75rem;padding:0.75rem">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.3rem">
@@ -2279,15 +2288,15 @@ function renderCalcSettings() {
     else if (s.mode === 'regi') regiHtml += row;
     else ujHtml += row;
   });
-
+ 
   regiHtml += '</div></div>';
   ujHtml += '</div></div>';
   bothHtml += '</div></div>';
-
+ 
   grid.innerHTML = modeHtml + bothHtml + regiHtml + ujHtml;
   updateCalcPreview();
 }
-
+ 
 function setAdminCalcMode(calcNum, mode) {
   const modes = getCalcModes();
   modes[calcNum] = mode;
@@ -2296,12 +2305,12 @@ function setAdminCalcMode(calcNum, mode) {
   // If currently viewing that calc, update the toggle
   if (calcNum === activeCalc) setCalcMode(mode);
 }
-
+ 
 function updateCalcSetting(key, val) {
   CALC_SETTINGS[key].value = parseFloat(val) || CALC_SETTINGS[key].value;
   updateCalcPreview();
 }
-
+ 
 function updateCalcPreview() {
   const preview = document.getElementById('calc-preview');
   if (!preview) return;
@@ -2310,13 +2319,13 @@ function updateCalcPreview() {
   const fmt = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
   const anyag = 1500000; // példa anyagköltség
   const kw = 9.0; // példa: 20 × 450W
-
+ 
   // RÉGI MÓD
   const hatar = s.munkadij_hatar.value, alap = s.munkadij_alap.value, extra = s.munkadij_extra.value, hk = s.haszonkulcs.value;
   const md_regi = kw <= hatar ? kw * alap : hatar * alap + (kw - hatar) * extra;
   const netto_regi = (anyag + md_regi) * hk;
   const brutto_regi = netto_regi * (1 + afa/100);
-
+ 
   // ÚJ MÓD
   const napi = s.napi_munkadij.value;
   const nap = calcDaysForKw(kw);
@@ -2324,7 +2333,7 @@ function updateCalcPreview() {
   const md_uj = nap * napi * (1 + felár_pct/100);
   const netto_uj = anyag + md_uj;
   const brutto_uj = netto_uj * (1 + afa/100);
-
+ 
   preview.style.display = 'block';
   preview.innerHTML = `
     <div style="font-size:0.8rem;font-weight:700;margin-bottom:0.75rem;color:var(--sun)">📊 Számítás előnézet – példa: 20 × 450W (${kw} kW), anyag: 1 500 000 Ft</div>
@@ -2349,7 +2358,7 @@ function updateCalcPreview() {
       </div>
     </div>`;
 }
-
+ 
 function saveCalcNames() {
   const names = {};
   [1,2,3,4,5,6].forEach(c => {
@@ -2359,7 +2368,7 @@ function saveCalcNames() {
   buildCalcTabs();
   showToast('✅ Nevek mentve!');
 }
-
+ 
 // ============================================================
 // TOAST
 // ============================================================
@@ -2369,13 +2378,13 @@ function showToast(msg) {
   t.style.display = 'block';
   setTimeout(() => t.style.display = 'none', 2500);
 }
-
+ 
 // ============================================================
 // GOOGLE SHEETS SZINKRON
 // ============================================================
 let sheetsLoaded = false;
 let lastUpdated = null;
-
+ 
 async function loadFromSheets() {
   const indicator = document.getElementById('sync-indicator');
   const syncTime = document.getElementById('sync-time');
@@ -2446,12 +2455,12 @@ async function loadFromSheets() {
     if (syncTime) syncTime.textContent = '(beépített adatok)';
   }
 }
-
+ 
 // ============================================================
 // FŐOLDAL NAVIGÁCIÓ
 // ============================================================
 let activeMainTab = 'arazas';
-
+ 
 function switchMainTab(tab) {
   activeMainTab = tab;
   ['arazas','megterules'].forEach(t => {
@@ -2466,7 +2475,7 @@ function switchMainTab(tab) {
   const adminPanel = document.getElementById('admin-panel');
   const resultBar  = document.getElementById('result-bar');
   const megView    = document.getElementById('megterules-view');
-
+ 
   if (tab === 'arazas') {
     if (calcTabs)   calcTabs.style.display   = '';
     if (syncBar)    syncBar.style.display     = '';
@@ -2485,7 +2494,7 @@ function switchMainTab(tab) {
     mt_importFromArazo();
   }
 }
-
+ 
 // ============================================================
 // MEGTÉRÜLÉS KALKULÁTOR
 // ============================================================
@@ -2495,20 +2504,20 @@ let mt_sofarData   = null;
 let mt_chartMegterules = null;
 let mt_chartHavi       = null;
 let mt_pvgisDebounceTimer = null;
-
+ 
 const SOFAR_PROXY = SHEETS_API; // Apps Script közvetítőn keresztül
-
+ 
 function mt_importFromArazo() {
   // Átveszi az árazóban beállított kWp-t és árat
   const panelSel = searchState.panel ? searchState.panel.selected : null;
   const panelQty = parseInt(document.getElementById('panel-qty')?.value) || 0;
-
+ 
   if (panelSel && panelQty > 0) {
     const kWp = panelSel.kw * panelQty;
     const kwpEl = document.getElementById('mt-kwp');
     if (kwpEl && !kwpEl.value) kwpEl.value = kWp.toFixed(2);
   }
-
+ 
   // Bruttó ár átvétele az eredménysávból
   const bruttoEl = document.getElementById('res-brutto');
   if (bruttoEl && bruttoEl.textContent !== '—') {
@@ -2520,7 +2529,7 @@ function mt_importFromArazo() {
     }
   }
 }
-
+ 
 function setUgyfelTipus(tipus) {
   mt_ugyfelTipus = tipus;
   document.getElementById('toggle-lakossagi').classList.toggle('active', tipus === 'lakossagi');
@@ -2529,7 +2538,7 @@ function setUgyfelTipus(tipus) {
   document.getElementById('ceges-panel').style.display     = tipus === 'ceges'     ? 'block' : 'none';
   mt_recalculate();
 }
-
+ 
 function mt_toggleFogyasztasMod() {
   const mod = document.getElementById('mt-fogyasztas-mod').value;
   const labels = {
@@ -2541,7 +2550,7 @@ function mt_toggleFogyasztasMod() {
   document.getElementById('mt-fogyasztas-label').textContent = labels[mod];
   mt_recalculate();
 }
-
+ 
 function mt_toggleCegesMod() {
   const mod = document.getElementById('mt-ceges-mod').value;
   const labels = {
@@ -2553,7 +2562,7 @@ function mt_toggleCegesMod() {
   document.getElementById('mt-ceges-fogyasztas-label').textContent = labels[mod];
   mt_recalculate();
 }
-
+ 
 function mt_getEvesKwhFogyasztas() {
   if (mt_ugyfelTipus === 'ceges') {
     const mod = document.getElementById('mt-ceges-mod').value;
@@ -2584,7 +2593,7 @@ function mt_getEvesKwhFogyasztas() {
   }
   return 0;
 }
-
+ 
 function mt_getHaviSzamla(evesKwh) {
   if (mt_ugyfelTipus === 'ceges') {
     const ar = parseFloat(document.getElementById('mt-ar-ceges').value) || 120;
@@ -2597,17 +2606,17 @@ function mt_getHaviSzamla(evesKwh) {
     return ((kvota * arAlap) + ((evesKwh - kvota) * arMagas)) / 12;
   }
 }
-
+ 
 function mt_getAtlagosKwhAr(evesKwh) {
   if (evesKwh <= 0) return 0;
   return mt_getHaviSzamla(evesKwh) * 12 / evesKwh;
 }
-
+ 
 function mt_getEvesMegtakaritas(termeltKwh, evesKwhFogyasztas) {
   // Mennyi áramot vált ki a napelem
   const kivaltottKwh = Math.min(termeltKwh, evesKwhFogyasztas);
   if (kivaltottKwh <= 0) return 0;
-
+ 
   if (mt_ugyfelTipus === 'ceges') {
     const ar = parseFloat(document.getElementById('mt-ar-ceges').value) || 120;
     return kivaltottKwh * ar;
@@ -2627,16 +2636,16 @@ function mt_getEvesMegtakaritas(termeltKwh, evesKwhFogyasztas) {
     return kivaltottMagas * arMagas + kivaltottAlap * arAlap;
   }
 }
-
+ 
 function mt_onParamChange() {
   mt_pvgis_debounce();
 }
-
+ 
 function mt_pvgis_debounce() {
   clearTimeout(mt_pvgisDebounceTimer);
   mt_pvgisDebounceTimer = setTimeout(mt_fetchPvgis, 800);
 }
-
+ 
 async function mt_fetchPvgis() {
   const lat  = parseFloat(document.getElementById('mt-lat').value);
   const lon  = parseFloat(document.getElementById('mt-lon').value);
@@ -2644,16 +2653,16 @@ async function mt_fetchPvgis() {
   const loss = parseFloat(document.getElementById('mt-veszteseg').value) || 14;
   const tilt = parseFloat(document.getElementById('mt-tilt').value);
   const az   = parseFloat(document.getElementById('mt-azimut').value);
-
+ 
   if (!lat || !lon || !kwp) return;
-
+ 
   const bar  = document.getElementById('pvgis-status-bar');
   const icon = document.getElementById('pvgis-status-icon');
   const text = document.getElementById('pvgis-status-text');
   if (bar) bar.style.display = 'flex';
   if (icon) icon.textContent = '⏳';
   if (text) text.textContent = 'PVGIS adatok lekérése az EU JRC szerveréről...';
-
+ 
   try {
     // Optimális szög vagy kézi szög
     const useOptimal = (tilt === 35 && az === 0); // ha alapértelmezett, optimalizálunk
@@ -2667,12 +2676,12 @@ async function mt_fetchPvgis() {
       pvtechchoice: 'crystSi',
       mountingplace: 'free',
     });
-
+ 
     const url = `https://re.jrc.ec.europa.eu/api/v5_3/PVcalc?${params}`;
     const resp = await fetch(url);
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
-
+ 
     // Parse monthly data
     const monthly = data.outputs.monthly.fixed;
     mt_pvgisData = {
@@ -2681,10 +2690,10 @@ async function mt_fetchPvgis() {
       specific: parseFloat(data.outputs.totals.fixed['PR']),
       optimalAngle: data.inputs?.mounting_system?.fixed?.slope?.value || tilt,
     };
-
+ 
     if (icon) icon.textContent = '✅';
     if (text) text.textContent = `PVGIS: ${Math.round(mt_pvgisData.yearly).toLocaleString('hu-HU')} kWh/év várható termelés (${mt_pvgisData.monthly.length} hónap)`;
-
+ 
     mt_recalculate();
   } catch(err) {
     console.warn('PVGIS hiba:', err);
@@ -2692,45 +2701,45 @@ async function mt_fetchPvgis() {
     if (text) text.textContent = 'PVGIS lekérés sikertelen – ellenőrizd a koordinátákat';
   }
 }
-
+ 
 function mt_recalculate() {
   const kwp         = parseFloat(document.getElementById('mt-kwp').value) || 0;
   const rendszerAr  = parseFloat(document.getElementById('mt-rendszer-ar').value) || 0;
   const elettartam  = parseInt(document.getElementById('mt-elettartam').value) || 18;
   const degradacio  = parseFloat(document.getElementById('mt-degradacio').value) || 0.5;
-
+ 
   const evesKwh = mt_getEvesKwhFogyasztas();
   const evesTermeles = mt_pvgisData ? mt_pvgisData.yearly : (kwp * 1000); // becsült ha nincs PVGIS
-
+ 
   if (!kwp || !rendszerAr || !evesKwh) {
     document.getElementById('mt-results').style.display = 'none';
     document.getElementById('mt-empty').style.display   = 'block';
     mt_updateArInfo(evesKwh);
     return;
   }
-
+ 
   document.getElementById('mt-results').style.display = 'block';
   document.getElementById('mt-empty').style.display   = 'none';
-
+ 
   // Éves cashflow számítás
   let kumMegtak = 0;
   let megterulesEv = null;
   const cashflow = [];
   const fmt = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
   const fmtN = n => Math.round(n).toLocaleString('hu-HU');
-
+ 
   for (let ev = 1; ev <= elettartam; ev++) {
     const degradFactor = Math.pow(1 - degradacio / 100, ev - 1);
     const termeles = evesTermeles * degradFactor;
     const megtak   = mt_getEvesMegtakaritas(termeles, evesKwh);
     kumMegtak += megtak;
-
+ 
     const megtérült = (!megterulesEv && kumMegtak >= rendszerAr);
     if (megtérült) megterulesEv = ev;
-
+ 
     cashflow.push({ ev, termeles, megtak, kumMegtak, megtérült });
   }
-
+ 
   // KPI frissítés
   const atlagosAr = mt_getAtlagosKwhAr(evesKwh);
   document.getElementById('mt-res-megterules').textContent  = megterulesEv ? megterulesEv + ' év' : '>' + elettartam + ' év';
@@ -2740,9 +2749,9 @@ function mt_recalculate() {
   document.getElementById('mt-res-osszes-sub').textContent  = elettartam + ' év alatt';
   document.getElementById('mt-res-kwh-ar').textContent      = Math.round(atlagosAr) + ' Ft';
   document.getElementById('mt-res-fajlagos').textContent    = mt_pvgisData ? Math.round(mt_pvgisData.yearly / kwp) + ' kWh/kWp' : '—';
-
+ 
   mt_updateArInfo(evesKwh);
-
+ 
   // Cashflow táblázat
   const tbody = document.getElementById('mt-cashflow-body');
   tbody.innerHTML = '';
@@ -2764,11 +2773,11 @@ function mt_recalculate() {
   totalTr.className = 'total-row';
   totalTr.innerHTML = `<td>ÖSSZESEN</td><td></td><td></td><td></td><td>${fmt(kumMegtak)}</td><td>${megterulesEv ? '✅' : '⚠️'}</td>`;
   tbody.appendChild(totalTr);
-
+ 
   // Grafikonok
   mt_drawCharts(cashflow, rendszerAr);
 }
-
+ 
 function mt_updateArInfo(evesKwh) {
   const infoEl = document.getElementById('mt-ar-info');
   if (!infoEl || mt_ugyfelTipus !== 'lakossagi') return;
@@ -2786,12 +2795,12 @@ function mt_updateArInfo(evesKwh) {
     infoEl.innerHTML = `📊 Éves fogyasztás: <strong>${Math.round(evesKwh).toLocaleString('hu-HU')} kWh</strong> — ebből ${Math.round(kvota).toLocaleString('hu-HU')} kWh × ${arAlap} Ft + ${Math.round(evesKwh-kvota).toLocaleString('hu-HU')} kWh × ${arMagas} Ft → átlag: <strong>${Math.round(atlagAr)} Ft/kWh</strong>`;
   }
 }
-
+ 
 function mt_drawCharts(cashflow, rendszerAr) {
   const labels = cashflow.map(r => r.ev + '. év');
   const kumData = cashflow.map(r => Math.round(r.kumMegtak));
   const beruhasasData = cashflow.map(() => rendszerAr);
-
+ 
   // Megtérülés chart
   if (mt_chartMegterules) mt_chartMegterules.destroy();
   const ctx1 = document.getElementById('mt-chart-megterules');
@@ -2833,7 +2842,7 @@ function mt_drawCharts(cashflow, rendszerAr) {
       }
     });
   }
-
+ 
   // Havi termelés chart
   if (mt_pvgisData && mt_pvgisData.monthly) {
     if (mt_chartHavi) mt_chartHavi.destroy();
@@ -2866,88 +2875,173 @@ function mt_drawCharts(cashflow, rendszerAr) {
     }
   }
 }
-
-// SofarCloud adatlekérés Apps Scripten keresztül
+ 
+// SofarCloud adatlekérés – közvetlen böngészős hívás
+// (A felhasználónak be kell lennie jelentkezve az eu.sofarcloud.com-ra)
+const SOFAR_BASE = 'https://eu.sofarcloud.com';
+ 
 function sofar_onIdChange() {
   const dot  = document.getElementById('sofar-dot');
   const text = document.getElementById('sofar-status-text');
   if (dot)  dot.className  = 'sofar-dot';
   if (text) text.textContent = 'Add meg a Station ID-t és kattints az Adatok lekérése gombra';
 }
-
+ 
 async function fetchSofarData() {
   const stationId = document.getElementById('sofar-station-id').value.trim();
   if (!stationId) { showToast('⚠️ Add meg a Station ID-t!'); return; }
-
+ 
   const dot  = document.getElementById('sofar-dot');
   const text = document.getElementById('sofar-status-text');
   const prev = document.getElementById('sofar-data-preview');
   if (dot)  dot.className  = 'sofar-dot';
-  if (text) text.textContent = '⏳ Adatok lekérése...';
-
+  if (text) text.textContent = '⏳ Bejelentkezés...';
+ 
+  const reqHeaders = {
+    'Content-Type': 'application/json',
+    'custom-origin': SOFAR_BASE,
+    'request-from': 'web',
+    'scene': 'eu',
+    'isgray': '1',
+    'timezone': 'Europe/Budapest',
+  };
+ 
   try {
-    const data = await new Promise((resolve, reject) => {
-      const cbName = 'sfsofar_' + Date.now();
-      const script = document.createElement('script');
-      const timeout = setTimeout(() => { delete window[cbName]; script.remove(); reject(new Error('timeout')); }, 15000);
-      window[cbName] = d => { clearTimeout(timeout); delete window[cbName]; script.remove(); resolve(d); };
-      script.src = SHEETS_API + '?action=sofarData&stationId=' + encodeURIComponent(stationId) + '&callback=' + cbName + '&t=' + Date.now();
-      script.onerror = () => { clearTimeout(timeout); reject(new Error('script error')); };
-      document.head.appendChild(script);
+    // 1. Login
+    const loginResp = await fetch(SOFAR_BASE + '/api/account/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        accountName: 'monitoring2020@solarfuture.hu',
+        password: 'SFS2025!',
+        expireTime: 18000
+      })
     });
-
-    if (data.sofarError) throw new Error(data.sofarError);
-    mt_sofarData = data.sofarData;
-
-    if (dot)  { dot.className = 'sofar-dot connected'; }
-    if (text) text.textContent = `✅ ${data.sofarData.stationName || stationId} – adatok betöltve`;
-
-    // Preview megjelenítés
-    if (prev && data.sofarData.generations) {
-      const gens = data.sofarData.generations;
-      const total = gens.reduce((s,v) => s + parseFloat(v||0), 0);
+    const loginData = await loginResp.json();
+    if (loginData.code !== '0') throw new Error('Login sikertelen: ' + loginData.message);
+ 
+    const authHeaders = {
+      ...reqHeaders,
+      'Authorization': 'Bearer ' + loginData.data.accessToken,
+    };
+ 
+    if (text) text.textContent = '⏳ Rendszer adatok lekérése...';
+ 
+    // 2. Állomás adatok
+    const stationResp = await fetch(
+      SOFAR_BASE + '/api/device/stationInfo/selectStationDetail?stationId=' + stationId,
+      { method: 'GET', headers: authHeaders }
+    );
+    const stationData = await stationResp.json();
+ 
+    // 3. Éves termelési adatok
+    if (text) text.textContent = '⏳ Termelési adatok lekérése...';
+    const now   = new Date();
+    const year  = now.getFullYear();
+    const startTime = Math.floor(new Date(year, 0, 1).getTime() / 1000);
+    const endTime   = Math.floor(new Date(year, 11, 31, 23, 59, 59).getTime() / 1000);
+ 
+    const histResp = await fetch(
+      SOFAR_BASE + '/api/device/stationInfo/selectStationHistoryData',
+      {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify({
+          queryType: 4,
+          stationId: stationId,
+          paramList: ['inv$generationEnergy'],
+          startTime: startTime,
+          endTime: endTime
+        })
+      }
+    );
+    const histData = await histResp.json();
+ 
+    // 4. Feldolgozás
+    const bars = histData.data?.bars?.[0];
+    const generations = bars?.generations || [];
+    const installedPower = stationData.data?.installedPower || null;
+    const stationName   = stationData.data?.name || stationId;
+ 
+    mt_sofarData = {
+      stationId, stationName, installedPower, year,
+      generations, times: bars?.times || [],
+      unit: bars?.unit || 'kWh',
+      yearTotal: histData.data?.yearGenerationValue || 0,
+    };
+ 
+    // Státusz frissítés
+    if (dot)  dot.className = 'sofar-dot connected';
+    if (text) text.textContent = `✅ ${stationName} – adatok betöltve`;
+ 
+    // Preview
+    if (prev && generations.length > 0) {
+      const total = generations.reduce((s,v) => s + parseFloat(v||0), 0);
       const honapok = ['Jan','Feb','Már','Ápr','Máj','Jún','Júl','Aug','Szep','Okt','Nov','Dec'];
       prev.style.display = 'block';
-      prev.innerHTML = `<div style="margin-bottom:0.4rem;color:var(--text)">📊 Tényleges termelés – ${data.sofarData.year || 'idei'} év:</div>` +
-        gens.map((v,i) => `<span style="margin-right:0.75rem">${honapok[i]}: <strong style="color:var(--sun)">${parseFloat(v||0).toFixed(0)} kWh</strong></span>`).join('') +
-        `<div style="margin-top:0.4rem">Összesen: <strong style="color:var(--green)">${total.toFixed(0)} kWh</strong></div>`;
+      prev.innerHTML =
+        `<div style="margin-bottom:0.5rem;color:var(--text);font-weight:600">` +
+        `📊 ${stationName} – ${year}. évi termelés:</div>` +
+        `<div style="display:flex;flex-wrap:wrap;gap:0.4rem 1rem">` +
+        generations.map((v,i) => {
+          const val = parseFloat(v||0);
+          const color = val > 0 ? 'var(--sun)' : 'var(--text-muted)';
+          return `<span>${honapok[i]}: <strong style="color:${color}">${val.toFixed(0)} kWh</strong></span>`;
+        }).join('') +
+        `</div>` +
+        `<div style="margin-top:0.5rem;border-top:1px solid var(--border);padding-top:0.4rem">` +
+        `Összesen: <strong style="color:var(--green)">${total.toFixed(0)} kWh</strong>` +
+        (installedPower ? ` &nbsp;|&nbsp; Telepített: <strong style="color:var(--sun)">${installedPower} kWp</strong>` : '') +
+        `</div>`;
     }
-
-    // Ha van kWp adat, töltsük be
-    if (data.sofarData.installedPower) {
+ 
+    // kWp automatikus betöltése
+    if (installedPower) {
       const kwpEl = document.getElementById('mt-kwp');
-      if (kwpEl) kwpEl.value = data.sofarData.installedPower;
-      mt_onParamChange();
+      if (kwpEl && !kwpEl.value) {
+        kwpEl.value = installedPower;
+        mt_onParamChange();
+      }
     }
-
+ 
+    showToast('✅ SofarCloud adatok betöltve!');
+ 
   } catch(err) {
-    if (dot)  dot.className  = 'sofar-dot';
-    if (text) text.textContent = '⚠️ Lekérés sikertelen: ' + err.message + ' – Az Apps Script kódját frissíteni kell a SofarCloud támogatáshoz.';
+    if (dot)  dot.className = 'sofar-dot';
+    if (text) {
+      if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+        text.innerHTML = '⚠️ Kapcsolódási hiba – <strong>Kérlek jelentkezz be az ' +
+          '<a href="https://eu.sofarcloud.com" target="_blank" style="color:var(--sun)">eu.sofarcloud.com</a>' +
+          '</strong> oldalra ugyanebben a böngészőben, majd próbáld újra!';
+      } else {
+        text.textContent = '⚠️ Hiba: ' + err.message;
+      }
+    }
     console.warn('SofarCloud hiba:', err);
   }
 }
-
+ 
 // ============================================================
 // SESSION KEZELÉS
 // ============================================================
 const SESSION_DURATION = 4 * 60 * 60 * 1000;   // 4 óra milliszekundumban
 const WARNING_BEFORE   = 5 * 60 * 1000;          // 5 perces figyelmeztetés
 const SESSION_KEY      = 'sf_session_start';
-
+ 
 let sessionTimer        = null;
 let warningTimer        = null;
 let countdownInterval   = null;
 let warningShown        = false;
-
+ 
 function startSession() {
   const now = Date.now();
   localStorage.setItem(SESSION_KEY, now.toString());
   scheduleSessionTimers();
   startSessionClock();
 }
-
+ 
 let clockInterval = null;
-
+ 
 function startSessionClock() {
   clearInterval(clockInterval);
   const clock = document.getElementById('session-clock');
@@ -2955,13 +3049,13 @@ function startSessionClock() {
   updateSessionClock();
   clockInterval = setInterval(updateSessionClock, 1000);
 }
-
+ 
 function updateSessionClock() {
   const clock     = document.getElementById('session-clock');
   const timeEl    = document.getElementById('session-clock-time');
   const iconEl    = document.getElementById('session-clock-icon');
   if (!clock || !timeEl) return;
-
+ 
   const stored    = parseInt(localStorage.getItem(SESSION_KEY) || '0');
   const elapsed   = Date.now() - stored;
   const remaining = Math.max(0, SESSION_DURATION - elapsed);
@@ -2969,13 +3063,13 @@ function updateSessionClock() {
   const h         = Math.floor(seconds / 3600);
   const m         = Math.floor((seconds % 3600) / 60);
   const s         = seconds % 60;
-
+ 
   if (h > 0) {
     timeEl.textContent = h + ':' + m.toString().padStart(2,'0') + ':' + s.toString().padStart(2,'0');
   } else {
     timeEl.textContent = m.toString().padStart(2,'0') + ':' + s.toString().padStart(2,'0');
   }
-
+ 
   // Szín és ikon állapot
   clock.classList.remove('warning','danger');
   if (remaining <= 60 * 1000) {
@@ -2992,38 +3086,38 @@ function updateSessionClock() {
   } else {
     iconEl.textContent = '🕐';
   }
-
+ 
   if (remaining <= 0) {
     clearInterval(clockInterval);
     clock.style.display = 'none';
   }
 }
-
+ 
 function stopSessionClock() {
   clearInterval(clockInterval);
   const clock = document.getElementById('session-clock');
   if (clock) clock.style.display = 'none';
 }
-
+ 
 function scheduleSessionTimers() {
   // Töröljük a régi timereket
   clearTimeout(sessionTimer);
   clearTimeout(warningTimer);
   clearInterval(countdownInterval);
   warningShown = false;
-
+ 
   const stored = parseInt(localStorage.getItem(SESSION_KEY) || '0');
   const elapsed = Date.now() - stored;
   const remaining = SESSION_DURATION - elapsed;
-
+ 
   if (remaining <= 0) {
     // Session már lejárt
     handleSessionExpired();
     return;
   }
-
+ 
   const warningIn = remaining - WARNING_BEFORE;
-
+ 
   if (warningIn > 0) {
     // Figyelmeztetés timer
     warningTimer = setTimeout(() => {
@@ -3033,28 +3127,28 @@ function scheduleSessionTimers() {
     // Már a figyelmeztető zónában vagyunk
     showSessionWarning(remaining);
   }
-
+ 
   // Lejárat timer
   sessionTimer = setTimeout(() => {
     handleSessionExpired();
   }, remaining);
 }
-
+ 
 function showSessionWarning(msRemaining) {
   if (warningShown) return;
   warningShown = true;
-
+ 
   // Automata mentés
   autoSaveOnWarning();
-
+ 
   // Modal megjelenítése
   const overlay = document.getElementById('session-overlay');
   if (overlay) overlay.style.display = 'flex';
-
+ 
   // Visszaszámláló
   let secondsLeft = Math.floor(msRemaining / 1000);
   updateCountdown(secondsLeft);
-
+ 
   countdownInterval = setInterval(() => {
     secondsLeft--;
     if (secondsLeft <= 0) {
@@ -3065,7 +3159,7 @@ function showSessionWarning(msRemaining) {
     }
   }, 1000);
 }
-
+ 
 function updateCountdown(seconds) {
   const el = document.getElementById('session-countdown');
   if (!el) return;
@@ -3075,7 +3169,7 @@ function updateCountdown(seconds) {
   // Piros villogás az utolsó 60 másodpercben
   el.style.color = seconds <= 60 ? (seconds % 2 === 0 ? 'var(--red)' : 'var(--sun)') : 'var(--red)';
 }
-
+ 
 function extendSession() {
   clearInterval(countdownInterval);
   const overlay = document.getElementById('session-overlay');
@@ -3084,7 +3178,7 @@ function extendSession() {
   startSession(); // ez újraindítja a clock-ot is
   showToast('✅ Munkamenet meghosszabbítva – újabb 4 óra!');
 }
-
+ 
 function handleSessionExpired() {
   clearInterval(countdownInterval);
   clearTimeout(sessionTimer);
@@ -3096,18 +3190,18 @@ function handleSessionExpired() {
     doLogout();
   }, 2000);
 }
-
+ 
 async function autoSaveOnWarning() {
   const statusEl = document.getElementById('autosave-status');
   const panelSel = searchState.panel ? searchState.panel.selected : null;
-
+ 
   if (!panelSel) {
     if (statusEl) statusEl.textContent = 'ℹ️ Nincs aktív kalkuláció – automatikus mentés kihagyva.';
     return;
   }
-
+ 
   if (statusEl) statusEl.textContent = '⏳ Automatikus mentés folyamatban...';
-
+ 
   try {
     await saveAjanlat(true); // true = silent mode (no toast)
     if (statusEl) statusEl.innerHTML = '✅ <strong>Automatikus mentés sikeres!</strong> Az ajánlat elmentve a Sheets-be.';
@@ -3115,7 +3209,7 @@ async function autoSaveOnWarning() {
     if (statusEl) statusEl.textContent = '⚠️ Automatikus mentés nem sikerült.';
   }
 }
-
+ 
 // Aktivitás figyelés – ha a felhasználó aktív, reseteljük a timert
 function resetSessionOnActivity() {
   if (!currentUser) return;
@@ -3126,13 +3220,13 @@ function resetSessionOnActivity() {
     startSession();
   }
 }
-
+ 
 // ============================================================
 // INIT
 // ============================================================
 // Enter gomb login inputban
 document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
-
+ 
 // Felhasználók előtöltése oldal betöltésekor (login előtt)
 (async function preload() {
   const indicator = document.getElementById('preload-msg');
@@ -3155,3 +3249,4 @@ document.getElementById('login-pass').addEventListener('keydown', e => { if (e.k
 </script>
 </body>
 </html>
+ 
