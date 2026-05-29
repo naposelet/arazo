@@ -2,18 +2,26 @@
 <!--
   ============================================================
   Solar Future – Árazó
-  Verzió: v1.9 – 2026-05-15 08:10
-  Utolsó módosítás: 2026-05-15 08:10
+  Verzió: v2.1 – 2026-05-29 08:46
+  Utolsó módosítás: 2026-05-29 08:46 (Budapest)
+  
+  Változások v2.1-ben:
+  - Session kezelés: 4 órás munkamenet
+  - Session visszaszámláló óra a jobb alsó sarokban
+  - 5 perccel lejárat előtt figyelmeztetés + automata mentés
+  - Munkamenet meghosszabbítás gombbal
+  - Verziószám budapesti időbélyeggel
+  
+  Változások v2.0-ban:
+  - Session figyelmeztetés modal (5 perc előtt)
+  - Automatikus ajánlat mentés lejárat előtt
   
   Változások v1.9-ben:
-  - Google Sheets felhasználókezelés (Felhasználók lap)
-  - Ajánlat mentés (💾 gomb → Sheets Ajánlatok lap)
-  - Admin: 📁 Ajánlatok tab (utolsó 20 mentett ajánlat)
+  - Google Sheets felhasználókezelés
+  - Ajánlat mentés (Sheets Ajánlatok lap)
   - Régi és Új számítási mód kalkulátoronként
-  - Kompatibilitás szűrő (inverter → egyéb termékek)
-  - x-es árú termékek kiszűrve
+  - Kompatibilitás szűrő
   - Tartószerkezet képlet: alap + (kW-3) × per_kW
-  - Verziószám + időbélyeg a topbarban
   ============================================================
 -->
 <html lang="hu">
@@ -254,6 +262,28 @@
   .admin-tab:hover { color: var(--sun); border-color: var(--sun); }
   .admin-tab.active { background: var(--surface); color: var(--sun); border-color: var(--sun); font-weight: 700; }
 
+  /* SESSION ÓRA */
+  #session-clock {
+    position: fixed; bottom: 5.5rem; right: 1rem; z-index: 490;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 0.75rem; padding: 0.4rem 0.75rem;
+    font-size: 0.72rem; color: var(--text-muted);
+    display: none; align-items: center; gap: 0.4rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    cursor: pointer; transition: all 0.2s;
+    user-select: none;
+  }
+  #session-clock:hover { border-color: var(--sun); color: var(--text); }
+  #session-clock.warning { border-color: var(--sun); color: var(--sun); animation: pulse-border 1s ease-in-out infinite; }
+  #session-clock.danger  { border-color: var(--red);  color: var(--red);  animation: pulse-border 0.5s ease-in-out infinite; }
+  #session-clock-icon { font-size: 0.9rem; }
+  #session-clock-time { font-weight: 700; font-variant-numeric: tabular-nums; min-width: 3.2rem; }
+
+  @keyframes pulse-border {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.5; }
+  }
+
   .toast {
     position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
     background: var(--green); color: #fff; padding: 0.75rem 1.5rem;
@@ -325,7 +355,7 @@
   <div class="topbar">
     <div class="topbar-left">
       <span class="topbar-logo">☀️ Solar Future</span>
-      <span id="ver-badge" style="font-size:0.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:0.4rem;padding:0.1rem 0.4rem;background:var(--bg)">v2.0 – 2026-05-29 06:27</span>
+      <span id="ver-badge" style="font-size:0.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:0.4rem;padding:0.1rem 0.4rem;background:var(--bg)">v2.1 – 2026-05-29 08:46</span>
       <span class="user-badge" id="topbar-user">—</span>
     </div>
     <div class="topbar-right">
@@ -636,6 +666,12 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- SESSION ÓRA (sarok) -->
+<div id="session-clock" onclick="extendSession()" title="Kattints a meghosszabbításhoz">
+  <span id="session-clock-icon">🕐</span>
+  <span id="session-clock-time">—</span>
+</div>
+
 <!-- SESSION FIGYELMEZTETÉS -->
 <div id="session-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9998;align-items:center;justify-content:center">
   <div style="background:var(--surface);border:2px solid var(--sun);border-radius:1.5rem;padding:2rem;max-width:420px;width:90%;text-align:center;box-shadow:0 25px 50px rgba(0,0,0,0.6)">
@@ -666,7 +702,7 @@
 // ADATOK
 // ============================================================
 const SHEETS_API = 'https://script.google.com/macros/s/AKfycbwcELD2MLNn3-9Odjsc8ullBmI7zHJtZmmrcqb19HjDcFc4YNnr7BnLJ6c3hjBf3SPj/exec';
-const APP_VERSION = 'v2.0 – 2026-05-29 06:27';
+const APP_VERSION = 'v2.1 – 2026-05-29 08:46';
 
 // Számítási paraméterek - admin felületen módosíthatók
 const CALC_SETTINGS = {
@@ -817,6 +853,7 @@ function doLogout() {
   clearTimeout(sessionTimer);
   clearTimeout(warningTimer);
   clearInterval(countdownInterval);
+  stopSessionClock();
   localStorage.removeItem(SESSION_KEY);
   const overlay = document.getElementById('session-overlay');
   if (overlay) overlay.style.display = 'none';
@@ -2082,6 +2119,66 @@ function startSession() {
   const now = Date.now();
   localStorage.setItem(SESSION_KEY, now.toString());
   scheduleSessionTimers();
+  startSessionClock();
+}
+
+let clockInterval = null;
+
+function startSessionClock() {
+  clearInterval(clockInterval);
+  const clock = document.getElementById('session-clock');
+  if (clock) clock.style.display = 'flex';
+  updateSessionClock();
+  clockInterval = setInterval(updateSessionClock, 1000);
+}
+
+function updateSessionClock() {
+  const clock     = document.getElementById('session-clock');
+  const timeEl    = document.getElementById('session-clock-time');
+  const iconEl    = document.getElementById('session-clock-icon');
+  if (!clock || !timeEl) return;
+
+  const stored    = parseInt(localStorage.getItem(SESSION_KEY) || '0');
+  const elapsed   = Date.now() - stored;
+  const remaining = Math.max(0, SESSION_DURATION - elapsed);
+  const seconds   = Math.floor(remaining / 1000);
+  const h         = Math.floor(seconds / 3600);
+  const m         = Math.floor((seconds % 3600) / 60);
+  const s         = seconds % 60;
+
+  if (h > 0) {
+    timeEl.textContent = h + ':' + m.toString().padStart(2,'0') + ':' + s.toString().padStart(2,'0');
+  } else {
+    timeEl.textContent = m.toString().padStart(2,'0') + ':' + s.toString().padStart(2,'0');
+  }
+
+  // Szín és ikon állapot
+  clock.classList.remove('warning','danger');
+  if (remaining <= 60 * 1000) {
+    // Utolsó 1 perc – vörös, villog
+    clock.classList.add('danger');
+    iconEl.textContent = '🔴';
+  } else if (remaining <= WARNING_BEFORE) {
+    // 5 percen belül – narancs figyelmeztető
+    clock.classList.add('warning');
+    iconEl.textContent = '⚠️';
+  } else if (remaining <= 30 * 60 * 1000) {
+    // 30 percen belül – sárga
+    iconEl.textContent = '🟡';
+  } else {
+    iconEl.textContent = '🕐';
+  }
+
+  if (remaining <= 0) {
+    clearInterval(clockInterval);
+    clock.style.display = 'none';
+  }
+}
+
+function stopSessionClock() {
+  clearInterval(clockInterval);
+  const clock = document.getElementById('session-clock');
+  if (clock) clock.style.display = 'none';
 }
 
 function scheduleSessionTimers() {
@@ -2156,12 +2253,11 @@ function updateCountdown(seconds) {
 }
 
 function extendSession() {
-  // Meghosszabbítás: újraindítjuk a 4 órás timert
   clearInterval(countdownInterval);
   const overlay = document.getElementById('session-overlay');
   if (overlay) overlay.style.display = 'none';
   warningShown = false;
-  startSession();
+  startSession(); // ez újraindítja a clock-ot is
   showToast('✅ Munkamenet meghosszabbítva – újabb 4 óra!');
 }
 
