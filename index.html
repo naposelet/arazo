@@ -325,7 +325,7 @@
   <div class="topbar">
     <div class="topbar-left">
       <span class="topbar-logo">☀️ Solar Future</span>
-      <span id="ver-badge" style="font-size:0.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:0.4rem;padding:0.1rem 0.4rem;background:var(--bg)">v1.9 – 2026-05-15 08:26</span>
+      <span id="ver-badge" style="font-size:0.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:0.4rem;padding:0.1rem 0.4rem;background:var(--bg)">v2.0 – 2026-05-29 06:27</span>
       <span class="user-badge" id="topbar-user">—</span>
     </div>
     <div class="topbar-right">
@@ -636,12 +636,37 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- SESSION FIGYELMEZTETÉS -->
+<div id="session-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9998;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:2px solid var(--sun);border-radius:1.5rem;padding:2rem;max-width:420px;width:90%;text-align:center;box-shadow:0 25px 50px rgba(0,0,0,0.6)">
+    <div style="font-size:2.5rem;margin-bottom:1rem">⚠️</div>
+    <h2 style="color:var(--sun);margin-bottom:0.75rem;font-size:1.3rem">Hamarosan kijelentkezteti a rendszer!</h2>
+    <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:0.5rem">
+      A munkamenet <strong id="session-countdown" style="color:var(--red);font-size:1.1rem">5:00</strong> perc múlva lejár.
+    </p>
+    <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1.5rem">
+      Az aktuális kalkuláció automatikusan mentésre kerül.
+    </p>
+    <div style="display:grid;gap:0.75rem">
+      <button onclick="extendSession()" 
+        style="background:var(--sun);color:#000;border:none;border-radius:0.75rem;padding:0.85rem;font-size:1rem;font-weight:700;cursor:pointer">
+        ✅ Maradok – Meghosszabbítás
+      </button>
+      <button onclick="doLogout()" 
+        style="background:transparent;color:var(--text-muted);border:1px solid var(--border);border-radius:0.75rem;padding:0.75rem;font-size:0.9rem;cursor:pointer">
+        Kijelentkezés most
+      </button>
+    </div>
+    <div style="margin-top:1rem;font-size:0.75rem;color:var(--text-muted)" id="autosave-status"></div>
+  </div>
+</div>
+
 <script>
 // ============================================================
 // ADATOK
 // ============================================================
 const SHEETS_API = 'https://script.google.com/macros/s/AKfycbwcELD2MLNn3-9Odjsc8ullBmI7zHJtZmmrcqb19HjDcFc4YNnr7BnLJ6c3hjBf3SPj/exec';
-const APP_VERSION = 'v1.9 – 2026-05-15 08:26';
+const APP_VERSION = 'v2.0 – 2026-05-29 06:27';
 
 // Számítási paraméterek - admin felületen módosíthatók
 const CALC_SETTINGS = {
@@ -780,6 +805,7 @@ function doLogin() {
   buildCalcTabs();
   showCalc();
   loadFromSheets(); // háttérben frissít a Sheets-ből
+  startSession();   // session timer indítása
 }
 
 document.addEventListener('keydown', e => {
@@ -787,6 +813,14 @@ document.addEventListener('keydown', e => {
 });
 
 function doLogout() {
+  // Session timerek törlése
+  clearTimeout(sessionTimer);
+  clearTimeout(warningTimer);
+  clearInterval(countdownInterval);
+  localStorage.removeItem(SESSION_KEY);
+  const overlay = document.getElementById('session-overlay');
+  if (overlay) overlay.style.display = 'none';
+
   currentUser = null;
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
@@ -931,16 +965,17 @@ async function loadAjanlatok() {
 // ============================================================
 // RÉSZLETEZŐ
 // ============================================================
-async function saveAjanlat() {
+async function saveAjanlat(silent = false) {
   const btn = document.getElementById('save-btn');
-  if (!btn) return;
 
   const panelSel = searchState.panel.selected;
   const panelQty = parseInt(document.getElementById('panel-qty')?.value) || 0;
-  if (!panelSel || panelQty === 0) { showToast('⚠️ Nincs kiválasztott napelem!'); return; }
+  if (!panelSel || panelQty === 0) {
+    if (!silent) showToast('⚠️ Nincs kiválasztott napelem!');
+    return;
+  }
 
-  btn.textContent = '⏳ Mentés...';
-  btn.disabled = true;
+  if (btn && !silent) { btn.textContent = '⏳ Mentés...'; btn.disabled = true; }
 
   const tartCode  = parseInt(document.getElementById('tart-select')?.value) || 0;
   const inv1Sel   = searchState.inv1.selected;
@@ -1050,14 +1085,16 @@ async function saveAjanlat() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    btn.textContent = '✅ Mentve!';
-    btn.style.background = 'var(--green)';
-    setTimeout(() => { btn.textContent = '💾 Mentés'; btn.disabled = false; }, 3000);
-    showToast('✅ Ajánlat elmentve a Sheets-be!');
+    if (btn && !silent) {
+      btn.textContent = '✅ Mentve!';
+      btn.style.background = 'var(--green)';
+      setTimeout(() => { btn.textContent = '💾 Mentés'; btn.disabled = false; }, 3000);
+    }
+    if (!silent) showToast('✅ Ajánlat elmentve a Sheets-be!');
   } catch(err) {
-    btn.textContent = '❌ Hiba';
-    btn.disabled = false;
-    showToast('⚠️ Mentési hiba: ' + err.message);
+    if (btn && !silent) { btn.textContent = '❌ Hiba'; btn.disabled = false; }
+    if (!silent) showToast('⚠️ Mentési hiba: ' + err.message);
+    throw err; // silent módban továbbadjuk a hibát
   }
 }
 
@@ -2026,6 +2063,147 @@ async function loadFromSheets() {
     console.warn('Sheets szinkron hiba:', err);
     if (indicator) { indicator.textContent = '⚠️ Offline mód'; indicator.style.color = 'var(--text-muted)'; }
     if (syncTime) syncTime.textContent = '(beépített adatok)';
+  }
+}
+
+// ============================================================
+// SESSION KEZELÉS
+// ============================================================
+const SESSION_DURATION = 4 * 60 * 60 * 1000;   // 4 óra milliszekundumban
+const WARNING_BEFORE   = 5 * 60 * 1000;          // 5 perces figyelmeztetés
+const SESSION_KEY      = 'sf_session_start';
+
+let sessionTimer        = null;
+let warningTimer        = null;
+let countdownInterval   = null;
+let warningShown        = false;
+
+function startSession() {
+  const now = Date.now();
+  localStorage.setItem(SESSION_KEY, now.toString());
+  scheduleSessionTimers();
+}
+
+function scheduleSessionTimers() {
+  // Töröljük a régi timereket
+  clearTimeout(sessionTimer);
+  clearTimeout(warningTimer);
+  clearInterval(countdownInterval);
+  warningShown = false;
+
+  const stored = parseInt(localStorage.getItem(SESSION_KEY) || '0');
+  const elapsed = Date.now() - stored;
+  const remaining = SESSION_DURATION - elapsed;
+
+  if (remaining <= 0) {
+    // Session már lejárt
+    handleSessionExpired();
+    return;
+  }
+
+  const warningIn = remaining - WARNING_BEFORE;
+
+  if (warningIn > 0) {
+    // Figyelmeztetés timer
+    warningTimer = setTimeout(() => {
+      showSessionWarning(WARNING_BEFORE);
+    }, warningIn);
+  } else {
+    // Már a figyelmeztető zónában vagyunk
+    showSessionWarning(remaining);
+  }
+
+  // Lejárat timer
+  sessionTimer = setTimeout(() => {
+    handleSessionExpired();
+  }, remaining);
+}
+
+function showSessionWarning(msRemaining) {
+  if (warningShown) return;
+  warningShown = true;
+
+  // Automata mentés
+  autoSaveOnWarning();
+
+  // Modal megjelenítése
+  const overlay = document.getElementById('session-overlay');
+  if (overlay) overlay.style.display = 'flex';
+
+  // Visszaszámláló
+  let secondsLeft = Math.floor(msRemaining / 1000);
+  updateCountdown(secondsLeft);
+
+  countdownInterval = setInterval(() => {
+    secondsLeft--;
+    if (secondsLeft <= 0) {
+      clearInterval(countdownInterval);
+      handleSessionExpired();
+    } else {
+      updateCountdown(secondsLeft);
+    }
+  }, 1000);
+}
+
+function updateCountdown(seconds) {
+  const el = document.getElementById('session-countdown');
+  if (!el) return;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  el.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+  // Piros villogás az utolsó 60 másodpercben
+  el.style.color = seconds <= 60 ? (seconds % 2 === 0 ? 'var(--red)' : 'var(--sun)') : 'var(--red)';
+}
+
+function extendSession() {
+  // Meghosszabbítás: újraindítjuk a 4 órás timert
+  clearInterval(countdownInterval);
+  const overlay = document.getElementById('session-overlay');
+  if (overlay) overlay.style.display = 'none';
+  warningShown = false;
+  startSession();
+  showToast('✅ Munkamenet meghosszabbítva – újabb 4 óra!');
+}
+
+function handleSessionExpired() {
+  clearInterval(countdownInterval);
+  clearTimeout(sessionTimer);
+  clearTimeout(warningTimer);
+  const overlay = document.getElementById('session-overlay');
+  if (overlay) overlay.style.display = 'none';
+  showToast('⏰ Munkamenet lejárt – kijelentkeztetés...');
+  setTimeout(() => {
+    doLogout();
+  }, 2000);
+}
+
+async function autoSaveOnWarning() {
+  const statusEl = document.getElementById('autosave-status');
+  const panelSel = searchState.panel ? searchState.panel.selected : null;
+
+  if (!panelSel) {
+    if (statusEl) statusEl.textContent = 'ℹ️ Nincs aktív kalkuláció – automatikus mentés kihagyva.';
+    return;
+  }
+
+  if (statusEl) statusEl.textContent = '⏳ Automatikus mentés folyamatban...';
+
+  try {
+    await saveAjanlat(true); // true = silent mode (no toast)
+    if (statusEl) statusEl.innerHTML = '✅ <strong>Automatikus mentés sikeres!</strong> Az ajánlat elmentve a Sheets-be.';
+  } catch(err) {
+    if (statusEl) statusEl.textContent = '⚠️ Automatikus mentés nem sikerült.';
+  }
+}
+
+// Aktivitás figyelés – ha a felhasználó aktív, reseteljük a timert
+function resetSessionOnActivity() {
+  if (!currentUser) return;
+  const stored = parseInt(localStorage.getItem(SESSION_KEY) || '0');
+  const elapsed = Date.now() - stored;
+  // Csak akkor reseteljük, ha még nem vagyunk a figyelmeztető zónában
+  if (elapsed < SESSION_DURATION - WARNING_BEFORE - 60000) {
+    startSession();
   }
 }
 
