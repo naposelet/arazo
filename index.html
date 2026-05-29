@@ -2,8 +2,8 @@
 <!--
   ============================================================
   Solar Future – Árazó
-  Verzió: v2.1 – 2026-05-29 08:46
-  Utolsó módosítás: 2026-05-29 08:46 (Budapest)
+  Verzió: v2.2 – 2026-05-29 12:06
+  Utolsó módosítás: 2026-05-29 12:06 (Budapest)
   
   Változások v2.1-ben:
   - Session kezelés: 4 órás munkamenet
@@ -29,6 +29,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Solar Future – Árazó</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   :root {
     --sun: #F59E0B;
@@ -252,6 +253,85 @@
   .checkbox-group input[type=checkbox] { accent-color: var(--sun); }
   .btn-row { display: flex; gap: 0.5rem; justify-content: flex-end; }
   
+  /* FŐ NAV TABS */
+  .main-nav-tab {
+    background: transparent; border: none; border-bottom: 3px solid transparent;
+    padding: 0.75rem 1.25rem; font-size: 0.9rem; font-weight: 600;
+    cursor: pointer; color: var(--text-muted); transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .main-nav-tab:hover { color: var(--sun); }
+  .main-nav-tab.active { color: var(--sun); border-bottom-color: var(--sun); }
+
+  /* MEGTÉRÜLÉS KALKULÁTOR */
+  #megterules-view {
+    display: none; padding: 1rem; max-width: 800px; margin: 0 auto;
+    padding-bottom: 6rem;
+  }
+  .mt-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 1rem; padding: 1.25rem; margin-bottom: 1rem;
+  }
+  .mt-card h3 { font-size: 0.9rem; color: var(--sun); margin-bottom: 1rem; display:flex; align-items:center; gap:0.5rem; }
+  .mt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .mt-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; }
+  @media (max-width: 500px) { .mt-grid, .mt-grid-3 { grid-template-columns: 1fr; } }
+  .mt-field label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.3rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  .mt-field input, .mt-field select {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 0.6rem; padding: 0.6rem 0.75rem; color: var(--text);
+    font-size: 0.9rem; outline: none; transition: border-color 0.2s;
+  }
+  .mt-field input:focus, .mt-field select:focus { border-color: var(--sun); }
+  .mt-field .unit { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem; }
+
+  /* Toggle switch */
+  .mt-toggle { display: flex; background: var(--bg); border: 1px solid var(--border); border-radius: 0.6rem; overflow: hidden; }
+  .mt-toggle button {
+    flex: 1; border: none; background: transparent; color: var(--text-muted);
+    padding: 0.6rem; font-size: 0.85rem; cursor: pointer; transition: all 0.2s;
+  }
+  .mt-toggle button.active { background: var(--sun); color: #000; font-weight: 700; }
+
+  /* Eredmény kártyák */
+  .mt-result-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 1rem; }
+  @media (max-width: 500px) { .mt-result-grid { grid-template-columns: 1fr 1fr; } }
+  .mt-kpi {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 0.75rem; padding: 1rem; text-align: center;
+  }
+  .mt-kpi.highlight { border-color: var(--sun); background: linear-gradient(135deg, #1a2a1a, #0f1f0f); }
+  .mt-kpi-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem; }
+  .mt-kpi-value { font-size: 1.3rem; font-weight: 800; color: var(--sun); }
+  .mt-kpi-value.green { color: var(--green); }
+  .mt-kpi-value.white { color: var(--text); font-size: 1rem; }
+  .mt-kpi-sub { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.2rem; }
+
+  /* Táblázat */
+  .mt-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+  .mt-table th { background: var(--bg); color: var(--text-muted); padding: 0.5rem 0.6rem; text-align: right; font-size: 0.7rem; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  .mt-table th:first-child { text-align: left; }
+  .mt-table td { padding: 0.4rem 0.6rem; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .mt-table td:first-child { text-align: left; color: var(--text-muted); }
+  .mt-table tr.megtérült td { color: var(--green); font-weight: 700; }
+  .mt-table tr.megtérült td:first-child { color: var(--green); }
+  .mt-table .total-row td { border-top: 2px solid var(--border); font-weight: 700; color: var(--sun); }
+
+  /* Grafikon */
+  .mt-chart-wrap { position: relative; height: 220px; }
+
+  /* SofarCloud panel */
+  .sofar-panel {
+    background: linear-gradient(135deg, #0a1628, #0f2040);
+    border: 1px solid #2e6da4; border-radius: 1rem; padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  .sofar-panel h3 { color: #4da6ff; font-size: 0.9rem; margin-bottom: 0.75rem; }
+  .sofar-status { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; margin-bottom: 0.5rem; }
+  .sofar-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); }
+  .sofar-dot.connected { background: var(--green); animation: pulse-dot 2s infinite; }
+  @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
   /* ADMIN TABS */
   .admin-tab {
     border: 1px solid var(--border); background: var(--bg); color: var(--text-muted);
@@ -355,7 +435,7 @@
   <div class="topbar">
     <div class="topbar-left">
       <span class="topbar-logo">☀️ Solar Future</span>
-      <span id="ver-badge" style="font-size:0.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:0.4rem;padding:0.1rem 0.4rem;background:var(--bg)">v2.1 – 2026-05-29 08:46</span>
+      <span id="ver-badge" style="font-size:0.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:0.4rem;padding:0.1rem 0.4rem;background:var(--bg)">v2.2 – 2026-05-29 12:06</span>
       <span class="user-badge" id="topbar-user">—</span>
     </div>
     <div class="topbar-right">
@@ -363,6 +443,12 @@
       <button class="btn-sm" onclick="loadFromSheets()" title="Adatok frissítése a Sheets-ből">🔄</button>
       <button class="btn-sm danger" onclick="doLogout()">Kilépés</button>
     </div>
+  </div>
+
+  <!-- FŐ NAVIGÁCIÓ -->
+  <div id="main-nav" style="background:var(--surface);border-bottom:2px solid var(--border);padding:0 1rem;display:flex;gap:0;display:none">
+    <button class="main-nav-tab active" id="nav-arazas" onclick="switchMainTab('arazas')">🧮 Árazó</button>
+    <button class="main-nav-tab" id="nav-megterules" onclick="switchMainTab('megterules')">📊 Megtérülés</button>
   </div>
 
   <!-- CALC SELECTOR -->
@@ -547,6 +633,259 @@
     </div>
   </div>
 
+  <!-- MEGTÉRÜLÉS KALKULÁTOR -->
+  <div id="megterules-view">
+
+    <!-- SofarCloud integráció -->
+    <div class="sofar-panel" id="sofar-panel">
+      <h3>🔌 SofarCloud – Meglévő rendszer adatai</h3>
+      <div class="sofar-status">
+        <div class="sofar-dot" id="sofar-dot"></div>
+        <span id="sofar-status-text" style="color:var(--text-muted)">Nincs kapcsolat – meglévő ügyfél esetén add meg a Station ID-t</span>
+      </div>
+      <div style="display:flex;gap:0.5rem;align-items:flex-end;flex-wrap:wrap;margin-top:0.5rem">
+        <div class="mt-field" style="flex:1;min-width:150px">
+          <label>SofarCloud Station ID</label>
+          <input type="text" id="sofar-station-id" placeholder="pl. 64438458" oninput="sofar_onIdChange()">
+        </div>
+        <button onclick="fetchSofarData()" 
+          style="background:var(--sun);color:#000;border:none;border-radius:0.6rem;padding:0.6rem 1rem;font-weight:700;cursor:pointer;font-size:0.85rem;white-space:nowrap">
+          📡 Adatok lekérése
+        </button>
+      </div>
+      <div id="sofar-data-preview" style="display:none;margin-top:0.75rem;font-size:0.78rem;color:var(--text-muted)"></div>
+      <div style="margin-top:0.5rem;font-size:0.72rem;color:#4da6ff;opacity:0.7">
+        💡 A Station ID az eu.sofarcloud.com/plants/plantDetail/<strong style="color:#4da6ff">64438458</strong> URL-ből olvasható ki
+      </div>
+    </div>
+
+    <!-- Ügyfél típus -->
+    <div class="mt-card">
+      <h3>👤 Ügyfél és rendszer adatok</h3>
+      <div class="mt-grid" style="margin-bottom:0.75rem">
+        <div class="mt-field">
+          <label>Ügyfél neve</label>
+          <input type="text" id="mt-ugyfel-nev" placeholder="Kovács János">
+        </div>
+        <div class="mt-field">
+          <label>Helyszín / Cím</label>
+          <input type="text" id="mt-helyszin" placeholder="Budapest, Napelem u. 1.">
+        </div>
+      </div>
+      <div class="mt-grid">
+        <div class="mt-field">
+          <label>GPS – Szélességi fok (lat)</label>
+          <input type="number" id="mt-lat" placeholder="47.50" step="0.0001" oninput="mt_onParamChange()">
+        </div>
+        <div class="mt-field">
+          <label>GPS – Hosszúsági fok (lon)</label>
+          <input type="number" id="mt-lon" placeholder="19.04" step="0.0001" oninput="mt_onParamChange()">
+        </div>
+        <div class="mt-field">
+          <label>Tető dőlésszög (°)</label>
+          <input type="number" id="mt-tilt" value="35" min="0" max="90" oninput="mt_onParamChange()">
+          <div class="unit">0° = vízszintes, 90° = függőleges</div>
+        </div>
+        <div class="mt-field">
+          <label>Tájolás / Azimut (°)</label>
+          <input type="number" id="mt-azimut" value="0" min="-180" max="180" oninput="mt_onParamChange()">
+          <div class="unit">0° = Dél, -90° = Kelet, 90° = Nyugat</div>
+        </div>
+      </div>
+      <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.04em">Rendszer adatok (árazóból automatikus vagy kézi)</div>
+        <div class="mt-grid">
+          <div class="mt-field">
+            <label>Telepített kapacitás (kWp)</label>
+            <input type="number" id="mt-kwp" placeholder="4.9" step="0.1" oninput="mt_onParamChange()">
+          </div>
+          <div class="mt-field">
+            <label>Rendszer bruttó ára (Ft)</label>
+            <input type="number" id="mt-rendszer-ar" placeholder="3500000" oninput="mt_recalculate()">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Áramár beállítás -->
+    <div class="mt-card">
+      <h3>⚡ Áramár beállítás</h3>
+      <div style="margin-bottom:0.75rem">
+        <div class="mt-toggle" id="ugyfel-toggle">
+          <button class="active" id="toggle-lakossagi" onclick="setUgyfelTipus('lakossagi')">🏠 Lakossági</button>
+          <button id="toggle-ceges" onclick="setUgyfelTipus('ceges')">🏢 Céges</button>
+        </div>
+      </div>
+
+      <!-- Lakossági panel -->
+      <div id="lakossagi-panel">
+        <div class="mt-grid" style="margin-bottom:0.75rem">
+          <div class="mt-field">
+            <label>Éves kvóta határ (kWh/év)</label>
+            <input type="number" id="mt-kvota" value="2500" oninput="mt_recalculate()">
+            <div class="unit">Ez alatt érvényes az alacsonyabb ár</div>
+          </div>
+          <div class="mt-field">
+            <label>Alacsony sáv ára (Ft/kWh)</label>
+            <input type="number" id="mt-ar-alap" value="40" oninput="mt_recalculate()">
+            <div class="unit">Kvótán belüli fogyasztásra</div>
+          </div>
+          <div class="mt-field">
+            <label>Magas sáv ára (Ft/kWh)</label>
+            <input type="number" id="mt-ar-magas" value="70" oninput="mt_recalculate()">
+            <div class="unit">Kvótán felüli fogyasztásra</div>
+          </div>
+          <div class="mt-field">
+            <label>Fogyasztás megadása</label>
+            <select id="mt-fogyasztas-mod" onchange="mt_toggleFogyasztasMod()">
+              <option value="kwh-havi">Havi kWh fogyasztás</option>
+              <option value="kwh-eves">Éves kWh fogyasztás</option>
+              <option value="ft-havi">Havi számla (Ft)</option>
+              <option value="ft-eves">Éves számla (Ft)</option>
+            </select>
+          </div>
+        </div>
+        <div class="mt-field" style="max-width:280px">
+          <label id="mt-fogyasztas-label">Havi fogyasztás (kWh)</label>
+          <input type="number" id="mt-fogyasztas-ertek" placeholder="300" oninput="mt_recalculate()">
+        </div>
+        <div id="mt-ar-info" style="margin-top:0.5rem;font-size:0.78rem;color:var(--text-muted);background:var(--bg);border-radius:0.5rem;padding:0.5rem 0.75rem;display:none"></div>
+      </div>
+
+      <!-- Céges panel -->
+      <div id="ceges-panel" style="display:none">
+        <div class="mt-grid">
+          <div class="mt-field">
+            <label>Céges áram ár (Ft/kWh)</label>
+            <input type="number" id="mt-ar-ceges" value="120" oninput="mt_recalculate()">
+          </div>
+          <div class="mt-field">
+            <label>Fogyasztás megadása</label>
+            <select id="mt-ceges-mod" onchange="mt_toggleCegesMod()">
+              <option value="kwh-havi">Havi kWh fogyasztás</option>
+              <option value="kwh-eves">Éves kWh fogyasztás</option>
+              <option value="ft-havi">Havi számla (Ft)</option>
+              <option value="ft-eves">Éves számla (Ft)</option>
+            </select>
+          </div>
+          <div class="mt-field">
+            <label id="mt-ceges-fogyasztas-label">Havi fogyasztás (kWh)</label>
+            <input type="number" id="mt-ceges-fogyasztas" placeholder="800" oninput="mt_recalculate()">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rendszer paraméterek -->
+    <div class="mt-card">
+      <h3>⚙️ Rendszer paraméterek</h3>
+      <div class="mt-grid-3">
+        <div class="mt-field">
+          <label>Rendszer élettartama (év)</label>
+          <input type="number" id="mt-elettartam" value="18" min="1" max="30" oninput="mt_recalculate()">
+        </div>
+        <div class="mt-field">
+          <label>Éves degradáció (%)</label>
+          <input type="number" id="mt-degradacio" value="0.5" step="0.1" min="0" max="5" oninput="mt_recalculate()">
+        </div>
+        <div class="mt-field">
+          <label>Rendszer veszteség (%)</label>
+          <input type="number" id="mt-veszteseg" value="14" min="0" max="30" oninput="mt_pvgis_debounce()">
+          <div class="unit">Kábel, inverter, piszok stb.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PVGIS státusz -->
+    <div id="pvgis-status-bar" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:0.75rem;padding:0.6rem 1rem;margin-bottom:1rem;font-size:0.8rem;color:var(--text-muted);display:flex;align-items:center;gap:0.5rem">
+      <span id="pvgis-status-icon">⏳</span>
+      <span id="pvgis-status-text">PVGIS adatok betöltése...</span>
+    </div>
+
+    <!-- EREDMÉNYEK -->
+    <div id="mt-results" style="display:none">
+
+      <!-- KPI kártyák -->
+      <div class="mt-result-grid">
+        <div class="mt-kpi highlight">
+          <div class="mt-kpi-label">Megtérülési idő</div>
+          <div class="mt-kpi-value" id="mt-res-megterules">—</div>
+          <div class="mt-kpi-sub">év</div>
+        </div>
+        <div class="mt-kpi">
+          <div class="mt-kpi-label">Éves megtakarítás</div>
+          <div class="mt-kpi-value green" id="mt-res-eves-megtak">—</div>
+          <div class="mt-kpi-sub">Ft/év (1. év)</div>
+        </div>
+        <div class="mt-kpi">
+          <div class="mt-kpi-label">Várható éves termelés</div>
+          <div class="mt-kpi-value white" id="mt-res-eves-termeles">—</div>
+          <div class="mt-kpi-sub">kWh/év (PVGIS)</div>
+        </div>
+        <div class="mt-kpi">
+          <div class="mt-kpi-label">Összes megtakarítás</div>
+          <div class="mt-kpi-value green" id="mt-res-osszes">—</div>
+          <div class="mt-kpi-sub" id="mt-res-osszes-sub">18 év alatt</div>
+        </div>
+        <div class="mt-kpi">
+          <div class="mt-kpi-label">Átlagos kWh ár</div>
+          <div class="mt-kpi-value white" id="mt-res-kwh-ar">—</div>
+          <div class="mt-kpi-sub">Ft/kWh</div>
+        </div>
+        <div class="mt-kpi">
+          <div class="mt-kpi-label">Fajlagos termelés</div>
+          <div class="mt-kpi-value white" id="mt-res-fajlagos">—</div>
+          <div class="mt-kpi-sub">kWh/kWp/év</div>
+        </div>
+      </div>
+
+      <!-- Grafikon -->
+      <div class="mt-card">
+        <h3>📈 Kumulált megtakarítás vs. beruházás</h3>
+        <div class="mt-chart-wrap">
+          <canvas id="mt-chart-megterules"></canvas>
+        </div>
+      </div>
+
+      <!-- Havi termelés grafikon -->
+      <div class="mt-card">
+        <h3>📅 Várható havi termelés (PVGIS)</h3>
+        <div class="mt-chart-wrap">
+          <canvas id="mt-chart-havi"></canvas>
+        </div>
+      </div>
+
+      <!-- Éves cashflow táblázat -->
+      <div class="mt-card">
+        <h3>📋 Éves megtakarítás táblázat</h3>
+        <div style="overflow-x:auto">
+          <table class="mt-table" id="mt-cashflow-table">
+            <thead>
+              <tr>
+                <th style="text-align:left">Év</th>
+                <th>Termelés (kWh)</th>
+                <th>Eff. ár (Ft/kWh)</th>
+                <th>Éves megtak. (Ft)</th>
+                <th>Kum. megtak. (Ft)</th>
+                <th>Megjegyzés</th>
+              </tr>
+            </thead>
+            <tbody id="mt-cashflow-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /mt-results -->
+
+    <!-- Üres állapot -->
+    <div id="mt-empty" style="text-align:center;padding:3rem 1rem;color:var(--text-muted)">
+      <div style="font-size:3rem;margin-bottom:1rem">📊</div>
+      <div style="font-size:1rem;margin-bottom:0.5rem">Töltsd ki a paramétereket a megtérülési kalkuláció elindításához</div>
+      <div style="font-size:0.8rem">A kWp és a rendszer ára az árazóból automatikusan átvehető</div>
+    </div>
+
+  </div><!-- /megterules-view -->
+
   <!-- ADMIN PANEL -->
   <div id="admin-panel">
     <!-- ADMIN TABS -->
@@ -702,7 +1041,7 @@
 // ADATOK
 // ============================================================
 const SHEETS_API = 'https://script.google.com/macros/s/AKfycbwcELD2MLNn3-9Odjsc8ullBmI7zHJtZmmrcqb19HjDcFc4YNnr7BnLJ6c3hjBf3SPj/exec';
-const APP_VERSION = 'v2.1 – 2026-05-29 08:46';
+const APP_VERSION = 'v2.2 – 2026-05-29 12:06';
 
 // Számítási paraméterek - admin felületen módosíthatók
 const CALC_SETTINGS = {
@@ -842,6 +1181,9 @@ function doLogin() {
   showCalc();
   loadFromSheets(); // háttérben frissít a Sheets-ből
   startSession();   // session timer indítása
+  // Főoldal navigáció megjelenítése
+  const mainNav = document.getElementById('main-nav');
+  if (mainNav) mainNav.style.display = 'flex';
 }
 
 document.addEventListener('keydown', e => {
@@ -859,6 +1201,8 @@ function doLogout() {
   if (overlay) overlay.style.display = 'none';
 
   currentUser = null;
+  const mainNavEl = document.getElementById('main-nav');
+  if (mainNavEl) mainNavEl.style.display = 'none';
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('login-email').value = '';
@@ -2100,6 +2444,486 @@ async function loadFromSheets() {
     console.warn('Sheets szinkron hiba:', err);
     if (indicator) { indicator.textContent = '⚠️ Offline mód'; indicator.style.color = 'var(--text-muted)'; }
     if (syncTime) syncTime.textContent = '(beépített adatok)';
+  }
+}
+
+// ============================================================
+// FŐOLDAL NAVIGÁCIÓ
+// ============================================================
+let activeMainTab = 'arazas';
+
+function switchMainTab(tab) {
+  activeMainTab = tab;
+  ['arazas','megterules'].forEach(t => {
+    const btn = document.getElementById('nav-' + t);
+    if (btn) btn.classList.toggle('active', t === tab);
+  });
+  // Arazás elemek
+  const calcTabs   = document.getElementById('calc-tabs');
+  const syncBar    = document.getElementById('sync-bar');
+  const ujNapBar   = document.getElementById('uj-nap-bar');
+  const calcView   = document.getElementById('calc-view');
+  const adminPanel = document.getElementById('admin-panel');
+  const resultBar  = document.getElementById('result-bar');
+  const megView    = document.getElementById('megterules-view');
+
+  if (tab === 'arazas') {
+    if (calcTabs)   calcTabs.style.display   = '';
+    if (syncBar)    syncBar.style.display     = '';
+    if (calcView && adminPanel.style.display === 'none') calcView.style.display = 'block';
+    if (megView)    megView.style.display     = 'none';
+    if (resultBar)  resultBar.classList.add('visible');
+  } else {
+    if (calcTabs)   calcTabs.style.display   = 'none';
+    if (syncBar)    syncBar.style.display     = 'none';
+    if (ujNapBar)   ujNapBar.style.display    = 'none';
+    if (calcView)   calcView.style.display    = 'none';
+    if (adminPanel) adminPanel.style.display  = 'none';
+    if (megView)    megView.style.display     = 'block';
+    if (resultBar)  resultBar.classList.remove('visible');
+    // Átveszi az árazó értékeit
+    mt_importFromArazo();
+  }
+}
+
+// ============================================================
+// MEGTÉRÜLÉS KALKULÁTOR
+// ============================================================
+let mt_ugyfelTipus = 'lakossagi';
+let mt_pvgisData   = null;
+let mt_sofarData   = null;
+let mt_chartMegterules = null;
+let mt_chartHavi       = null;
+let mt_pvgisDebounceTimer = null;
+
+const SOFAR_PROXY = SHEETS_API; // Apps Script közvetítőn keresztül
+
+function mt_importFromArazo() {
+  // Átveszi az árazóban beállított kWp-t és árat
+  const panelSel = searchState.panel ? searchState.panel.selected : null;
+  const panelQty = parseInt(document.getElementById('panel-qty')?.value) || 0;
+
+  if (panelSel && panelQty > 0) {
+    const kWp = panelSel.kw * panelQty;
+    const kwpEl = document.getElementById('mt-kwp');
+    if (kwpEl && !kwpEl.value) kwpEl.value = kWp.toFixed(2);
+  }
+
+  // Bruttó ár átvétele az eredménysávból
+  const bruttoEl = document.getElementById('res-brutto');
+  if (bruttoEl && bruttoEl.textContent !== '—') {
+    const arEl = document.getElementById('mt-rendszer-ar');
+    if (arEl && !arEl.value) {
+      // Parse the formatted number
+      const num = parseInt(bruttoEl.textContent.replace(/[^0-9]/g, ''));
+      if (num > 0) arEl.value = num;
+    }
+  }
+}
+
+function setUgyfelTipus(tipus) {
+  mt_ugyfelTipus = tipus;
+  document.getElementById('toggle-lakossagi').classList.toggle('active', tipus === 'lakossagi');
+  document.getElementById('toggle-ceges').classList.toggle('active', tipus === 'ceges');
+  document.getElementById('lakossagi-panel').style.display = tipus === 'lakossagi' ? 'block' : 'none';
+  document.getElementById('ceges-panel').style.display     = tipus === 'ceges'     ? 'block' : 'none';
+  mt_recalculate();
+}
+
+function mt_toggleFogyasztasMod() {
+  const mod = document.getElementById('mt-fogyasztas-mod').value;
+  const labels = {
+    'kwh-havi': 'Havi fogyasztás (kWh)',
+    'kwh-eves': 'Éves fogyasztás (kWh)',
+    'ft-havi':  'Havi számla (Ft)',
+    'ft-eves':  'Éves számla (Ft)',
+  };
+  document.getElementById('mt-fogyasztas-label').textContent = labels[mod];
+  mt_recalculate();
+}
+
+function mt_toggleCegesMod() {
+  const mod = document.getElementById('mt-ceges-mod').value;
+  const labels = {
+    'kwh-havi': 'Havi fogyasztás (kWh)',
+    'kwh-eves': 'Éves fogyasztás (kWh)',
+    'ft-havi':  'Havi számla (Ft)',
+    'ft-eves':  'Éves számla (Ft)',
+  };
+  document.getElementById('mt-ceges-fogyasztas-label').textContent = labels[mod];
+  mt_recalculate();
+}
+
+function mt_getEvesKwhFogyasztas() {
+  if (mt_ugyfelTipus === 'ceges') {
+    const mod = document.getElementById('mt-ceges-mod').value;
+    const val = parseFloat(document.getElementById('mt-ceges-fogyasztas').value) || 0;
+    const ar  = parseFloat(document.getElementById('mt-ar-ceges').value) || 120;
+    if (val <= 0) return 0;
+    if (mod === 'kwh-havi') return val * 12;
+    if (mod === 'kwh-eves') return val;
+    if (mod === 'ft-havi')  return (val * 12) / ar;
+    if (mod === 'ft-eves')  return val / ar;
+  } else {
+    const mod   = document.getElementById('mt-fogyasztas-mod').value;
+    const val   = parseFloat(document.getElementById('mt-fogyasztas-ertek').value) || 0;
+    const arAlap  = parseFloat(document.getElementById('mt-ar-alap').value)  || 40;
+    const arMagas = parseFloat(document.getElementById('mt-ar-magas').value) || 70;
+    const kvota   = parseFloat(document.getElementById('mt-kvota').value)    || 2500;
+    if (val <= 0) return 0;
+    if (mod === 'kwh-havi') return val * 12;
+    if (mod === 'kwh-eves') return val;
+    // Ft → kWh visszaszámítás (sávos)
+    if (mod === 'ft-havi' || mod === 'ft-eves') {
+      const evesHuf = mod === 'ft-havi' ? val * 12 : val;
+      // Kvóta alatti rész
+      const kvotaHuf = kvota * arAlap;
+      if (evesHuf <= kvotaHuf) return evesHuf / arAlap;
+      return kvota + (evesHuf - kvotaHuf) / arMagas;
+    }
+  }
+  return 0;
+}
+
+function mt_getHaviSzamla(evesKwh) {
+  if (mt_ugyfelTipus === 'ceges') {
+    const ar = parseFloat(document.getElementById('mt-ar-ceges').value) || 120;
+    return (evesKwh * ar) / 12;
+  } else {
+    const arAlap  = parseFloat(document.getElementById('mt-ar-alap').value)  || 40;
+    const arMagas = parseFloat(document.getElementById('mt-ar-magas').value) || 70;
+    const kvota   = parseFloat(document.getElementById('mt-kvota').value)    || 2500;
+    if (evesKwh <= kvota) return (evesKwh * arAlap) / 12;
+    return ((kvota * arAlap) + ((evesKwh - kvota) * arMagas)) / 12;
+  }
+}
+
+function mt_getAtlagosKwhAr(evesKwh) {
+  if (evesKwh <= 0) return 0;
+  return mt_getHaviSzamla(evesKwh) * 12 / evesKwh;
+}
+
+function mt_getEvesMegtakaritas(termeltKwh, evesKwhFogyasztas) {
+  // Mennyi áramot vált ki a napelem
+  const kivaltottKwh = Math.min(termeltKwh, evesKwhFogyasztas);
+  if (kivaltottKwh <= 0) return 0;
+
+  if (mt_ugyfelTipus === 'ceges') {
+    const ar = parseFloat(document.getElementById('mt-ar-ceges').value) || 120;
+    return kivaltottKwh * ar;
+  } else {
+    const arAlap  = parseFloat(document.getElementById('mt-ar-alap').value)  || 40;
+    const arMagas = parseFloat(document.getElementById('mt-ar-magas').value) || 70;
+    const kvota   = parseFloat(document.getElementById('mt-kvota').value)    || 2500;
+    // Sávos megtakarítás: először a drágább sávot váltja ki
+    if (evesKwhFogyasztas <= kvota) {
+      return kivaltottKwh * arAlap;
+    }
+    const magas = evesKwhFogyasztas - kvota; // mennyit fogyaszt magasabb áron
+    const alap  = kvota;
+    // A napelem először a magas áron fogyasztott részt váltja ki
+    const kivaltottMagas = Math.min(kivaltottKwh, magas);
+    const kivaltottAlap  = Math.max(0, kivaltottKwh - kivaltottMagas);
+    return kivaltottMagas * arMagas + kivaltottAlap * arAlap;
+  }
+}
+
+function mt_onParamChange() {
+  mt_pvgis_debounce();
+}
+
+function mt_pvgis_debounce() {
+  clearTimeout(mt_pvgisDebounceTimer);
+  mt_pvgisDebounceTimer = setTimeout(mt_fetchPvgis, 800);
+}
+
+async function mt_fetchPvgis() {
+  const lat  = parseFloat(document.getElementById('mt-lat').value);
+  const lon  = parseFloat(document.getElementById('mt-lon').value);
+  const kwp  = parseFloat(document.getElementById('mt-kwp').value);
+  const loss = parseFloat(document.getElementById('mt-veszteseg').value) || 14;
+  const tilt = parseFloat(document.getElementById('mt-tilt').value);
+  const az   = parseFloat(document.getElementById('mt-azimut').value);
+
+  if (!lat || !lon || !kwp) return;
+
+  const bar  = document.getElementById('pvgis-status-bar');
+  const icon = document.getElementById('pvgis-status-icon');
+  const text = document.getElementById('pvgis-status-text');
+  if (bar) bar.style.display = 'flex';
+  if (icon) icon.textContent = '⏳';
+  if (text) text.textContent = 'PVGIS adatok lekérése az EU JRC szerveréről...';
+
+  try {
+    // Optimális szög vagy kézi szög
+    const useOptimal = (tilt === 35 && az === 0); // ha alapértelmezett, optimalizálunk
+    const params = new URLSearchParams({
+      lat, lon,
+      peakpower: kwp,
+      loss,
+      angle: tilt,
+      aspect: az,
+      outputformat: 'json',
+      pvtechchoice: 'crystSi',
+      mountingplace: 'free',
+    });
+
+    const url = `https://re.jrc.ec.europa.eu/api/v5_3/PVcalc?${params}`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+
+    // Parse monthly data
+    const monthly = data.outputs.monthly.fixed;
+    mt_pvgisData = {
+      monthly: monthly.map(m => parseFloat(m['E_m'])),  // kWh/month
+      yearly:  parseFloat(data.outputs.totals.fixed['E_y']),
+      specific: parseFloat(data.outputs.totals.fixed['PR']),
+      optimalAngle: data.inputs?.mounting_system?.fixed?.slope?.value || tilt,
+    };
+
+    if (icon) icon.textContent = '✅';
+    if (text) text.textContent = `PVGIS: ${Math.round(mt_pvgisData.yearly).toLocaleString('hu-HU')} kWh/év várható termelés (${mt_pvgisData.monthly.length} hónap)`;
+
+    mt_recalculate();
+  } catch(err) {
+    console.warn('PVGIS hiba:', err);
+    if (icon) icon.textContent = '⚠️';
+    if (text) text.textContent = 'PVGIS lekérés sikertelen – ellenőrizd a koordinátákat';
+  }
+}
+
+function mt_recalculate() {
+  const kwp         = parseFloat(document.getElementById('mt-kwp').value) || 0;
+  const rendszerAr  = parseFloat(document.getElementById('mt-rendszer-ar').value) || 0;
+  const elettartam  = parseInt(document.getElementById('mt-elettartam').value) || 18;
+  const degradacio  = parseFloat(document.getElementById('mt-degradacio').value) || 0.5;
+
+  const evesKwh = mt_getEvesKwhFogyasztas();
+  const evesTermeles = mt_pvgisData ? mt_pvgisData.yearly : (kwp * 1000); // becsült ha nincs PVGIS
+
+  if (!kwp || !rendszerAr || !evesKwh) {
+    document.getElementById('mt-results').style.display = 'none';
+    document.getElementById('mt-empty').style.display   = 'block';
+    mt_updateArInfo(evesKwh);
+    return;
+  }
+
+  document.getElementById('mt-results').style.display = 'block';
+  document.getElementById('mt-empty').style.display   = 'none';
+
+  // Éves cashflow számítás
+  let kumMegtak = 0;
+  let megterulesEv = null;
+  const cashflow = [];
+  const fmt = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
+  const fmtN = n => Math.round(n).toLocaleString('hu-HU');
+
+  for (let ev = 1; ev <= elettartam; ev++) {
+    const degradFactor = Math.pow(1 - degradacio / 100, ev - 1);
+    const termeles = evesTermeles * degradFactor;
+    const megtak   = mt_getEvesMegtakaritas(termeles, evesKwh);
+    kumMegtak += megtak;
+
+    const megtérült = (!megterulesEv && kumMegtak >= rendszerAr);
+    if (megtérült) megterulesEv = ev;
+
+    cashflow.push({ ev, termeles, megtak, kumMegtak, megtérült });
+  }
+
+  // KPI frissítés
+  const atlagosAr = mt_getAtlagosKwhAr(evesKwh);
+  document.getElementById('mt-res-megterules').textContent  = megterulesEv ? megterulesEv + ' év' : '>' + elettartam + ' év';
+  document.getElementById('mt-res-eves-megtak').textContent = fmt(cashflow[0]?.megtak || 0);
+  document.getElementById('mt-res-eves-termeles').textContent = fmtN(Math.round(evesTermeles)) + ' kWh';
+  document.getElementById('mt-res-osszes').textContent      = fmt(kumMegtak);
+  document.getElementById('mt-res-osszes-sub').textContent  = elettartam + ' év alatt';
+  document.getElementById('mt-res-kwh-ar').textContent      = Math.round(atlagosAr) + ' Ft';
+  document.getElementById('mt-res-fajlagos').textContent    = mt_pvgisData ? Math.round(mt_pvgisData.yearly / kwp) + ' kWh/kWp' : '—';
+
+  mt_updateArInfo(evesKwh);
+
+  // Cashflow táblázat
+  const tbody = document.getElementById('mt-cashflow-body');
+  tbody.innerHTML = '';
+  cashflow.forEach(row => {
+    const tr = document.createElement('tr');
+    if (row.megtérült) tr.className = 'megtérült';
+    tr.innerHTML = `
+      <td>${row.ev}. év</td>
+      <td>${fmtN(Math.round(row.termeles))} kWh</td>
+      <td>${Math.round(atlagosAr)} Ft</td>
+      <td>${fmt(row.megtak)}</td>
+      <td>${fmt(row.kumMegtak)}</td>
+      <td>${row.megtérült ? '✅ Megtérült!' : (row.kumMegtak > 0 ? Math.round((row.kumMegtak/rendszerAr)*100) + '%' : '')}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+  // Összesítő sor
+  const totalTr = document.createElement('tr');
+  totalTr.className = 'total-row';
+  totalTr.innerHTML = `<td>ÖSSZESEN</td><td></td><td></td><td></td><td>${fmt(kumMegtak)}</td><td>${megterulesEv ? '✅' : '⚠️'}</td>`;
+  tbody.appendChild(totalTr);
+
+  // Grafikonok
+  mt_drawCharts(cashflow, rendszerAr);
+}
+
+function mt_updateArInfo(evesKwh) {
+  const infoEl = document.getElementById('mt-ar-info');
+  if (!infoEl || mt_ugyfelTipus !== 'lakossagi') return;
+  if (!evesKwh) { infoEl.style.display = 'none'; return; }
+  const arAlap  = parseFloat(document.getElementById('mt-ar-alap').value)  || 40;
+  const arMagas = parseFloat(document.getElementById('mt-ar-magas').value) || 70;
+  const kvota   = parseFloat(document.getElementById('mt-kvota').value)    || 2500;
+  const haviKwh = evesKwh / 12;
+  const haviKvota = kvota / 12;
+  const atlagAr = mt_getAtlagosKwhAr(evesKwh);
+  infoEl.style.display = 'block';
+  if (evesKwh <= kvota) {
+    infoEl.innerHTML = `📊 Éves fogyasztás: <strong>${Math.round(evesKwh).toLocaleString('hu-HU')} kWh</strong> — teljes egészében alacsony sávban (${arAlap} Ft/kWh) → átlag: <strong>${Math.round(atlagAr)} Ft/kWh</strong>`;
+  } else {
+    infoEl.innerHTML = `📊 Éves fogyasztás: <strong>${Math.round(evesKwh).toLocaleString('hu-HU')} kWh</strong> — ebből ${Math.round(kvota).toLocaleString('hu-HU')} kWh × ${arAlap} Ft + ${Math.round(evesKwh-kvota).toLocaleString('hu-HU')} kWh × ${arMagas} Ft → átlag: <strong>${Math.round(atlagAr)} Ft/kWh</strong>`;
+  }
+}
+
+function mt_drawCharts(cashflow, rendszerAr) {
+  const labels = cashflow.map(r => r.ev + '. év');
+  const kumData = cashflow.map(r => Math.round(r.kumMegtak));
+  const beruhasasData = cashflow.map(() => rendszerAr);
+
+  // Megtérülés chart
+  if (mt_chartMegterules) mt_chartMegterules.destroy();
+  const ctx1 = document.getElementById('mt-chart-megterules');
+  if (ctx1) {
+    mt_chartMegterules = new Chart(ctx1, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Kumulált megtakarítás',
+            data: kumData,
+            borderColor: '#10B981',
+            backgroundColor: 'rgba(16,185,129,0.15)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 3,
+          },
+          {
+            label: 'Beruházás összege',
+            data: beruhasasData,
+            borderColor: '#EF4444',
+            borderDash: [6, 4],
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false,
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#94A3B8', font: { size: 11 } } } },
+        scales: {
+          x: { ticks: { color: '#94A3B8', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          y: { ticks: { color: '#94A3B8', font: { size: 10 },
+            callback: v => Math.round(v/1000).toLocaleString('hu-HU') + ' eFt'
+          }, grid: { color: 'rgba(255,255,255,0.05)' } }
+        }
+      }
+    });
+  }
+
+  // Havi termelés chart
+  if (mt_pvgisData && mt_pvgisData.monthly) {
+    if (mt_chartHavi) mt_chartHavi.destroy();
+    const ctx2 = document.getElementById('mt-chart-havi');
+    const honapok = ['Jan','Feb','Már','Ápr','Máj','Jún','Júl','Aug','Szep','Okt','Nov','Dec'];
+    if (ctx2) {
+      mt_chartHavi = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+          labels: honapok,
+          datasets: [{
+            label: 'Várható termelés (kWh)',
+            data: mt_pvgisData.monthly.map(v => Math.round(v)),
+            backgroundColor: 'rgba(245,158,11,0.7)',
+            borderColor: '#F59E0B',
+            borderWidth: 1,
+            borderRadius: 4,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#94A3B8', font: { size: 11 } } } },
+          scales: {
+            x: { ticks: { color: '#94A3B8', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+            y: { ticks: { color: '#94A3B8', font: { size: 10 }, callback: v => v + ' kWh' },
+                 grid: { color: 'rgba(255,255,255,0.05)' } }
+          }
+        }
+      });
+    }
+  }
+}
+
+// SofarCloud adatlekérés Apps Scripten keresztül
+function sofar_onIdChange() {
+  const dot  = document.getElementById('sofar-dot');
+  const text = document.getElementById('sofar-status-text');
+  if (dot)  dot.className  = 'sofar-dot';
+  if (text) text.textContent = 'Add meg a Station ID-t és kattints az Adatok lekérése gombra';
+}
+
+async function fetchSofarData() {
+  const stationId = document.getElementById('sofar-station-id').value.trim();
+  if (!stationId) { showToast('⚠️ Add meg a Station ID-t!'); return; }
+
+  const dot  = document.getElementById('sofar-dot');
+  const text = document.getElementById('sofar-status-text');
+  const prev = document.getElementById('sofar-data-preview');
+  if (dot)  dot.className  = 'sofar-dot';
+  if (text) text.textContent = '⏳ Adatok lekérése...';
+
+  try {
+    const data = await new Promise((resolve, reject) => {
+      const cbName = 'sfsofar_' + Date.now();
+      const script = document.createElement('script');
+      const timeout = setTimeout(() => { delete window[cbName]; script.remove(); reject(new Error('timeout')); }, 15000);
+      window[cbName] = d => { clearTimeout(timeout); delete window[cbName]; script.remove(); resolve(d); };
+      script.src = SHEETS_API + '?action=sofarData&stationId=' + encodeURIComponent(stationId) + '&callback=' + cbName + '&t=' + Date.now();
+      script.onerror = () => { clearTimeout(timeout); reject(new Error('script error')); };
+      document.head.appendChild(script);
+    });
+
+    if (data.sofarError) throw new Error(data.sofarError);
+    mt_sofarData = data.sofarData;
+
+    if (dot)  { dot.className = 'sofar-dot connected'; }
+    if (text) text.textContent = `✅ ${data.sofarData.stationName || stationId} – adatok betöltve`;
+
+    // Preview megjelenítés
+    if (prev && data.sofarData.generations) {
+      const gens = data.sofarData.generations;
+      const total = gens.reduce((s,v) => s + parseFloat(v||0), 0);
+      const honapok = ['Jan','Feb','Már','Ápr','Máj','Jún','Júl','Aug','Szep','Okt','Nov','Dec'];
+      prev.style.display = 'block';
+      prev.innerHTML = `<div style="margin-bottom:0.4rem;color:var(--text)">📊 Tényleges termelés – ${data.sofarData.year || 'idei'} év:</div>` +
+        gens.map((v,i) => `<span style="margin-right:0.75rem">${honapok[i]}: <strong style="color:var(--sun)">${parseFloat(v||0).toFixed(0)} kWh</strong></span>`).join('') +
+        `<div style="margin-top:0.4rem">Összesen: <strong style="color:var(--green)">${total.toFixed(0)} kWh</strong></div>`;
+    }
+
+    // Ha van kWp adat, töltsük be
+    if (data.sofarData.installedPower) {
+      const kwpEl = document.getElementById('mt-kwp');
+      if (kwpEl) kwpEl.value = data.sofarData.installedPower;
+      mt_onParamChange();
+    }
+
+  } catch(err) {
+    if (dot)  dot.className  = 'sofar-dot';
+    if (text) text.textContent = '⚠️ Lekérés sikertelen: ' + err.message + ' – Az Apps Script kódját frissíteni kell a SofarCloud támogatáshoz.';
+    console.warn('SofarCloud hiba:', err);
   }
 }
 
