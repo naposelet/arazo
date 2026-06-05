@@ -645,29 +645,56 @@
   <!-- MEGTÉRÜLÉS KALKULÁTOR -->
   <div id="megterules-view">
  
-    <!-- SofarCloud integráció -->
-    <div class="sofar-panel" id="sofar-panel">
-      <h3>🔌 SofarCloud – Meglévő rendszer adatai</h3>
-      <div class="sofar-status">
-        <div class="sofar-dot" id="sofar-dot"></div>
-        <span id="sofar-status-text" style="color:var(--text-muted)">Nincs kapcsolat – meglévő ügyfél esetén add meg a Station ID-t</span>
-      </div>
-      <div style="display:flex;gap:0.5rem;align-items:flex-end;flex-wrap:wrap;margin-top:0.5rem">
-        <div class="mt-field" style="flex:1;min-width:150px">
-          <label>SofarCloud Station ID</label>
-          <input type="text" id="sofar-station-id" placeholder="pl. 64438458" oninput="sofar_onIdChange()">
-        </div>
-        <button onclick="fetchSofarData()" 
-          style="background:var(--sun);color:#000;border:none;border-radius:0.6rem;padding:0.6rem 1rem;font-weight:700;cursor:pointer;font-size:0.85rem;white-space:nowrap">
-          📡 Adatok lekérése
-        </button>
-      </div>
-      <div id="sofar-data-preview" style="display:none;margin-top:0.75rem;font-size:0.78rem;color:var(--text-muted)"></div>
-      <div style="margin-top:0.5rem;font-size:0.72rem;color:#4da6ff;opacity:0.7">
-        💡 A Station ID az eu.sofarcloud.com/plants/plantDetail/<strong style="color:#4da6ff">65491568</strong> URL-ből olvasható ki &nbsp;|&nbsp; <a href="https://eu.sofarcloud.com/plants/plantList" target="_blank" style="color:#4da6ff">Rendszerek listája →</a>
-      </div>
+<!-- Tényleges termelési adatok – Excel import -->
+<!-- Tényleges termelési adatok – Excel import -->
+<div class="sofar-panel" id="sofar-panel">
+  <h3>📂 Tényleges termelési adatok (SofarCloud export)</h3>
+  <div style="font-size:0.78rem;color:#4da6ff;margin-bottom:0.75rem">
+    SofarCloud → Device → inverter → History → Year → <strong>Export Report</strong> → tallózd be (több év egyszerre is)
+  </div>
+  <label style="display:flex;align-items:center;gap:0.75rem;cursor:pointer;
+    background:rgba(77,166,255,0.08);border:2px dashed #2e6da4;border-radius:0.75rem;
+    padding:0.85rem 1rem;transition:border-color 0.2s"
+    onmouseover="this.style.borderColor='#4da6ff'"
+    onmouseout="this.style.borderColor='#2e6da4'">
+    <span style="font-size:1.5rem">📊</span>
+    <div>
+      <div style="color:#4da6ff;font-weight:600;font-size:0.85rem">Excel fájlok betöltése</div>
+      <div style="color:var(--text-muted);font-size:0.75rem">Kattints vagy húzd ide a SofarCloud export .xlsx fájlokat</div>
     </div>
- 
+    <input type="file" id="sofar-file-input" accept=".xlsx" multiple
+      style="display:none" onchange="sofar_loadExcels(this.files)">
+  </label>
+  <div id="sofar-files-list" style="margin-top:0.6rem;display:grid;gap:0.35rem"></div>
+  <div id="sofar-data-preview" style="display:none;margin-top:0.75rem;font-size:0.78rem;color:var(--text-muted)"></div>
+</div>
+
+
+    
+
+  <!-- Fájl tallózó -->
+  <label id="sofar-upload-label" style="display:flex;align-items:center;gap:0.75rem;cursor:pointer;
+    background:rgba(77,166,255,0.08);border:2px dashed #2e6da4;border-radius:0.75rem;
+    padding:0.85rem 1rem;transition:all 0.2s" 
+    onmouseover="this.style.borderColor='#4da6ff'" 
+    onmouseout="this.style.borderColor='#2e6da4'">
+    <span style="font-size:1.5rem">📊</span>
+    <div>
+      <div style="color:#4da6ff;font-weight:600;font-size:0.85rem">Excel fájlok betöltése</div>
+      <div style="color:var(--text-muted);font-size:0.75rem">Kattints vagy húzd ide a SofarCloud export fájlokat (.xlsx)</div>
+    </div>
+    <input type="file" id="sofar-file-input" accept=".xlsx" multiple 
+      style="display:none" onchange="sofar_loadExcels(this.files)">
+  </label>
+
+  <!-- Betöltött fájlok listája -->
+  <div id="sofar-files-list" style="display:none;margin-top:0.6rem;display:grid;gap:0.35rem"></div>
+
+  <!-- Összesítő preview -->
+  <div id="sofar-data-preview" style="display:none;margin-top:0.75rem;font-size:0.78rem;color:var(--text-muted)"></div>
+</div>
+
+    
     <!-- Ügyfél típus -->
     <div class="mt-card">
       <h3>👤 Ügyfél és rendszer adatok</h3>
@@ -2728,9 +2755,24 @@ function mt_recalculate() {
   const fmt = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
   const fmtN = n => Math.round(n).toLocaleString('hu-HU');
  
+const currentYear = new Date().getFullYear();
+
   for (let ev = 1; ev <= elettartam; ev++) {
     const degradFactor = Math.pow(1 - degradacio / 100, ev - 1);
-    const termeles = evesTermeles * degradFactor;
+    // Ha van tényleges SofarCloud adat erre az évre, azt használjuk
+    const dataYear = currentYear - (elettartam - ev); // utolsó év = currentYear
+    // Inkább: ev=1 → legrégebbi, ev=elettartam → jelenlegi év
+    // Egyszerűbb: ha van adat az adott naptári évre, azt vesszük
+    const yearKey = String(currentYear - (ev - 1));
+    const sofarYearKwh = Object.entries(mt_sofarMonthly)
+      .filter(([k]) => k.startsWith(yearKey + '-'))
+      .reduce((s,[,v]) => s + v, 0);
+    // Ha van legalább 10 hónap adata, teljes évként kezeljük
+    const sofarMonthCount = Object.keys(mt_sofarMonthly).filter(k => k.startsWith(yearKey + '-')).length;
+    const termeles = (sofarYearKwh > 0 && sofarMonthCount >= 10)
+      ? sofarYearKwh
+      : evesTermeles * degradFactor;
+    
     const megtak   = mt_getEvesMegtakaritas(termeles, evesKwh);
     kumMegtak += megtak;
  
@@ -2876,56 +2918,216 @@ function mt_drawCharts(cashflow, rendszerAr) {
   }
 }
  
-// SofarCloud adatlekérés – közvetlen böngészős hívás
-// (A felhasználónak be kell lennie jelentkezve az eu.sofarcloud.com-ra)
-const SOFAR_BASE = 'https://eu.sofarcloud.com';
  
-function sofar_onIdChange() {
-  const dot  = document.getElementById('sofar-dot');
-  const text = document.getElementById('sofar-status-text');
-  if (dot)  dot.className  = 'sofar-dot';
-  if (text) text.textContent = 'Add meg a Station ID-t és kattints az Adatok lekérése gombra';
+// ============================================================
+// SOFARCLOUD EXCEL IMPORT
+// ============================================================
+let mt_sofarMonthly = {}; // { "2025-01": 195.09, "2025-06": 297.92, ... }
+let mt_sofarKwp = null;
+let mt_sofarName = '';
+
+function sofar_loadExcels(files) {
+  if (!files || files.length === 0) return;
+  
+  // SheetJS betöltése ha még nincs
+  if (typeof XLSX === 'undefined') {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    script.onload = () => sofar_processFiles(files);
+    document.head.appendChild(script);
+  } else {
+    sofar_processFiles(files);
+  }
 }
- 
-async function fetchSofarData() {
-  const stationId = document.getElementById('sofar-station-id').value.trim();
-  if (!stationId) { showToast('⚠️ Add meg a Station ID-t!'); return; }
- 
-  const dot  = document.getElementById('sofar-dot');
-  const text = document.getElementById('sofar-status-text');
-  const prev = document.getElementById('sofar-data-preview');
-  if (dot)  dot.className  = 'sofar-dot';
-  if (text) text.textContent = '⏳ Bejelentkezés...';
- 
-  const reqHeaders = {
-    'Content-Type': 'application/json',
-    'custom-origin': SOFAR_BASE,
-    'request-from': 'web',
-    'scene': 'eu',
-    'isgray': '1',
-    'timezone': 'Europe/Budapest',
-  };
- 
-  try {
-    // 1. Login
-    const loginResp = await fetch(SOFAR_BASE + '/api/account/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        accountName: 'monitoring2020@solarfuture.hu',
-        password: 'SFS2025!',
-        expireTime: 18000
-      })
-    });
-    const loginData = await loginResp.json();
-    if (loginData.code !== '0') throw new Error('Login sikertelen: ' + loginData.message);
- 
-    const authHeaders = {
-      ...reqHeaders,
-      'Authorization': 'Bearer ' + loginData.data.accessToken,
+
+function sofar_processFiles(files) {
+  const listEl = document.getElementById('sofar-files-list');
+  listEl.style.display = 'grid';
+  listEl.innerHTML = '';
+  
+  // Reset
+  mt_sofarMonthly = {};
+  mt_sofarKwp = null;
+  
+  let processed = 0;
+  
+  Array.from(files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const parsed = sofar_parseWorkbook(wb, file.name);
+        
+        // Merge az adatokba
+        Object.assign(mt_sofarMonthly, parsed.monthly);
+        if (parsed.kwp && !mt_sofarKwp) mt_sofarKwp = parsed.kwp;
+        if (parsed.name) mt_sofarName = parsed.name;
+        
+        // Fájl badge
+        const badge = document.createElement('div');
+        badge.style.cssText = 'background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:0.5rem;padding:0.35rem 0.75rem;font-size:0.75rem;display:flex;justify-content:space-between;align-items:center';
+        const months = Object.keys(parsed.monthly).length;
+        badge.innerHTML = `<span style="color:var(--green)">✅ ${file.name}</span><span style="color:var(--text-muted)">${months} hónap adat</span>`;
+        listEl.appendChild(badge);
+        
+      } catch(err) {
+        const badge = document.createElement('div');
+        badge.style.cssText = 'background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:0.5rem;padding:0.35rem 0.75rem;font-size:0.75rem';
+        badge.innerHTML = `<span style="color:var(--red)">❌ ${file.name} – olvasási hiba</span>`;
+        listEl.appendChild(badge);
+      }
+      
+      processed++;
+      if (processed === files.length) {
+        sofar_updatePreview();
+        // kWp automatikus betöltés
+        if (mt_sofarKwp) {
+          const kwpEl = document.getElementById('mt-kwp');
+          if (kwpEl && !kwpEl.value) {
+            kwpEl.value = mt_sofarKwp;
+            mt_onParamChange();
+          }
+        }
+        mt_recalculate();
+      }
     };
- 
-    if (text) text.textContent = '⏳ Rendszer adatok lekérése...';
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function sofar_parseWorkbook(wb, filename) {
+  const result = { monthly: {}, kwp: null, name: '' };
+  
+  // Statement template 1 vagy 2 keresése
+  const sheetName = wb.SheetNames.find(n => n.toLowerCase().includes('template')) || wb.SheetNames[0];
+  const ws = wb.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+  
+  if (rows.length < 2) return result;
+  
+  const header = rows[0].map(c => String(c).trim());
+  
+  // Sheet neve alapján megállapítjuk a típust
+  const isTemplate1 = sheetName.includes('1') || header.some(h => h.toLowerCase().includes('time'));
+  
+  if (isTemplate1) {
+    // Template 1: soronként Time + Yield
+    // Fejléc: Name | Time | Installed capacity | Full working hours | Yield this month/year
+    const timeIdx = header.findIndex(h => h.toLowerCase().includes('time'));
+    const yieldIdx = header.findIndex(h => h.toLowerCase().includes('yield'));
+    const nameIdx = 0;
+    const capIdx = header.findIndex(h => h.toLowerCase().includes('installed'));
+    
+    rows.slice(1).forEach(row => {
+      if (!row[timeIdx]) return;
+      const timeStr = String(row[timeIdx]); // "2025年6月" vagy "2025年"
+      const val = row[yieldIdx];
+      if (!val || val === '--' || val === '') return;
+      
+      const num = parseFloat(String(val).replace(',', '.'));
+      if (isNaN(num)) return;
+      
+      if (!result.name && row[nameIdx]) result.name = String(row[nameIdx]);
+      
+      // Parse időformátum
+      const yearMonthMatch = timeStr.match(/(\d{4})年(\d{1,2})月/);
+      const yearOnlyMatch  = timeStr.match(/(\d{4})年/);
+      
+      if (yearMonthMatch) {
+        const key = `${yearMonthMatch[1]}-${String(yearMonthMatch[2]).padStart(2,'0')}`;
+        result.monthly[key] = (result.monthly[key] || 0) + num;
+      }
+      // Éves adat → kihagyjuk (nem havi bontású)
+    });
+    
+    // kWp keresése
+    rows.slice(1).forEach(row => {
+      if (capIdx >= 0 && row[capIdx] && row[capIdx] !== '--') {
+        const kw = parseFloat(String(row[capIdx]).replace(',','.'));
+        if (!isNaN(kw) && kw > 0) result.kwp = kw;
+      }
+    });
+    
+  } else {
+    // Template 2: oszloponként hónapok
+    // Sor 0: fejléc (Name | Installed cap | parameter | 2025年1月 | ...)
+    // Sorok: kWp sor + termelés sor
+    
+    if (!result.name && rows[1] && rows[1][0]) result.name = String(rows[1][0]);
+    
+    // kWp
+    if (rows[1] && rows[1][1]) {
+      const kw = parseFloat(String(rows[1][1]).replace(',','.'));
+      if (!isNaN(kw) && kw > 0) result.kwp = kw;
+    }
+    
+    // Termelési sor: ahol a 'parameter' oszlopban 'working hours' vagy 'yield' van
+    const paramIdx = header.findIndex(h => h.toLowerCase().includes('parameter'));
+    const prodRow = rows.slice(1).find(r => {
+      const p = String(r[paramIdx] || '').toLowerCase();
+      return p.includes('working') || p.includes('yield');
+    });
+    
+    if (prodRow) {
+      header.forEach((h, colIdx) => {
+        const ymMatch = String(h).match(/(\d{4})年(\d{1,2})月/);
+        if (!ymMatch) return;
+        const key = `${ymMatch[1]}-${String(ymMatch[2]).padStart(2,'0')}`;
+        const val = prodRow[colIdx];
+        if (!val || val === '--' || val === '') return;
+        const num = parseFloat(String(val).replace(',','.'));
+        if (!isNaN(num) && num > 0) result.monthly[key] = num;
+      });
+    }
+  }
+  
+  return result;
+}
+
+function sofar_updatePreview() {
+  const prev = document.getElementById('sofar-data-preview');
+  if (!prev) return;
+  
+  const keys = Object.keys(mt_sofarMonthly).sort();
+  if (keys.length === 0) { prev.style.display = 'none'; return; }
+  
+  const total = Object.values(mt_sofarMonthly).reduce((s,v) => s+v, 0);
+  const honapNevek = ['Jan','Feb','Már','Ápr','Máj','Jún','Júl','Aug','Sze','Okt','Nov','Dec'];
+  
+  // Csoportosítás évek szerint
+  const byYear = {};
+  keys.forEach(k => {
+    const [y, m] = k.split('-');
+    if (!byYear[y]) byYear[y] = {};
+    byYear[y][parseInt(m)-1] = mt_sofarMonthly[k];
+  });
+  
+  let html = `<div style="color:var(--text);font-weight:600;margin-bottom:0.5rem">
+    📊 ${mt_sofarName || 'Rendszer'} – ${keys.length} hónap adata betöltve
+    ${mt_sofarKwp ? `<span style="color:var(--sun);margin-left:0.5rem">(${mt_sofarKwp} kWp)</span>` : ''}
+  </div>`;
+  
+  Object.entries(byYear).sort().forEach(([year, months]) => {
+    const evTotal = Object.values(months).reduce((s,v)=>s+v,0);
+    html += `<div style="margin-bottom:0.5rem">
+      <div style="color:var(--sun);font-size:0.75rem;margin-bottom:0.3rem;font-weight:600">${year} – összesen: ${Math.round(evTotal).toLocaleString('hu-HU')} kWh</div>
+      <div style="display:flex;flex-wrap:wrap;gap:0.3rem 0.75rem">`;
+    for (let i=0; i<12; i++) {
+      const val = months[i];
+      const color = val ? 'var(--green)' : 'var(--text-muted)';
+      html += `<span style="font-size:0.72rem">${honapNevek[i]}: <strong style="color:${color}">${val ? Math.round(val) : '—'}</strong></span>`;
+    }
+    html += `</div></div>`;
+  });
+  
+  html += `<div style="border-top:1px solid var(--border);padding-top:0.4rem;margin-top:0.2rem">
+    Összes betöltött adat: <strong style="color:var(--green)">${Math.round(total).toLocaleString('hu-HU')} kWh</strong>
+  </div>`;
+  
+  prev.style.display = 'block';
+  prev.innerHTML = html;
+}
+  
  
     // 2. Állomás adatok
     const stationResp = await fetch(
