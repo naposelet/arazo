@@ -681,26 +681,54 @@
           <input type="text" id="mt-helyszin" placeholder="Budapest, Napelem u. 1.">
         </div>
       </div>
+<!-- Helyszín keresés -->
+      <div class="mt-field" style="margin-bottom:0.75rem">
+        <label>🔍 Helyszín keresés (város, cím)</label>
+        <div style="display:flex;gap:0.5rem">
+          <input type="text" id="mt-helyszin-kereses" placeholder="pl. Dunaújváros, Vasmű út 1."
+            style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.6rem 0.75rem;color:var(--text);font-size:0.9rem;outline:none"
+            onkeydown="if(event.key==='Enter')mt_geocode()">
+          <button onclick="mt_geocode()"
+            style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.6rem;padding:0.6rem 1rem;cursor:pointer;font-size:0.85rem;white-space:nowrap">
+            📍 Koordináták
+          </button>
+        </div>
+        <div id="mt-geocode-status" style="font-size:0.75rem;color:var(--text-muted);margin-top:0.3rem"></div>
+      </div>
+
       <div class="mt-grid">
         <div class="mt-field">
           <label>GPS – Szélességi fok (lat)</label>
-          <input type="number" id="mt-lat" placeholder="47.50" step="0.0001" oninput="mt_onParamChange()">
+          <input type="number" id="mt-lat" placeholder="47.50" step="0.0001">
         </div>
         <div class="mt-field">
           <label>GPS – Hosszúsági fok (lon)</label>
-          <input type="number" id="mt-lon" placeholder="19.04" step="0.0001" oninput="mt_onParamChange()">
+          <input type="number" id="mt-lon" placeholder="19.04" step="0.0001">
         </div>
         <div class="mt-field">
           <label>Tető dőlésszög (°)</label>
-          <input type="number" id="mt-tilt" value="35" min="0" max="90" oninput="mt_onParamChange()">
+          <input type="number" id="mt-tilt" value="35" min="0" max="90">
           <div class="unit">0° = vízszintes, 90° = függőleges</div>
         </div>
         <div class="mt-field">
           <label>Tájolás / Azimut (°)</label>
-          <input type="number" id="mt-azimut" value="0" min="-180" max="180" oninput="mt_onParamChange()">
+          <input type="number" id="mt-azimut" value="0" min="-180" max="180">
           <div class="unit">0° = Dél, -90° = Kelet, 90° = Nyugat</div>
         </div>
       </div>
+
+      <!-- PVGIS lekérés gomb -->
+      <div style="margin-top:0.75rem;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+        <button onclick="mt_pvgisManual()"
+          style="background:var(--sun);color:#000;border:none;border-radius:0.6rem;padding:0.65rem 1.25rem;font-weight:700;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:0.5rem">
+          🛰️ PVGIS lekérése
+        </button>
+        <div id="pvgis-inline-status" style="font-size:0.8rem;color:var(--text-muted)">
+          Add meg a koordinátákat vagy keress városnév alapján
+        </div>
+      </div>
+
+      
       <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">
         <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.04em">Rendszer adatok (árazóból automatikus vagy kézi)</div>
         <div class="mt-grid">
@@ -2646,12 +2674,116 @@ function mt_getEvesMegtakaritas(termeltKwh, evesKwhFogyasztas) {
 }
  
 function mt_onParamChange() {
-  mt_pvgis_debounce();
+  // Csak újraszámol, NEM hív PVGIS-t automatikusan
+  mt_recalculate();
 }
- 
+
 function mt_pvgis_debounce() {
-  clearTimeout(mt_pvgisDebounceTimer);
-  mt_pvgisDebounceTimer = setTimeout(mt_fetchPvgis, 800);
+  // Megtartjuk kompatibilitás miatt, de nem auto-triggerel
+  mt_recalculate();
+}
+
+async function mt_pvgisManual() {
+  const lat = parseFloat(document.getElementById('mt-lat').value);
+  const lon = parseFloat(document.getElementById('mt-lon').value);
+  const statusEl = document.getElementById('pvgis-inline-status');
+
+  if (!lat || !lon) {
+    if (statusEl) {
+      statusEl.textContent = '⚠️ Először add meg a koordinátákat vagy keress városnév alapján!';
+      statusEl.style.color = 'var(--red)';
+    }
+    return;
+  }
+
+  const kwp = parseFloat(document.getElementById('mt-kwp').value);
+  if (!kwp) {
+    if (statusEl) {
+      statusEl.textContent = '⚠️ Add meg a telepített kapacitást (kWp) is!';
+      statusEl.style.color = 'var(--red)';
+    }
+    return;
+  }
+
+  if (statusEl) {
+    statusEl.textContent = '⏳ PVGIS lekérés folyamatban...';
+    statusEl.style.color = 'var(--sun)';
+  }
+
+  await mt_fetchPvgis();
+
+  if (mt_pvgisData && statusEl) {
+    statusEl.textContent = `✅ PVGIS kész: ${Math.round(mt_pvgisData.yearly).toLocaleString('hu-HU')} kWh/év várható`;
+    statusEl.style.color = 'var(--green)';
+  }
+}
+
+async function mt_geocode() {
+  const q = document.getElementById('mt-helyszin-kereses')?.value?.trim();
+  const statusEl = document.getElementById('mt-geocode-status');
+  if (!q) return;
+
+  if (statusEl) {
+    statusEl.textContent = '⏳ Keresés...';
+    statusEl.style.color = 'var(--sun)';
+  }
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=3&countrycodes=hu,at,sk,ro,hr,si,de`;
+    const resp = await fetch(url, { headers: { 'Accept-Language': 'hu', 'User-Agent': 'SolarFuture-Arazo/2.4' } });
+    const results = await resp.json();
+
+    if (!results || results.length === 0) {
+      if (statusEl) {
+        statusEl.textContent = '❌ Nem található – próbálj pontosabb nevet';
+        statusEl.style.color = 'var(--red)';
+      }
+      return;
+    }
+
+    // Első találat betöltése
+    const r = results[0];
+    const lat = parseFloat(r.lat).toFixed(4);
+    const lon = parseFloat(r.lon).toFixed(4);
+
+    document.getElementById('mt-lat').value = lat;
+    document.getElementById('mt-lon').value = lon;
+
+    // Ha az ügyfél neve/helyszín mező üres, töltsük ki
+    const helyszinEl = document.getElementById('mt-helyszin');
+    if (helyszinEl && !helyszinEl.value) {
+      helyszinEl.value = r.display_name.split(',').slice(0,3).join(',').trim();
+    }
+
+    if (statusEl) {
+      statusEl.style.color = 'var(--green)';
+      // Ha több találat van, listázzuk
+      if (results.length > 1) {
+        statusEl.innerHTML = `✅ <strong>${r.display_name.split(',').slice(0,3).join(', ')}</strong> (${lat}, ${lon})
+          <br><span style="color:var(--text-muted)">Más találatok: 
+          ${results.slice(1).map((x,i) => `<a href="#" onclick="mt_selectGeoResult(${parseFloat(x.lat).toFixed(4)},${parseFloat(x.lon).toFixed(4)},'${x.display_name.split(',').slice(0,3).join(', ').replace(/'/g,"\\'")}');return false" style="color:var(--sun)">${x.display_name.split(',').slice(0,3).join(', ')}</a>`).join(' | ')}
+          </span>`;
+      } else {
+        statusEl.textContent = `✅ ${r.display_name.split(',').slice(0,3).join(', ')} (${lat}, ${lon})`;
+      }
+    }
+
+  } catch(err) {
+    if (statusEl) {
+      statusEl.textContent = '⚠️ Geocoding hiba – ellenőrizd az internetkapcsolatot';
+      statusEl.style.color = 'var(--red)';
+    }
+  }
+}
+
+function mt_selectGeoResult(lat, lon, name) {
+  document.getElementById('mt-lat').value = lat;
+  document.getElementById('mt-lon').value = lon;
+  const statusEl = document.getElementById('mt-geocode-status');
+  if (statusEl) {
+    statusEl.textContent = `✅ ${name} (${lat}, ${lon})`;
+    statusEl.style.color = 'var(--green)';
+  }
 }
  
 async function mt_fetchPvgis() {
@@ -2664,12 +2796,15 @@ async function mt_fetchPvgis() {
  
   if (!lat || !lon || !kwp) return;
  
-  const bar  = document.getElementById('pvgis-status-bar');
+const bar  = document.getElementById('pvgis-status-bar');
   const icon = document.getElementById('pvgis-status-icon');
   const text = document.getElementById('pvgis-status-text');
   if (bar) bar.style.display = 'flex';
   if (icon) icon.textContent = '⏳';
   if (text) text.textContent = 'PVGIS adatok lekérése az EU JRC szerveréről...';
+  const inlineStatus = document.getElementById('pvgis-inline-status');
+  if (inlineStatus) { inlineStatus.textContent = '⏳ PVGIS lekérés...'; inlineStatus.style.color = 'var(--sun)'; }
+  
  
   try {
     // Optimális szög vagy kézi szög
@@ -2705,8 +2840,10 @@ async function mt_fetchPvgis() {
     mt_recalculate();
   } catch(err) {
     console.warn('PVGIS hiba:', err);
-    if (icon) icon.textContent = '⚠️';
+if (icon) icon.textContent = '⚠️';
     if (text) text.textContent = 'PVGIS lekérés sikertelen – ellenőrizd a koordinátákat';
+    const inlineStatus = document.getElementById('pvgis-inline-status');
+    if (inlineStatus) { inlineStatus.textContent = '⚠️ PVGIS lekérés sikertelen – ellenőrizd a koordinátákat'; inlineStatus.style.color = 'var(--red)'; }
   }
 }
  
