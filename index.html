@@ -2820,7 +2820,7 @@ const bar  = document.getElementById('pvgis-status-bar');
       mountingplace: 'free',
     });
  
-    const url = `https://re.jrc.ec.europa.eu/api/v5_3/PVcalc?${params}`;
+const url = `https://sofar-proxy.nagyker.workers.dev/pvgis?${params}`;
     const resp = await fetch(url);
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
