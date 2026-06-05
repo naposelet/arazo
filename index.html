@@ -2875,27 +2875,24 @@ function mt_recalculate() {
  
   const currentYear = new Date().getFullYear();
 
+  const sofarYears = Object.keys(mt_sofarMonthly).map(k => parseInt(k.split('-')[0]));
+  const firstDataYear = sofarYears.length > 0 ? Math.min(...sofarYears) : null;
+
   for (let ev = 1; ev <= elettartam; ev++) {
     const degradFactor = Math.pow(1 - degradacio / 100, ev - 1);
-    // Előzmény adat: csak a múltbeli évekre (ev=1 = idei év, ev=2 = jövő év, stb.)
-    // A SofarCloud adatok a MÚLTBELI évekre vonatkoznak
-    // Meghatározzuk melyik naptári évben lett telepítve (legkorábbi adat éve)
-    const sofarYears = Object.keys(mt_sofarMonthly).map(k => parseInt(k.split('-')[0]));
-    const firstDataYear = sofarYears.length > 0 ? Math.min(...sofarYears) : null;
     const dataYear = firstDataYear ? firstDataYear + (ev - 1) : null;
-    const sofarYearKwh = dataYear ? Object.entries(mt_sofarMonthly)
-      .filter(([k]) => k.startsWith(dataYear + '-'))
-      .reduce((s,[,v]) => s + v, 0) : 0;
-    const sofarMonthCount = dataYear ? Object.keys(mt_sofarMonthly)
-      .filter(k => k.startsWith(dataYear + '-')).length : 0;
-    const termeles = (sofarYearKwh > 0 && sofarMonthCount >= 10)
+    const sofarKeys = dataYear ? Object.keys(mt_sofarMonthly).filter(k => k.startsWith(dataYear + '-')) : [];
+    const sofarYearKwh = sofarKeys.reduce((s,k) => s + mt_sofarMonthly[k], 0);
+    const termeles = (sofarYearKwh > 0 && sofarKeys.length >= 10)
       ? sofarYearKwh
       : evesTermeles * degradFactor;
-    const megtak   = mt_getEvesMegtakaritas(termeles, evesKwh);
+
+    const megtak = mt_getEvesMegtakaritas(termeles, evesKwh);
+    kumMegtak += megtak;  // ← ez hiányzott!
 
     const megtérült = (!megterulesEv && kumMegtak >= rendszerAr);
     if (megtérült) megterulesEv = ev;
- 
+
     cashflow.push({ ev, termeles, megtak, kumMegtak, megtérült });
   }
  
