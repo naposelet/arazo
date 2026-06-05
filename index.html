@@ -2,16 +2,16 @@
 <!--
   ============================================================
   Solar Future – Árazó
-  Verzió: v2.3 – 2026-05-29 15:24
+  Verzió: v2.31 – 2026-05-29 15:24
   Utolsó módosítás: 2026-05-29 15:24 (Budapest)
  
-  Változások v2.3-ban:
+  Változások v2.31-ban:
   - SofarCloud közvetlen böngészős integráció
   - Megtérülés kalkulátor (📊 tab)
   - PVGIS API automatikus lekérés
   - Sávos áramár számítás (lakossági/céges)
   - Cashflow táblázat + grafikonok
- 
+
   Változások v2.2-ban:
   - Megtérülés kalkulátor alap struktúra
   - Főoldal navigáció (Árazó / Megtérülés tab)
@@ -444,7 +444,7 @@
   <div class="topbar">
     <div class="topbar-left">
       <span class="topbar-logo">☀️ Solar Future</span>
-      <span id="ver-badge" style="font-size:0.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:0.4rem;padding:0.1rem 0.4rem;background:var(--bg)">v2.3 – 2026-05-29 15:24</span>
+      <span id="ver-badge" title="v2.3: Megtérülés kalkulátor&#10;v2.4: Excel import, geocoding, riport" style="font-size:0.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:0.4rem;padding:0.1rem 0.4rem;background:var(--bg);cursor:help">v2.4 – 2026-06-05</span>
       <span class="user-badge" id="topbar-user">—</span>
     </div>
     <div class="topbar-right">
@@ -1086,7 +1086,7 @@
 // ADATOK
 // ============================================================
 const SHEETS_API = 'https://script.google.com/macros/s/AKfycbwcELD2MLNn3-9Odjsc8ullBmI7zHJtZmmrcqb19HjDcFc4YNnr7BnLJ6c3hjBf3SPj/exec';
-const APP_VERSION = 'v2.3 – 2026-05-29 15:24';
+const APP_VERSION = 'v2.4 – 2026-06-05';
  
 // Számítási paraméterek - admin felületen módosíthatók
 const CALC_SETTINGS = {
