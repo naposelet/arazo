@@ -2873,20 +2873,26 @@ function mt_recalculate() {
   const fmt = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
   const fmtN = n => Math.round(n).toLocaleString('hu-HU');
  
-const currentYear = new Date().getFullYear();
+  const currentYear = new Date().getFullYear();
 
   for (let ev = 1; ev <= elettartam; ev++) {
     const degradFactor = Math.pow(1 - degradacio / 100, ev - 1);
-    const yearKey = String(currentYear - (ev - 1));
-    const sofarYearKwh = Object.entries(mt_sofarMonthly)
-      .filter(([k]) => k.startsWith(yearKey + '-'))
-      .reduce((s,[,v]) => s + v, 0);
-    const sofarMonthCount = Object.keys(mt_sofarMonthly).filter(k => k.startsWith(yearKey + '-')).length;
+    // Előzmény adat: csak a múltbeli évekre (ev=1 = idei év, ev=2 = jövő év, stb.)
+    // A SofarCloud adatok a MÚLTBELI évekre vonatkoznak
+    // Meghatározzuk melyik naptári évben lett telepítve (legkorábbi adat éve)
+    const sofarYears = Object.keys(mt_sofarMonthly).map(k => parseInt(k.split('-')[0]));
+    const firstDataYear = sofarYears.length > 0 ? Math.min(...sofarYears) : null;
+    const dataYear = firstDataYear ? firstDataYear + (ev - 1) : null;
+    const sofarYearKwh = dataYear ? Object.entries(mt_sofarMonthly)
+      .filter(([k]) => k.startsWith(dataYear + '-'))
+      .reduce((s,[,v]) => s + v, 0) : 0;
+    const sofarMonthCount = dataYear ? Object.keys(mt_sofarMonthly)
+      .filter(k => k.startsWith(dataYear + '-')).length : 0;
     const termeles = (sofarYearKwh > 0 && sofarMonthCount >= 10)
       ? sofarYearKwh
       : evesTermeles * degradFactor;
     const megtak   = mt_getEvesMegtakaritas(termeles, evesKwh);
- 
+
     const megtérült = (!megterulesEv && kumMegtak >= rendszerAr);
     if (megtérült) megterulesEv = ev;
  
@@ -3206,11 +3212,14 @@ function mt_generateReport() {
   const cashflow = [];
   for (let ev = 1; ev <= elettartam; ev++) {
     const degradFactor = Math.pow(1 - degradacio / 100, ev - 1);
-    const yearKey = String(currentYear + ev - 1);
-    const sofarYearKwh = Object.entries(mt_sofarMonthly)
-      .filter(([k]) => k.startsWith(yearKey + '-'))
-      .reduce((s,[,v]) => s + v, 0);
-    const sofarMonthCount = Object.keys(mt_sofarMonthly).filter(k => k.startsWith(yearKey + '-')).length;
+    const rSofarYears = Object.keys(mt_sofarMonthly).map(k => parseInt(k.split('-')[0]));
+    const rFirstYear = rSofarYears.length > 0 ? Math.min(...rSofarYears) : null;
+    const rDataYear = rFirstYear ? rFirstYear + (ev - 1) : null;
+    const sofarYearKwh = rDataYear ? Object.entries(mt_sofarMonthly)
+      .filter(([k]) => k.startsWith(rDataYear + '-'))
+      .reduce((s,[,v]) => s + v, 0) : 0;
+    const sofarMonthCount = rDataYear ? Object.keys(mt_sofarMonthly)
+      .filter(k => k.startsWith(rDataYear + '-')).length : 0;
     const termeles = (sofarYearKwh > 0 && sofarMonthCount >= 10)
       ? sofarYearKwh : evesTermeles * degradFactor;
     const megtak = mt_getEvesMegtakaritas(termeles, evesKwh);
@@ -3560,7 +3569,7 @@ ${mt_pvgisData ? `<div class="section">
       <ul style="padding-left:1.25rem;font-size:0.875rem;line-height:1.8">
         <li>Az éves degradáció ${degradacio}%/év értékkel kalkulálva</li>
         ${!mt_pvgisData ? '<li>PVGIS adatok nem elérhetők – koordináták megadása javasolt</li>' : ''}
-        ${osszesTenyleges === 0 ? '<li>Tényleges termelési adatok nem töltve be</li>' : ''}
+        ${!vanElozmenyadat ? '<li>Ez egy új rendszer – tényleges termelési előzmény még nem áll rendelkezésre</li>' : ''}
         <li>A megtakarítás számítása ${Math.round(atlagAr)} Ft/kWh átlagos áramáron alapul</li>
       </ul>
     </div>
@@ -3580,7 +3589,7 @@ ${mt_pvgisData ? `<div class="section">
       <tr><td>Telepített kapacitás</td><td>${kwp} kWp</td><td style="text-align:center;color:#16a34a">✓</td></tr>
       ${osszesTenyleges > 0 ? `<tr><td>Tényleges termelés (összes)</td><td>${Math.round(osszesTenyleges).toLocaleString('hu-HU')} kWh</td><td style="text-align:center;color:#16a34a">✓</td></tr>` : ''}
       ${mt_pvgisData ? `<tr><td>PVGIS várható éves termelés</td><td>${Math.round(mt_pvgisData.yearly).toLocaleString('hu-HU')} kWh/év</td><td style="text-align:center;color:#16a34a">✓</td></tr>` : ''}
-      ${osszPct !== null ? `<tr><td>Teljesítmény a PVGIS-hez képest</td><td>${osszPct}%</td><td style="text-align:center;color:${pctColor(osszPct)}">${osszPct>=90?'✓':osszPct>=70?'⚠':'✗'}</td></tr>` : ''}
+      ${(osszPct !== null && vanElozmenyadat) ? `<tr><td>Teljesítmény a PVGIS-hez képest</td><td>${osszPct}%</td><td style="text-align:center;color:${pctColor(osszPct)}">${osszPct>=90?'✓':osszPct>=70?'⚠':'✗'}</td></tr>` : ''}
       ${megterulesEv ? `<tr><td>Megtérülési idő</td><td>${megterulesEv} év</td><td style="text-align:center;color:${megterulesEv<=10?'#16a34a':megterulesEv<=15?'#d97706':'#dc2626'}">${megterulesEv<=10?'✓':megterulesEv<=15?'⚠':'✗'}</td></tr>` : ''}
       ${rendszerAr > 0 ? `<tr><td>Összes megtakarítás (${elettartam} év)</td><td>${fmtFt(osszesMegtak)}</td><td style="text-align:center;color:${osszesMegtak>rendszerAr?'#16a34a':'#d97706'}">${osszesMegtak>rendszerAr?'✓':'⚠'}</td></tr>` : ''}
     </tbody>
