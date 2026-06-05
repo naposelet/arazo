@@ -813,9 +813,17 @@
  
     <!-- EREDMÉNYEK -->
     <div id="mt-results" style="display:none">
- 
+
+      <!-- Riport gomb -->
+      <div style="display:flex;justify-content:flex-end;margin-bottom:0.75rem">
+        <button onclick="mt_generateReport()" style="background:linear-gradient(135deg,#1a3a5c,#2e6da4);color:#fff;border:none;border-radius:0.75rem;padding:0.75rem 1.5rem;font-weight:700;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;gap:0.5rem;box-shadow:0 4px 12px rgba(0,0,0,0.3)">
+          📄 Riport generálása / PDF
+        </button>
+      </div>
+
       <!-- KPI kártyák -->
       <div class="mt-result-grid">
+        
         <div class="mt-kpi highlight">
           <div class="mt-kpi-label">Megtérülési idő</div>
           <div class="mt-kpi-value" id="mt-res-megterules">—</div>
@@ -3032,6 +3040,456 @@ function sofar_updatePreview() {
   prev.innerHTML = html;
 }
 
+// ============================================================
+// RIPORT GENERÁLÁS
+// ============================================================
+function mt_generateReport() {
+  const ugyfelNev   = document.getElementById('mt-ugyfel-nev')?.value || '—';
+  const helyszin    = document.getElementById('mt-helyszin')?.value || '—';
+  const lat         = document.getElementById('mt-lat')?.value || '—';
+  const lon         = document.getElementById('mt-lon')?.value || '—';
+  const kwp         = parseFloat(document.getElementById('mt-kwp')?.value) || 0;
+  const rendszerAr  = parseFloat(document.getElementById('mt-rendszer-ar')?.value) || 0;
+  const elettartam  = parseInt(document.getElementById('mt-elettartam')?.value) || 18;
+  const degradacio  = parseFloat(document.getElementById('mt-degradacio')?.value) || 0.5;
+  const tilt        = document.getElementById('mt-tilt')?.value || '35';
+  const azimut      = document.getElementById('mt-azimut')?.value || '0';
+  const evesKwh     = mt_getEvesKwhFogyasztas();
+  const evesTermeles = mt_pvgisData ? mt_pvgisData.yearly : kwp * 1000;
+  const atlagAr     = mt_getAtlagosKwhAr(evesKwh);
+
+  // Dátum
+  const now = new Date();
+  const datumStr = now.toLocaleDateString('hu-HU');
+  const currentYear = now.getFullYear();
+
+  // Cashflow újraszámítás riporthoz
+  let kumMegtak = 0;
+  let megterulesEv = null;
+  const cashflow = [];
+  for (let ev = 1; ev <= elettartam; ev++) {
+    const degradFactor = Math.pow(1 - degradacio / 100, ev - 1);
+    const yearKey = String(currentYear + ev - 1);
+    const sofarYearKwh = Object.entries(mt_sofarMonthly)
+      .filter(([k]) => k.startsWith(yearKey + '-'))
+      .reduce((s,[,v]) => s + v, 0);
+    const sofarMonthCount = Object.keys(mt_sofarMonthly).filter(k => k.startsWith(yearKey + '-')).length;
+    const termeles = (sofarYearKwh > 0 && sofarMonthCount >= 10)
+      ? sofarYearKwh : evesTermeles * degradFactor;
+    const megtak = mt_getEvesMegtakaritas(termeles, evesKwh);
+    kumMegtak += megtak;
+    if (!megterulesEv && kumMegtak >= rendszerAr) megterulesEv = ev;
+    cashflow.push({ ev, termeles, megtak, kumMegtak });
+  }
+
+  // Havi tényleges adatok összegyűjtése
+  const honapNevek = ['Január','Február','Március','Április','Május','Június',
+                       'Július','Augusztus','Szeptember','Október','November','December'];
+  const honapRovid = ['Jan','Feb','Már','Ápr','Máj','Jún','Júl','Aug','Sze','Okt','Nov','Dec'];
+
+  // PVGIS havi adatok
+  const pvgisHavi = mt_pvgisData?.monthly || Array(12).fill(0);
+
+  // Tényleges havi adatok (összes betöltött év összesítve évenkénti bontásban)
+  const byYear = {};
+  Object.entries(mt_sofarMonthly).forEach(([k,v]) => {
+    const [y,m] = k.split('-');
+    if (!byYear[y]) byYear[y] = Array(12).fill(null);
+    byYear[y][parseInt(m)-1] = v;
+  });
+
+  const fmt = n => n > 0 ? Math.round(n).toLocaleString('hu-HU') : '—';
+  const fmtFt = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
+  const pctColor = p => p >= 90 ? '#16a34a' : p >= 70 ? '#d97706' : '#dc2626';
+  const pctLabel = p => p >= 90 ? '✓ Kiváló' : p >= 70 ? '⚠ Elfogadható' : '✗ Alacsony';
+
+  // Negyedévek
+  const qData = [
+    { label: 'I. negyedév (Jan–Már)', months: [0,1,2] },
+    { label: 'II. negyedév (Ápr–Jún)', months: [3,4,5] },
+    { label: 'III. negyedév (Júl–Sze)', months: [6,7,8] },
+    { label: 'IV. negyedév (Okt–Dec)', months: [9,10,11] },
+  ];
+
+  // Havi összesítő (összes év átlaga)
+  const haviTenylegesAtlag = Array(12).fill(0).map((_, i) => {
+    const vals = Object.values(byYear).map(y => y[i]).filter(v => v !== null);
+    return vals.length > 0 ? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
+  });
+
+  // Pénzügyi összefoglaló
+  const osszesMegtak = cashflow.reduce((s,r) => s+r.megtak, 0);
+  const elsoEvMegtak = cashflow[0]?.megtak || 0;
+
+  // Havi táblázat sorok (minden betöltött év)
+  let haviSorok = '';
+  Object.entries(byYear).sort().forEach(([year, months]) => {
+    months.forEach((val, i) => {
+      if (val === null) return;
+      const pvgis = pvgisHavi[i] || 0;
+      const pct = pvgis > 0 ? Math.round((val / pvgis) * 100) : null;
+      const color = pct !== null ? pctColor(pct) : '#666';
+      haviSorok += `<tr>
+        <td>${year} ${honapNevek[i]}</td>
+        <td style="text-align:right;font-weight:600">${Math.round(val).toLocaleString('hu-HU')}</td>
+        <td style="text-align:right;color:#666">${pvgis > 0 ? Math.round(pvgis).toLocaleString('hu-HU') : '—'}</td>
+        <td style="text-align:center"><span style="background:${color}20;color:${color};padding:2px 8px;border-radius:12px;font-size:0.8rem;font-weight:700">${pct !== null ? pct+'%' : '—'} ${pct !== null ? pctLabel(pct) : ''}</span></td>
+      </tr>`;
+    });
+  });
+
+  // Összesen sor
+  const osszesTenyleges = Object.values(mt_sofarMonthly).reduce((s,v)=>s+v,0);
+  const osszesPvgis = pvgisHavi.reduce((s,v)=>s+v,0);
+  const osszPct = osszesPvgis > 0 ? Math.round((osszesTenyleges/osszesPvgis)*100) : null;
+
+  // Cashflow táblázat sorok
+  let cashflowSorok = cashflow.map(r => `<tr style="${r.kumMegtak >= rendszerAr && cashflow[cashflow.indexOf(r)-1]?.kumMegtak < rendszerAr ? 'background:#16a34a15;font-weight:700' : ''}">
+    <td>${r.ev}. év (${currentYear + r.ev - 1})</td>
+    <td style="text-align:right">${Math.round(r.termeles).toLocaleString('hu-HU')} kWh</td>
+    <td style="text-align:right">${fmtFt(r.megtak)}</td>
+    <td style="text-align:right;font-weight:600;color:#1a3a5c">${fmtFt(r.kumMegtak)}</td>
+    <td style="text-align:center">${r.kumMegtak >= rendszerAr && (!cashflow[cashflow.indexOf(r)-1] || cashflow[cashflow.indexOf(r)-1].kumMegtak < rendszerAr) ? '<span style="background:#16a34a;color:#fff;padding:2px 8px;border-radius:12px;font-size:0.75rem">✅ MEGTÉRÜLT</span>' : Math.round((r.kumMegtak/rendszerAr)*100)+'%'}</td>
+  </tr>`).join('');
+
+  // Chart.js adatok JSON-ként
+  const chartHaviLabels = JSON.stringify(honapRovid);
+  const chartHaviTenyleges = JSON.stringify(haviTenylegesAtlag.map(v => Math.round(v)));
+  const chartHaviPvgis = JSON.stringify(pvgisHavi.map(v => Math.round(v)));
+  const chartEvesLabels = JSON.stringify(cashflow.map(r => currentYear + r.ev - 1));
+  const chartEvesMegtak = JSON.stringify(cashflow.map(r => Math.round(r.megtak)));
+  const chartEvesKum = JSON.stringify(cashflow.map(r => Math.round(r.kumMegtak)));
+
+  // Negyedéves kártyák
+  let qKartyak = qData.map(q => {
+    const teny = q.months.reduce((s,i) => s + (haviTenylegesAtlag[i]||0), 0);
+    const pvg  = q.months.reduce((s,i) => s + (pvgisHavi[i]||0), 0);
+    const p = pvg > 0 ? Math.round((teny/pvg)*100) : null;
+    const c = p !== null ? pctColor(p) : '#666';
+    return `<div style="background:#fff;border-radius:12px;padding:1.25rem;box-shadow:0 2px 8px rgba(0,0,0,0.08);border-top:4px solid ${c}">
+      <div style="font-weight:700;color:#1a3a5c;margin-bottom:0.5rem">${q.label}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-size:0.85rem">
+        <div><span style="color:#666">Tényleges:</span><br><strong>${teny>0?Math.round(teny).toLocaleString('hu-HU')+' kWh':'—'}</strong></div>
+        <div><span style="color:#666">PVGIS várható:</span><br><strong>${pvg>0?Math.round(pvg).toLocaleString('hu-HU')+' kWh':'—'}</strong></div>
+      </div>
+      ${p !== null ? `<div style="margin-top:0.75rem;text-align:center;background:${c}20;color:${c};border-radius:8px;padding:0.4rem;font-weight:700">${p}% – ${pctLabel(p)}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<title>Napenergia Riport – ${ugyfelNev}</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"><\/script>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Segoe UI',Arial,sans-serif; background:#f0f4f8; color:#1a3a5c; }
+  .page { max-width:1100px; margin:0 auto; padding:2rem; }
+  .section { background:#fff; border-radius:12px; padding:1.5rem; margin-bottom:1.5rem; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
+  .section-title { font-size:1.1rem; font-weight:700; color:#1a3a5c; margin-bottom:1.25rem; padding-left:0.75rem; border-left:4px solid #f7a600; }
+  .kpi-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:1rem; }
+  .kpi { background:linear-gradient(135deg,#1a3a5c,#2e6da4); border-radius:12px; padding:1.25rem; color:#fff; text-align:center; }
+  .kpi-val { font-size:2rem; font-weight:800; color:#f7a600; }
+  .kpi-label { font-size:0.8rem; opacity:0.8; margin-top:0.25rem; }
+  .info-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:0.75rem; }
+  .info-card { background:#f8fafc; border-radius:8px; padding:0.85rem 1rem; border-left:4px solid #2e6da4; }
+  .info-label { font-size:0.72rem; color:#666; text-transform:uppercase; letter-spacing:0.05em; }
+  .info-val { font-weight:700; font-size:0.95rem; margin-top:0.2rem; }
+  table { width:100%; border-collapse:collapse; font-size:0.85rem; }
+  th { background:#1a3a5c; color:#fff; padding:0.6rem 0.75rem; text-align:left; }
+  td { padding:0.5rem 0.75rem; border-bottom:1px solid #e5e7eb; }
+  tr:hover td { background:#f8fafc; }
+  .total-row td { background:#f0f4f8; font-weight:700; border-top:2px solid #1a3a5c; }
+  .chart-wrap { position:relative; height:300px; }
+  .q-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:1rem; }
+  .highlight-box { border-radius:10px; padding:1rem 1.25rem; margin-bottom:0.75rem; }
+  .hb-blue  { background:#eff6ff; border:1px solid #bfdbfe; }
+  .hb-orange { background:#fffbeb; border:1px solid #fed7aa; }
+  .hb-green { background:#f0fdf4; border:1px solid #bbf7d0; }
+  .hb-title { font-weight:700; margin-bottom:0.5rem; }
+  .eval-table td:last-child { text-align:center; font-weight:700; }
+  @media print {
+    body { background:#fff; }
+    .no-print { display:none!important; }
+    .section { box-shadow:none; border:1px solid #e5e7eb; break-inside:avoid; }
+    * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  }
+  .print-btn {
+    position:fixed; bottom:30px; right:30px; z-index:999;
+    background:linear-gradient(135deg,#1a3a5c,#2e6da4);
+    color:#fff; border:none; border-radius:50px;
+    padding:0.85rem 1.75rem; font-size:1rem; font-weight:700;
+    cursor:pointer; box-shadow:0 4px 20px rgba(0,0,0,0.3);
+    display:flex; align-items:center; gap:0.5rem;
+  }
+</style>
+</head>
+<body>
+
+<!-- PRINT GOMB -->
+<button class="print-btn no-print" onclick="window.print()">🖨️ PDF / Nyomtatás</button>
+
+<!-- FEJLÉC -->
+<div style="background:linear-gradient(135deg,#1a3a5c,#2e6da4,#f7a600);padding:2.5rem;color:#fff;border-radius:0 0 20px 20px;margin-bottom:1.5rem">
+  <div style="max-width:1100px;margin:0 auto;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem">
+    <div>
+      <div style="font-size:0.8rem;opacity:0.7;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.5rem">Napenergia Rendszer Dokumentáció</div>
+      <div style="font-size:2rem;font-weight:800;margin-bottom:0.25rem">${ugyfelNev}</div>
+      <div style="font-size:1rem;opacity:0.9;margin-bottom:0.5rem">📍 ${helyszin}</div>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;font-size:0.85rem;opacity:0.8">
+        <span>📅 Dokumentáció: ${datumStr}</span>
+        <span>⚡ ${kwp} kWp telepített kapacitás</span>
+        ${lat !== '—' ? `<span>🌍 ${lat}°N, ${lon}°E</span>` : ''}
+      </div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:0.75rem;opacity:0.7;margin-bottom:0.25rem">SOFAR Solar Monitoring Report</div>
+      <div style="font-size:1.1rem;font-weight:700">☀️ Solar Future</div>
+      ${osszesTenyleges > 0 ? `<div style="margin-top:0.75rem;background:rgba(22,163,74,0.3);border:1px solid rgba(22,163,74,0.6);border-radius:20px;padding:0.35rem 1rem;font-size:0.85rem;font-weight:700">🟢 Rendszer állapota: AKTÍV</div>` : ''}
+    </div>
+  </div>
+</div>
+
+<div class="page">
+
+<!-- KPI KÁRTYÁK -->
+<div class="section">
+  <div class="section-title">Kulcsmutatók</div>
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="kpi-val">${kwp}</div>
+      <div class="kpi-label">Telepített PV kapacitás (kWp)</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">${osszesTenyleges > 0 ? Math.round(osszesTenyleges).toLocaleString('hu-HU') : '—'}</div>
+      <div class="kpi-label">Összes mért termelés (kWh)</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">${mt_pvgisData ? Math.round(mt_pvgisData.yearly).toLocaleString('hu-HU') : '—'}</div>
+      <div class="kpi-label">Várható éves termelés – PVGIS (kWh/év)</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">${megterulesEv ? megterulesEv+' év' : '>'+elettartam+' év'}</div>
+      <div class="kpi-label">Becsült megtérülési idő</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">${Math.round(elsoEvMegtak/1000*10)/10} eFt</div>
+      <div class="kpi-label">Éves megtakarítás (1. év)</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">${Math.round(osszesMegtak/1000000*10)/10} MFt</div>
+      <div class="kpi-label">Összes megtakarítás (${elettartam} év)</div>
+    </div>
+  </div>
+</div>
+
+<!-- RENDSZER ADATOK -->
+<div class="section">
+  <div class="section-title">Rendszer Műszaki Adatok</div>
+  <div class="info-grid">
+    <div class="info-card"><div class="info-label">Ügyfél neve</div><div class="info-val">${ugyfelNev}</div></div>
+    <div class="info-card"><div class="info-label">Helyszín / Cím</div><div class="info-val">${helyszin}</div></div>
+    <div class="info-card"><div class="info-label">GPS koordináták</div><div class="info-val">${lat !== '—' ? lat+'°N, '+lon+'°E' : '—'}</div></div>
+    <div class="info-card"><div class="info-label">Telepített kapacitás</div><div class="info-val">${kwp} kWp</div></div>
+    <div class="info-card"><div class="info-label">Tető dőlésszög</div><div class="info-val">${tilt}°</div></div>
+    <div class="info-card"><div class="info-label">Tájolás / Azimut</div><div class="info-val">${azimut}° ${azimut==0?'(Dél)':azimut<0?'(Kelet felé)':'(Nyugat felé)'}</div></div>
+    <div class="info-card"><div class="info-label">Rendszer ára (bruttó)</div><div class="info-val">${rendszerAr > 0 ? Math.round(rendszerAr).toLocaleString('hu-HU')+' Ft' : '—'}</div></div>
+    <div class="info-card"><div class="info-label">Fajlagos ár</div><div class="info-val">${rendszerAr > 0 && kwp > 0 ? Math.round(rendszerAr/kwp).toLocaleString('hu-HU')+' Ft/kWp' : '—'}</div></div>
+    <div class="info-card"><div class="info-label">Éves degradáció</div><div class="info-val">${degradacio}%/év</div></div>
+    <div class="info-card"><div class="info-label">PVGIS fajlagos termelés</div><div class="info-val">${mt_pvgisData ? Math.round(mt_pvgisData.yearly/kwp)+' kWh/kWp/év' : '—'}</div></div>
+    <div class="info-card"><div class="info-label">Átlagos áramár</div><div class="info-val">${Math.round(atlagAr)} Ft/kWh</div></div>
+    <div class="info-card"><div class="info-label">Dokumentáció dátuma</div><div class="info-val">${datumStr}</div></div>
+  </div>
+  ${mt_sofarName ? `<div style="margin-top:1rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:1rem">
+    <strong>📊 SofarCloud azonosítás:</strong> ${mt_sofarName} &nbsp;|&nbsp; ${mt_sofarKwp ? mt_sofarKwp+' kWp telepített' : ''} &nbsp;|&nbsp; ${Object.keys(mt_sofarMonthly).length} hónap adat betöltve
+  </div>` : ''}
+</div>
+
+<!-- HAVI TERMELÉSI ADATOK -->
+${haviSorok ? `<div class="section">
+  <div class="section-title">Havi Termelési Adatok (tényleges vs. PVGIS)</div>
+  <div style="overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>Hónap</th>
+        <th style="text-align:right">Tényleges (kWh)</th>
+        <th style="text-align:right">PVGIS várható (kWh)</th>
+        <th style="text-align:center">Teljesítmény</th>
+      </tr></thead>
+      <tbody>
+        ${haviSorok}
+        <tr class="total-row">
+          <td>ÖSSZESEN</td>
+          <td style="text-align:right">${Math.round(osszesTenyleges).toLocaleString('hu-HU')} kWh</td>
+          <td style="text-align:right;color:#666">${osszesPvgis > 0 ? Math.round(osszesPvgis).toLocaleString('hu-HU')+' kWh' : '—'}</td>
+          <td style="text-align:center">${osszPct !== null ? `<span style="background:${pctColor(osszPct)}20;color:${pctColor(osszPct)};padding:3px 10px;border-radius:12px;font-weight:700">${osszPct}%</span>` : '—'}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div style="margin-top:1rem;background:#fffbeb;border:1px solid #fed7aa;border-radius:10px;padding:1rem;font-size:0.85rem">
+    <strong>📝 Elemzés:</strong> Az összes betöltött hónap alapján a rendszer
+    ${osszPct !== null ? (osszPct >= 90 ? '<strong style="color:#16a34a">kiemelkedően teljesít</strong> a PVGIS becsléshez képest.' : osszPct >= 70 ? '<strong style="color:#d97706">elfogadható teljesítményt</strong> mutat a PVGIS becsléshez képest.' : '<strong style="color:#dc2626">elmarad</strong> a PVGIS várható értékektől – érdemes átvizsgálni a rendszert.') : 'adatai betöltve.'}
+    Összesen <strong>${Math.round(osszesTenyleges).toLocaleString('hu-HU')} kWh</strong> valós termelés rögzítve.
+  </div>
+</div>` : ''}
+
+<!-- HAVI GRAFIKON -->
+<div class="section">
+  <div class="section-title">Havi Termelési Grafikon</div>
+  <div class="chart-wrap"><canvas id="chart-havi"></canvas></div>
+</div>
+
+<!-- NEGYEDÉVES -->
+<div class="section">
+  <div class="section-title">Negyedéves Összesítő (átlagos havi adatok alapján)</div>
+  <div class="q-grid">${qKartyak}</div>
+</div>
+
+<!-- CASHFLOW TÁBLÁZAT -->
+${rendszerAr > 0 ? `<div class="section">
+  <div class="section-title">Megtérülési Elemzés – Éves Cashflow (${currentYear}–${currentYear+elettartam-1})</div>
+  <div style="overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>Időszak</th>
+        <th style="text-align:right">Termelés (kWh)</th>
+        <th style="text-align:right">Éves megtakarítás</th>
+        <th style="text-align:right">Kumulált megtakarítás</th>
+        <th style="text-align:center">Státusz</th>
+      </tr></thead>
+      <tbody>${cashflowSorok}</tbody>
+      <tr class="total-row">
+        <td>ÖSSZESEN (${elettartam} év)</td>
+        <td></td>
+        <td style="text-align:right">${fmtFt(osszesMegtak)}</td>
+        <td></td>
+        <td style="text-align:center">${megterulesEv ? '✅ '+megterulesEv+'. évben megtérül' : '⚠️'}</td>
+      </tr>
+    </table>
+  </div>
+</div>` : ''}
+
+<!-- CASHFLOW GRAFIKON -->
+${rendszerAr > 0 ? `<div class="section">
+  <div class="section-title">Kumulált Megtakarítás vs. Beruházás</div>
+  <div class="chart-wrap"><canvas id="chart-cashflow"></canvas></div>
+</div>` : ''}
+
+<!-- PVGIS ELEMZÉS -->
+${mt_pvgisData ? `<div class="section">
+  <div class="section-title">PVGIS Helyszíni Elemzés</div>
+  <div class="info-grid" style="margin-bottom:1.25rem">
+    <div class="info-card"><div class="info-label">Várható éves termelés</div><div class="info-val" style="color:#f7a600">${Math.round(mt_pvgisData.yearly).toLocaleString('hu-HU')} kWh/év</div></div>
+    <div class="info-card"><div class="info-label">Fajlagos termelés</div><div class="info-val">${Math.round(mt_pvgisData.yearly/kwp)} kWh/kWp/év</div></div>
+    <div class="info-card"><div class="info-label">Helyszín (lat/lon)</div><div class="info-val">${lat}°N, ${lon}°E</div></div>
+    <div class="info-card"><div class="info-label">Dőlésszög / Azimut</div><div class="info-val">${tilt}° / ${azimut}°</div></div>
+  </div>
+  <div class="chart-wrap"><canvas id="chart-pvgis"></canvas></div>
+</div>` : ''}
+
+<!-- TELJESÍTMÉNY ÉRTÉKELÉS -->
+<div class="section">
+  <div class="section-title">Teljesítmény Értékelés</div>
+  <div style="display:grid;gap:0.75rem;margin-bottom:1.25rem">
+    <div class="highlight-box hb-blue">
+      <div class="hb-title" style="color:#1d4ed8">✅ Pozitívumok</div>
+      <ul style="padding-left:1.25rem;font-size:0.875rem;line-height:1.8">
+        ${kwp > 0 ? `<li>Telepített kapacitás: <strong>${kwp} kWp</strong></li>` : ''}
+        ${osszesTenyleges > 0 ? `<li>Összes mért termelés: <strong>${Math.round(osszesTenyleges).toLocaleString('hu-HU')} kWh</strong></li>` : ''}
+        ${elsoEvMegtak > 0 ? `<li>Becsült éves megtakarítás: <strong>${fmtFt(elsoEvMegtak)}</strong></li>` : ''}
+        ${megterulesEv ? `<li>Megtérülési idő: <strong>${megterulesEv} év</strong></li>` : ''}
+        ${mt_pvgisData ? `<li>PVGIS szerint optimálisan telepített rendszer</li>` : ''}
+      </ul>
+    </div>
+    <div class="highlight-box hb-orange">
+      <div class="hb-title" style="color:#d97706">⚠️ Megjegyzések</div>
+      <ul style="padding-left:1.25rem;font-size:0.875rem;line-height:1.8">
+        <li>Az éves degradáció ${degradacio}%/év értékkel kalkulálva</li>
+        ${!mt_pvgisData ? '<li>PVGIS adatok nem elérhetők – koordináták megadása javasolt</li>' : ''}
+        ${osszesTenyleges === 0 ? '<li>Tényleges termelési adatok nem töltve be</li>' : ''}
+        <li>A megtakarítás számítása ${Math.round(atlagAr)} Ft/kWh átlagos áramáron alapul</li>
+      </ul>
+    </div>
+    <div class="highlight-box hb-green">
+      <div class="hb-title" style="color:#16a34a">💰 Pénzügyi összefoglaló</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.75rem;font-size:0.875rem">
+        <div><span style="color:#666">Beruházás:</span><br><strong>${rendszerAr > 0 ? fmtFt(rendszerAr) : '—'}</strong></div>
+        <div><span style="color:#666">Éves megtakarítás (1. év):</span><br><strong>${fmtFt(elsoEvMegtak)}</strong></div>
+        <div><span style="color:#666">${elettartam} éves megtakarítás:</span><br><strong style="color:#16a34a">${fmtFt(osszesMegtak)}</strong></div>
+        <div><span style="color:#666">Megtérülési idő:</span><br><strong>${megterulesEv ? megterulesEv+' év' : '>'+elettartam+' év'}</strong></div>
+      </div>
+    </div>
+  </div>
+  <table>
+    <thead><tr><th>Mutató</th><th>Érték</th><th style="text-align:center">Értékelés</th></tr></thead>
+    <tbody>
+      <tr><td>Telepített kapacitás</td><td>${kwp} kWp</td><td style="text-align:center;color:#16a34a">✓</td></tr>
+      ${osszesTenyleges > 0 ? `<tr><td>Tényleges termelés (összes)</td><td>${Math.round(osszesTenyleges).toLocaleString('hu-HU')} kWh</td><td style="text-align:center;color:#16a34a">✓</td></tr>` : ''}
+      ${mt_pvgisData ? `<tr><td>PVGIS várható éves termelés</td><td>${Math.round(mt_pvgisData.yearly).toLocaleString('hu-HU')} kWh/év</td><td style="text-align:center;color:#16a34a">✓</td></tr>` : ''}
+      ${osszPct !== null ? `<tr><td>Teljesítmény a PVGIS-hez képest</td><td>${osszPct}%</td><td style="text-align:center;color:${pctColor(osszPct)}">${osszPct>=90?'✓':osszPct>=70?'⚠':'✗'}</td></tr>` : ''}
+      ${megterulesEv ? `<tr><td>Megtérülési idő</td><td>${megterulesEv} év</td><td style="text-align:center;color:${megterulesEv<=10?'#16a34a':megterulesEv<=15?'#d97706':'#dc2626'}">${megterulesEv<=10?'✓':megterulesEv<=15?'⚠':'✗'}</td></tr>` : ''}
+      ${rendszerAr > 0 ? `<tr><td>Összes megtakarítás (${elettartam} év)</td><td>${fmtFt(osszesMegtak)}</td><td style="text-align:center;color:${osszesMegtak>rendszerAr?'#16a34a':'#d97706'}">${osszesMegtak>rendszerAr?'✓':'⚠'}</td></tr>` : ''}
+    </tbody>
+  </table>
+</div>
+
+<!-- FOOTER -->
+<div style="text-align:center;color:#666;font-size:0.78rem;padding:1.5rem;border-top:1px solid #e5e7eb;margin-top:1rem">
+  Dokumentáció készítette: Solar Future – SofarCloud monitoring alapján &nbsp;|&nbsp; Dátum: ${datumStr} &nbsp;|&nbsp; PVGIS 5.3 – European Commission JRC
+</div>
+
+</div><!-- /page -->
+
+<script>
+// Havi termelés grafikon
+new Chart(document.getElementById('chart-havi'), {
+  type: 'bar',
+  data: {
+    labels: ${chartHaviLabels},
+    datasets: [
+      { label: 'Tényleges átlag (kWh)', data: ${chartHaviTenyleges}, backgroundColor: 'rgba(46,109,164,0.8)', borderRadius: 4 },
+      { label: 'PVGIS várható (kWh)', data: ${chartHaviPvgis}, backgroundColor: 'rgba(247,166,0,0.7)', borderRadius: 4 }
+    ]
+  },
+  options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ font:{size:12} } } }, scales:{ y:{ ticks:{ callback: v => v+' kWh' } } } }
+});
+
+${rendszerAr > 0 ? `
+// Cashflow grafikon
+new Chart(document.getElementById('chart-cashflow'), {
+  type: 'line',
+  data: {
+    labels: ${chartEvesLabels},
+    datasets: [
+      { label: 'Kumulált megtakarítás', data: ${chartEvesKum}, borderColor:'#16a34a', backgroundColor:'rgba(22,163,74,0.1)', fill:true, tension:0.3 },
+      { label: 'Beruházás (${rendszerAr > 0 ? Math.round(rendszerAr).toLocaleString('hu-HU') : 0} Ft)', data: Array(${elettartam}).fill(${Math.round(rendszerAr)}), borderColor:'#dc2626', borderDash:[6,4], borderWidth:2, pointRadius:0, fill:false }
+    ]
+  },
+  options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ font:{size:12} } } }, scales:{ y:{ ticks:{ callback: v => Math.round(v/1000).toLocaleString('hu-HU')+' eFt' } } } }
+});` : ''}
+
+${mt_pvgisData ? `
+// PVGIS grafikon
+new Chart(document.getElementById('chart-pvgis'), {
+  type: 'line',
+  data: {
+    labels: ${chartHaviLabels},
+    datasets: [{ label: 'PVGIS várható havi termelés (kWh)', data: ${chartHaviPvgis}, borderColor:'#f7a600', backgroundColor:'rgba(247,166,0,0.2)', fill:true, tension:0.4, borderWidth:2 }]
+  },
+  options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ font:{size:12} } } }, scales:{ y:{ ticks:{ callback: v => v+' kWh' } } } }
+});` : ''}
+<\/script>
+</body>
+</html>`;
+
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+}
+
+  
   
 // ============================================================
 // SESSION KEZELÉS
