@@ -3240,20 +3240,24 @@ function mt_generateReport() {
   const pctColor = p => p >= 90 ? '#16a34a' : p >= 70 ? '#d97706' : '#dc2626';
   const pctLabel = p => p >= 90 ? '✓ Kiváló' : p >= 70 ? '⚠ Elfogadható' : '✗ Alacsony';
 
-  // Negyedévek
-  const qData = [
+const vanElozmenyadat = Object.keys(mt_sofarMonthly).length > 0;
+
+  // Negyedévek definíciója
+  const qDef = [
     { label: 'I. negyedév (Jan–Már)', months: [0,1,2] },
     { label: 'II. negyedév (Ápr–Jún)', months: [3,4,5] },
     { label: 'III. negyedév (Júl–Sze)', months: [6,7,8] },
     { label: 'IV. negyedév (Okt–Dec)', months: [9,10,11] },
   ];
 
-  // Havi összesítő (összes év átlaga)
+  // Havi összesítő – ha van előzmény: átlag, ha nincs: nullák (csak PVGIS látszik)
   const haviTenylegesAtlag = Array(12).fill(0).map((_, i) => {
+    if (!vanElozmenyadat) return 0;
     const vals = Object.values(byYear).map(y => y[i]).filter(v => v !== null);
     return vals.length > 0 ? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
   });
 
+  
   // Pénzügyi összefoglaló
   const osszesMegtak = cashflow.reduce((s,r) => s+r.megtak, 0);
   const elsoEvMegtak = cashflow[0]?.megtak || 0;
@@ -3297,21 +3301,32 @@ function mt_generateReport() {
   const chartEvesMegtak = JSON.stringify(cashflow.map(r => Math.round(r.megtak)));
   const chartEvesKum = JSON.stringify(cashflow.map(r => Math.round(r.kumMegtak)));
 
-  // Negyedéves kártyák
-  let qKartyak = qData.map(q => {
-    const teny = q.months.reduce((s,i) => s + (haviTenylegesAtlag[i]||0), 0);
-    const pvg  = q.months.reduce((s,i) => s + (pvgisHavi[i]||0), 0);
-    const p = pvg > 0 ? Math.round((teny/pvg)*100) : null;
-    const c = p !== null ? pctColor(p) : '#666';
-    return `<div style="background:#fff;border-radius:12px;padding:1.25rem;box-shadow:0 2px 8px rgba(0,0,0,0.08);border-top:4px solid ${c}">
-      <div style="font-weight:700;color:#1a3a5c;margin-bottom:0.5rem">${q.label}</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-size:0.85rem">
-        <div><span style="color:#666">Tényleges:</span><br><strong>${teny>0?Math.round(teny).toLocaleString('hu-HU')+' kWh':'—'}</strong></div>
-        <div><span style="color:#666">PVGIS várható:</span><br><strong>${pvg>0?Math.round(pvg).toLocaleString('hu-HU')+' kWh':'—'}</strong></div>
-      </div>
-      ${p !== null ? `<div style="margin-top:0.75rem;text-align:center;background:${c}20;color:${c};border-radius:8px;padding:0.4rem;font-weight:700">${p}% – ${pctLabel(p)}</div>` : ''}
-    </div>`;
-  }).join('');
+// Negyedéves kártyák – évenkénti bontásban (csak ha van előzmény)
+  let qKartyak = '';
+  if (vanElozmenyadat) {
+    Object.entries(byYear).sort().forEach(([year, months]) => {
+      const evHtml = qDef.map(q => {
+        const teny = q.months.reduce((s,i) => s + (months[i]||0), 0);
+        const pvg  = q.months.reduce((s,i) => s + (pvgisHavi[i]||0), 0);
+        const p = pvg > 0 && teny > 0 ? Math.round((teny/pvg)*100) : null;
+        const c = p !== null ? pctColor(p) : '#cbd5e1';
+        const hasData = q.months.some(i => months[i] !== null && months[i] > 0);
+        return `<div style="background:#fff;border-radius:10px;padding:1rem;box-shadow:0 2px 6px rgba(0,0,0,0.07);border-top:3px solid ${c};opacity:${hasData?1:0.45}">
+          <div style="font-weight:700;color:#1a3a5c;font-size:0.85rem;margin-bottom:0.5rem">${q.label}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;font-size:0.82rem">
+            <div><span style="color:#666;font-size:0.75rem">Tényleges:</span><br><strong>${teny>0?Math.round(teny).toLocaleString('hu-HU')+' kWh':'—'}</strong></div>
+            <div><span style="color:#666;font-size:0.75rem">PVGIS várható:</span><br><strong style="color:#666">${pvg>0?Math.round(pvg).toLocaleString('hu-HU')+' kWh':'—'}</strong></div>
+          </div>
+          ${p !== null ? `<div style="margin-top:0.6rem;text-align:center;background:${c}20;color:${c};border-radius:6px;padding:0.3rem;font-weight:700;font-size:0.82rem">${p}% – ${pctLabel(p)}</div>` : (hasData ? '' : '<div style="text-align:center;color:#aaa;font-size:0.75rem;margin-top:0.4rem">nincs adat</div>')}
+        </div>`;
+      }).join('');
+      qKartyak += `<div style="margin-bottom:1.25rem">
+        <div style="font-weight:700;color:#1a3a5c;font-size:1rem;margin-bottom:0.6rem;padding-left:0.5rem;border-left:3px solid #f7a600">${year}</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.75rem">${evHtml}</div>
+      </div>`;
+    });
+  }
+  
 
   const html = `<!DOCTYPE html>
 <html lang="hu">
@@ -3474,15 +3489,15 @@ ${haviSorok ? `<div class="section">
 
 <!-- HAVI GRAFIKON -->
 <div class="section">
-  <div class="section-title">Havi Termelési Grafikon</div>
+  <div class="section-title">${vanElozmenyadat ? 'Havi Termelési Grafikon (tényleges vs. PVGIS)' : 'Várható Havi Termelés – PVGIS becslés'}</div>
   <div class="chart-wrap"><canvas id="chart-havi"></canvas></div>
 </div>
 
-<!-- NEGYEDÉVES -->
+${vanElozmenyadat ? `
 <div class="section">
-  <div class="section-title">Negyedéves Összesítő (átlagos havi adatok alapján)</div>
-  <div class="q-grid">${qKartyak}</div>
-</div>
+  <div class="section-title">Negyedéves Összesítő – Évenkénti bontás</div>
+  ${qKartyak}
+</div>` : ''}
 
 <!-- CASHFLOW TÁBLÁZAT -->
 ${rendszerAr > 0 ? `<div class="section">
@@ -3586,10 +3601,11 @@ new Chart(document.getElementById('chart-havi'), {
   data: {
     labels: ${chartHaviLabels},
     datasets: [
-      { label: 'Tényleges átlag (kWh)', data: ${chartHaviTenyleges}, backgroundColor: 'rgba(46,109,164,0.8)', borderRadius: 4 },
+      ${vanElozmenyadat ? `{ label: 'Tényleges átlag (kWh)', data: ${chartHaviTenyleges}, backgroundColor: 'rgba(46,109,164,0.8)', borderRadius: 4 },` : ''}
       { label: 'PVGIS várható (kWh)', data: ${chartHaviPvgis}, backgroundColor: 'rgba(247,166,0,0.7)', borderRadius: 4 }
     ]
   },
+
   options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ font:{size:12} } } }, scales:{ y:{ ticks:{ callback: v => v+' kWh' } } } }
 });
 
