@@ -739,11 +739,23 @@
           <div class="mt-field">
             <label>Rendszer bruttó ára (Ft)</label>
             <input type="number" id="mt-rendszer-ar" placeholder="3500000" oninput="mt_recalculate()">
-          </div>
-        </div>
+          </div></div>
+
+      <!-- Frissítés gomb -->
+      <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+        <button onclick="mt_importFromArazo(true)"
+          style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.6rem;padding:0.55rem 1rem;font-size:0.82rem;cursor:pointer;display:flex;align-items:center;gap:0.4rem;transition:all 0.2s"
+          onmouseover="this.style.borderColor='var(--sun)';this.style.color='var(--sun)'"
+          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)'">
+          🔄 Árak frissítése az árazóból
+        </button>
+        <span style="font-size:0.75rem;color:var(--text-muted)">
+          Árazóban módosítottad a rendszert? Kattints a frissítésre.
+        </span>
       </div>
     </div>
- 
+  </div>
+
     <!-- Áramár beállítás -->
     <div class="mt-card">
       <h3>⚡ Áramár beállítás</h3>
@@ -2542,29 +2554,41 @@ let mt_chartHavi       = null;
 let mt_pvgisDebounceTimer = null;
  
 const SOFAR_PROXY = SHEETS_API; // Apps Script közvetítőn keresztül
- 
-function mt_importFromArazo() {
-  // Átveszi az árazóban beállított kWp-t és árat
+
+function mt_importFromArazo(force = false) {
   const panelSel = searchState.panel ? searchState.panel.selected : null;
   const panelQty = parseInt(document.getElementById('panel-qty')?.value) || 0;
- 
+  let imported = [];
+
   if (panelSel && panelQty > 0) {
     const kWp = panelSel.kw * panelQty;
     const kwpEl = document.getElementById('mt-kwp');
-    if (kwpEl && !kwpEl.value) kwpEl.value = kWp.toFixed(2);
+    if (kwpEl && (force || !kwpEl.value)) {
+      kwpEl.value = kWp.toFixed(2);
+      imported.push(`${kWp.toFixed(2)} kWp`);
+    }
   }
- 
-  // Bruttó ár átvétele az eredménysávból
+
   const bruttoEl = document.getElementById('res-brutto');
   if (bruttoEl && bruttoEl.textContent !== '—') {
     const arEl = document.getElementById('mt-rendszer-ar');
-    if (arEl && !arEl.value) {
-      // Parse the formatted number
+    if (arEl && (force || !arEl.value)) {
       const num = parseInt(bruttoEl.textContent.replace(/[^0-9]/g, ''));
-      if (num > 0) arEl.value = num;
+      if (num > 0) {
+        arEl.value = num;
+        imported.push(`${Math.round(num).toLocaleString('hu-HU')} Ft`);
+      }
     }
   }
+
+  if (force && imported.length > 0) {
+    showToast('✅ Árazóból frissítve: ' + imported.join(' · '));
+    mt_recalculate();
+  } else if (force && imported.length === 0) {
+    showToast('⚠️ Nincs mit átvenni – töltsd ki az árazót!');
+  }
 }
+  
  
 function setUgyfelTipus(tipus) {
   mt_ugyfelTipus = tipus;
