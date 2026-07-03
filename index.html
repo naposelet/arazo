@@ -3646,8 +3646,13 @@ const vanElozmenyadat = Object.keys(mt_sofarMonthly).length > 0;
     </div>
     <div class="kpi">
       <div class="kpi-val">${osszesTenyleges > 0 ? Math.round(osszesTenyleges).toLocaleString('hu-HU') : '—'}</div>
-      <div class="kpi-label">Összes mért termelés (kWh)</div>
+      <div class="kpi-label">Összes mért termelés (kWh) – ${betoltottEvek} év</div>
     </div>
+    ${vanElozmenyadat && betoltottEvek > 0 ? `
+    <div class="kpi">
+      <div class="kpi-val">${Math.round(osszesTenyleges/betoltottEvek).toLocaleString('hu-HU')}</div>
+      <div class="kpi-label">Átlagos éves termelés (kWh/év)</div>
+    </div>` : ''}
     <div class="kpi">
       <div class="kpi-val">${mt_pvgisData ? Math.round(mt_pvgisData.yearly).toLocaleString('hu-HU') : '—'}</div>
       <div class="kpi-label">Várható éves termelés – PVGIS (kWh/év)</div>
@@ -3705,7 +3710,7 @@ ${haviSorok ? `<div class="section">
         <tr class="total-row">
           <td>ÖSSZESEN</td>
           <td style="text-align:right">${Math.round(osszesTenyleges).toLocaleString('hu-HU')} kWh</td>
-          <td style="text-align:right;color:#666">${osszesPvgis > 0 ? Math.round(osszesPvgis).toLocaleString('hu-HU')+' kWh' : '—'}</td>
+          <td style="text-align:right;color:#666">${pvgisOsszesEv > 0 ? Math.round(pvgisOsszesEv).toLocaleString('hu-HU')+' kWh ('+betoltottEvek+' év)' : '—'}</td>
           <td style="text-align:center">${osszPct !== null ? `<span style="background:${pctColor(osszPct)}20;color:${pctColor(osszPct)};padding:3px 10px;border-radius:12px;font-weight:700">${osszPct}%</span>` : '—'}</td>
         </tr>
       </tbody>
@@ -3811,7 +3816,7 @@ ${mt_pvgisData ? `<div class="section">
       <tr><td>Telepített kapacitás</td><td>${kwp} kWp</td><td style="text-align:center;color:#16a34a">✓</td></tr>
       ${osszesTenyleges > 0 ? `<tr><td>Tényleges termelés (összes)</td><td>${Math.round(osszesTenyleges).toLocaleString('hu-HU')} kWh</td><td style="text-align:center;color:#16a34a">✓</td></tr>` : ''}
       ${mt_pvgisData ? `<tr><td>PVGIS várható éves termelés</td><td>${Math.round(mt_pvgisData.yearly).toLocaleString('hu-HU')} kWh/év</td><td style="text-align:center;color:#16a34a">✓</td></tr>` : ''}
-      ${(osszPct !== null && vanElozmenyadat) ? `<tr><td>Teljesítmény a PVGIS-hez képest</td><td>${osszPct}%</td><td style="text-align:center;color:${pctColor(osszPct)}">${osszPct>=90?'✓':osszPct>=70?'⚠':'✗'}</td></tr>` : ''}
+      ${(osszPct !== null && vanElozmenyadat) ? `<tr><td>Teljesítmény a PVGIS-hez képest (${betoltottEvek} év átlaga)</td><td>${osszPct}%</td><td style="text-align:center;color:${pctColor(osszPct)}">${osszPct>=90?'✓':osszPct>=70?'⚠':'✗'}</td></tr>` : ''}
       ${megterulesEv ? `<tr><td>Megtérülési idő</td><td>${megterulesEv} év</td><td style="text-align:center;color:${megterulesEv<=10?'#16a34a':megterulesEv<=15?'#d97706':'#dc2626'}">${megterulesEv<=10?'✓':megterulesEv<=15?'⚠':'✗'}</td></tr>` : ''}
       ${rendszerAr > 0 ? `<tr><td>Összes megtakarítás (${elettartam} év)</td><td>${fmtFt(osszesMegtak)}</td><td style="text-align:center;color:${osszesMegtak>rendszerAr?'#16a34a':'#d97706'}">${osszesMegtak>rendszerAr?'✓':'⚠'}</td></tr>` : ''}
     </tbody>
