@@ -20,7 +20,7 @@
   - Megtérülés kalkulátor alap struktúra
   - Főoldal navigáció (Árazó / Megtérülés tab)
  
-  Változások v2.1-ben:
+Í  Változások v2.1-ben:
   - Session visszaszámláló óra (jobb alsó sarok)
   - Villogó figyelmeztetés 30 perc / 5 perc / 1 percnél
  
@@ -703,6 +703,28 @@
         <div id="sofar-api-fetch-status" style="font-size:0.78rem;color:var(--text-muted);margin-top:0.4rem"></div>
       </div>
     </div>
+
+    <!-- Jelenlegi rendszer (SofarCloud) -->
+    <div class="mt-card" id="sofar-current-system-panel" style="display:none;border:1px solid var(--sun)">
+      <h3>🔌 Jelenlegi rendszer (SofarCloud adatok alapján)</h3>
+      <div class="mt-grid">
+        <div class="mt-field">
+          <label>Telepített kapacitás</label>
+          <div style="font-weight:700;color:var(--sun);font-size:0.95rem" id="sofar-current-kwp">—</div>
+        </div>
+        <div class="mt-field">
+          <label>Inverter(ek)</label>
+          <div style="font-weight:600;font-size:0.9rem" id="sofar-current-inverters">—</div>
+        </div>
+        <div class="mt-field">
+          <label>Tényleges fajlagos hozam</label>
+          <div style="font-weight:600;font-size:0.9rem" id="sofar-current-fajlagos">—</div>
+        </div>
+      </div>
+      <div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.5rem">
+        A fajlagos hozam a SofarCloud legalább 10 hónapos adattal rendelkező teljes éveinek átlaga (kWh/kWp/év) – ez az alapja a lenti bővítés-becslésnek. Panelszám a SofarCloud API-n keresztül nem érhető el, csak a telepített kWp.
+      </div>
+    </div>
     
     <!-- Ügyfél típus -->
     <div class="mt-card">
@@ -967,6 +989,57 @@
           </table>
         </div>
       </div>
+
+      <!-- Rendszerbővítés tervezése -->
+      <div class="mt-card" id="bovites-card" style="display:none;border:1px solid var(--sun)">
+        <h3>➕ Rendszerbővítés tervezése</h3>
+        <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.75rem">
+          Válaszd ki az árazó katalógusból, milyen alkatrészekkel bővítenéd a meglévő rendszert. A megtérülést a SofarCloud tényleges termelési adatai (fajlagos hozam) és a beállított degradáció alapján számoljuk, a jelenlegi rendszer termelésével együtt (sávos/céges áramár is figyelembe véve).
+        </div>
+        <div id="bovites-list" style="display:grid;gap:0.5rem;margin-bottom:0.5rem"></div>
+        <button onclick="bovites_addRow()"
+          style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.6rem;padding:0.5rem 1rem;cursor:pointer;font-size:0.82rem">
+          + Tétel hozzáadása
+        </button>
+
+        <div class="mt-result-grid" style="margin-top:1rem">
+          <div class="mt-kpi highlight">
+            <div class="mt-kpi-label">Bővítés megtérülési ideje</div>
+            <div class="mt-kpi-value" id="bovites-megterules">—</div>
+          </div>
+          <div class="mt-kpi">
+            <div class="mt-kpi-label">Bővítés teljesítménye</div>
+            <div class="mt-kpi-value white" id="bovites-kwp">—</div>
+          </div>
+          <div class="mt-kpi">
+            <div class="mt-kpi-label">Bővítés összköltsége</div>
+            <div class="mt-kpi-value white" id="bovites-ar">—</div>
+          </div>
+          <div class="mt-kpi">
+            <div class="mt-kpi-label">Várható többlettermelés (1. év)</div>
+            <div class="mt-kpi-value white" id="bovites-tobblettermeles">—</div>
+          </div>
+          <div class="mt-kpi">
+            <div class="mt-kpi-label">Várható többletmegtakarítás (1. év)</div>
+            <div class="mt-kpi-value green" id="bovites-tobbletmegtak">—</div>
+          </div>
+        </div>
+
+        <div style="overflow-x:auto;margin-top:0.75rem">
+          <table class="mt-table" id="bovites-cashflow-table">
+            <thead>
+              <tr>
+                <th style="text-align:left">Év</th>
+                <th>Többlettermelés (kWh)</th>
+                <th>Éves többletmegtak. (Ft)</th>
+                <th>Kum. többletmegtak. (Ft)</th>
+                <th>Megjegyzés</th>
+              </tr>
+            </thead>
+            <tbody id="bovites-cashflow-body"></tbody>
+          </table>
+        </div>
+      </div>
  
     </div><!-- /mt-results -->
  
@@ -1134,7 +1207,7 @@
 // ADATOK
 // ============================================================
 const SHEETS_API = 'https://script.google.com/macros/s/AKfycbwcELD2MLNn3-9Odjsc8ullBmI7zHJtZmmrcqb19HjDcFc4YNnr7BnLJ6c3hjBf3SPj/exec';
-const APP_VERSION = 'v2.44 – 2026-07-03';
+const APP_VERSION = 'v2.45 – 2026-07-03';
 
 // Verzió kiírása a login oldalra
 const loginVer = document.getElementById('login-ver');
@@ -2924,8 +2997,11 @@ function mt_recalculate() {
     document.getElementById('mt-results').style.display = 'none';
     document.getElementById('mt-empty').style.display   = 'block';
     mt_updateArInfo(evesKwh);
+    const bc = document.getElementById('bovites-card');
+    if (bc) bc.style.display = 'none';
     return;
   }
+
  
   document.getElementById('mt-results').style.display = 'block';
   document.getElementById('mt-empty').style.display   = 'none';
@@ -2996,6 +3072,9 @@ function mt_recalculate() {
  
   // Grafikonok
   mt_drawCharts(cashflow, rendszerAr);
+
+  // Bővítés-kalkulátor frissítése (ha van SofarCloud adat)
+  bovites_recalculate();
 }
  
 function mt_updateArInfo(evesKwh) {
@@ -3387,6 +3466,7 @@ async function sofar_apiFetchHistory() {
           if (el) el.value = mt_sofarKwp;
         }
         mt_recalculate();
+        sofar_apiFetchDevices(sofar_apiSelectedStation.id || sofar_apiSelectedStation.stationId);
       } else {
         statusEl.textContent = '⚠️ Nem érkezett termelési adat';
         statusEl.style.color = 'var(--red)';
@@ -3398,6 +3478,295 @@ async function sofar_apiFetchHistory() {
   } catch(err) {
     statusEl.textContent = '❌ Lekérés sikertelen – próbáld újra';
     statusEl.style.color = 'var(--red)';
+  }
+}
+
+// ============================================================
+// SOFARCLOUD ESZKÖZLISTA (jelenlegi rendszer)
+// ============================================================
+let sofar_apiDevices = [];
+
+async function sofar_apiFetchDevices(stationId) {
+  if (!stationId) { sofar_renderCurrentSystem(); return; }
+  try {
+    const resp = await fetch(`${SOFAR_WORKER}/sofar/devices`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stationId, deviceType: 1 })
+    });
+    const data = await resp.json();
+    sofar_apiDevices = (data.data?.rows || data.data?.row || []);
+  } catch(err) {
+    sofar_apiDevices = [];
+  }
+  sofar_renderCurrentSystem();
+}
+
+// Az eddigi teljes (>=10 hónapos) évek tényleges kWh/kWp/év átlaga
+function sofar_getFajlagosHozam() {
+  if (!mt_sofarKwp || mt_sofarKwp <= 0) return null;
+  const yearSums = {};
+  const yearCounts = {};
+  Object.entries(mt_sofarMonthly).forEach(([k, v]) => {
+    const y = k.split('-')[0];
+    yearSums[y]   = (yearSums[y] || 0) + v;
+    yearCounts[y] = (yearCounts[y] || 0) + 1;
+  });
+  const fullYears = Object.keys(yearSums).filter(y => yearCounts[y] >= 10);
+  if (fullYears.length === 0) {
+    return mt_pvgisData ? mt_pvgisData.yearly / mt_sofarKwp : null;
+  }
+  const avgKwh = fullYears.reduce((s, y) => s + yearSums[y], 0) / fullYears.length;
+  return avgKwh / mt_sofarKwp;
+}
+
+function sofar_renderCurrentSystem() {
+  const panel = document.getElementById('sofar-current-system-panel');
+  if (!panel) return;
+
+  if (!mt_sofarKwp && sofar_apiDevices.length === 0) {
+    panel.style.display = 'none';
+    bovites_recalculate();
+    return;
+  }
+  panel.style.display = 'block';
+
+  const invGroups = {};
+  sofar_apiDevices.forEach(d => {
+    const key = d.deviceModelName || d.deviceModel || 'Ismeretlen inverter';
+    invGroups[key] = (invGroups[key] || 0) + 1;
+  });
+  const invHtml = Object.entries(invGroups).map(([name, cnt]) => `${cnt}× ${name}`).join(', ') || '—';
+
+  const fajlagos = sofar_getFajlagosHozam();
+
+  const kwpEl = document.getElementById('sofar-current-kwp');
+  const invEl = document.getElementById('sofar-current-inverters');
+  const fajEl = document.getElementById('sofar-current-fajlagos');
+  if (kwpEl) kwpEl.textContent = mt_sofarKwp ? mt_sofarKwp + ' kWp' : '—';
+  if (invEl) invEl.textContent = invHtml;
+  if (fajEl) fajEl.textContent = fajlagos ? Math.round(fajlagos).toLocaleString('hu-HU') + ' kWh/kWp/év' : '— (nincs elég adat)';
+
+  bovites_recalculate();
+}
+
+// ============================================================
+// RENDSZERBŐVÍTÉS TERVEZŐ
+// ============================================================
+let bovitesRows = [];
+let bovitesIdCounter = 0;
+let bovitesCloseTimer = {};
+
+function bovites_addRow() {
+  const id = ++bovitesIdCounter;
+  bovitesRows.push({ id, product: null, qty: 1 });
+  bovites_renderRows();
+}
+
+function bovites_removeRow(id) {
+  bovitesRows = bovitesRows.filter(r => r.id !== id);
+  bovites_renderRows();
+  bovites_recalculate();
+}
+
+function bovites_updateQty(id, val) {
+  const row = bovitesRows.find(r => r.id === id);
+  if (row) row.qty = Math.max(1, parseInt(val) || 1);
+  bovites_recalculate();
+}
+
+function bovites_renderRows() {
+  const container = document.getElementById('bovites-list');
+  if (!container) return;
+  container.innerHTML = '';
+  bovitesRows.forEach(row => {
+    const div = document.createElement('div');
+    div.className = 'extra-row';
+    div.innerHTML = `
+      <div class="search-wrap" style="position:relative">
+        <input class="search-input${row.product ? ' has-value' : ''}"
+          id="bovites-input-${row.id}"
+          value="${row.product ? row.product.name : ''}"
+          placeholder="Keresés (panel, inverter, egyéb)..."
+          autocomplete="off"
+          oninput="bovites_filter(${row.id})"
+          onfocus="bovites_openDropdown(${row.id})"
+          onblur="bovites_closeDropdown(${row.id})">
+        <div class="search-dropdown" id="bovites-dropdown-${row.id}"></div>
+      </div>
+      <input class="num-input" type="number" value="${row.qty}" min="1" max="999"
+        style="width:65px"
+        onchange="bovites_updateQty(${row.id}, this.value)">
+      <button class="btn-remove" onclick="bovites_removeRow(${row.id})">✕</button>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function bovites_allProducts() {
+  return [...PRODUCTS.panels, ...PRODUCTS.inverters, ...PRODUCTS.optik, ...PRODUCTS.egyeb];
+}
+
+function bovites_filter(id) {
+  const input = document.getElementById(`bovites-input-${id}`);
+  const dropdown = document.getElementById(`bovites-dropdown-${id}`);
+  const q = input.value.toLowerCase();
+  const items = bovites_allProducts().filter(p => p.name.toLowerCase().includes(q));
+  dropdown.innerHTML = '';
+  items.slice(0, 20).forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'dropdown-item';
+    div.textContent = p.name;
+    div.onmousedown = () => bovites_select(id, p);
+    dropdown.appendChild(div);
+  });
+  dropdown.classList.toggle('open', items.length > 0);
+  const row = bovitesRows.find(r => r.id === id);
+  if (row) { row.product = null; input.classList.remove('has-value'); }
+  bovites_recalculate();
+}
+
+function bovites_openDropdown(id) {
+  clearTimeout(bovitesCloseTimer[id]);
+  const input = document.getElementById(`bovites-input-${id}`);
+  const dropdown = document.getElementById(`bovites-dropdown-${id}`);
+  const q = input.value.toLowerCase();
+  const items = bovites_allProducts().filter(p => !q || p.name.toLowerCase().includes(q));
+  dropdown.innerHTML = '';
+  items.slice(0, 30).forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'dropdown-item';
+    div.textContent = p.name;
+    div.onmousedown = () => bovites_select(id, p);
+    dropdown.appendChild(div);
+  });
+  if (items.length > 0) dropdown.classList.add('open');
+}
+
+function bovites_closeDropdown(id) {
+  bovitesCloseTimer[id] = setTimeout(() => {
+    const d = document.getElementById(`bovites-dropdown-${id}`);
+    if (d) d.classList.remove('open');
+  }, 200);
+}
+
+function bovites_select(id, product) {
+  const row = bovitesRows.find(r => r.id === id);
+  if (row) row.product = product;
+  const input = document.getElementById(`bovites-input-${id}`);
+  if (input) { input.value = product.name; input.classList.add('has-value'); }
+  const dropdown = document.getElementById(`bovites-dropdown-${id}`);
+  if (dropdown) dropdown.classList.remove('open');
+  bovites_recalculate();
+}
+
+function bovites_recalculate() {
+  const wrap = document.getElementById('bovites-card');
+  if (!wrap) return;
+
+  // Csak akkor mutatjuk, ha van SofarCloud tényadat (meglévő ügyfél bővítése)
+  if (!mt_sofarKwp || Object.keys(mt_sofarMonthly).length === 0) {
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = 'block';
+
+  const bovitesKwp  = bovitesRows.reduce((s, r) => s + (r.product && r.product.kw ? r.product.kw * r.qty : 0), 0);
+  const bovitesCost = bovitesRows.reduce((s, r) => s + (r.product ? r.product.huf * r.qty : 0), 0);
+
+  const kwpElOut = document.getElementById('bovites-kwp');
+  const arElOut  = document.getElementById('bovites-ar');
+  if (kwpElOut) kwpElOut.textContent = bovitesKwp > 0 ? bovitesKwp.toFixed(2) + ' kWp' : '—';
+  if (arElOut)  arElOut.textContent  = bovitesCost > 0 ? Math.round(bovitesCost).toLocaleString('hu-HU') + ' Ft' : '—';
+
+  const tbody = document.getElementById('bovites-cashflow-body');
+  if (tbody) tbody.innerHTML = '';
+
+  const megterulesEl = document.getElementById('bovites-megterules');
+  const tobbTermElOut = document.getElementById('bovites-tobblettermeles');
+  const tobbMegtakElOut = document.getElementById('bovites-tobbletmegtak');
+
+  if (bovitesKwp <= 0 || bovitesCost <= 0) {
+    if (megterulesEl) megterulesEl.textContent = '—';
+    if (tobbTermElOut) tobbTermElOut.textContent = '—';
+    if (tobbMegtakElOut) tobbMegtakElOut.textContent = '—';
+    return;
+  }
+
+  const fajlagos = sofar_getFajlagosHozam();
+  if (!fajlagos) {
+    if (megterulesEl) megterulesEl.textContent = 'Nincs elég adat';
+    return;
+  }
+
+  const evesKwh     = mt_getEvesKwhFogyasztas();
+  const degradacio  = parseFloat(document.getElementById('mt-degradacio')?.value) || 0.5;
+  const elettartam  = parseInt(document.getElementById('mt-elettartam')?.value) || 18;
+  const kwp         = parseFloat(document.getElementById('mt-kwp')?.value) || mt_sofarKwp;
+  const evesTermelesRegi = mt_pvgisData ? mt_pvgisData.yearly : (kwp * 1000);
+
+  const sofarYears    = Object.keys(mt_sofarMonthly).map(k => parseInt(k.split('-')[0]));
+  const firstDataYear = sofarYears.length > 0 ? Math.min(...sofarYears) : null;
+  const currentYear   = new Date().getFullYear();
+
+  let kumTobbletMegtak = 0;
+  let megterulesEv = null;
+  const rows = [];
+
+  for (let k = 1; k <= elettartam; k++) {
+    const calendarYear = currentYear + (k - 1);
+
+    // Meglévő rendszer termelése ugyanabban a naptári évben (a fő cashflow logikájával megegyezően)
+    let regiTermeles = 0;
+    if (firstDataYear) {
+      const oldEv = calendarYear - firstDataYear + 1;
+      if (oldEv >= 1 && oldEv <= elettartam) {
+        const oldDegrad  = Math.pow(1 - degradacio / 100, oldEv - 1);
+        const dataYear   = firstDataYear + (oldEv - 1);
+        const sofarKeys  = Object.keys(mt_sofarMonthly).filter(kk => kk.startsWith(dataYear + '-'));
+        const sofarYearKwh = sofarKeys.reduce((s, kk) => s + mt_sofarMonthly[kk], 0);
+        regiTermeles = (sofarYearKwh > 0 && sofarKeys.length >= 10) ? sofarYearKwh : evesTermelesRegi * oldDegrad;
+      }
+    } else {
+      regiTermeles = evesTermelesRegi * Math.pow(1 - degradacio / 100, k - 1);
+    }
+
+    // Új (bővített) kapacitás termelése, saját degradációval, a mért fajlagos hozam alapján
+    const ujDegrad   = Math.pow(1 - degradacio / 100, k - 1);
+    const ujTermeles = bovitesKwp * fajlagos * ujDegrad;
+
+    // A többlet-megtakarítás a kombinált és a régi rendszer megtakarításának különbsége
+    // (így helyesen kezeli a sávos/céges áramár-logikát is)
+    const kombinaltMegtak = mt_getEvesMegtakaritas(regiTermeles + ujTermeles, evesKwh);
+    const regiMegtak      = mt_getEvesMegtakaritas(regiTermeles, evesKwh);
+    const tobbletMegtak   = kombinaltMegtak - regiMegtak;
+
+    kumTobbletMegtak += tobbletMegtak;
+    const megterult = (!megterulesEv && kumTobbletMegtak >= bovitesCost);
+    if (megterult) megterulesEv = k;
+
+    rows.push({ k, calendarYear, ujTermeles, tobbletMegtak, kumTobbletMegtak, megterult });
+  }
+
+  if (tobbTermElOut) tobbTermElOut.textContent = Math.round(rows[0].ujTermeles).toLocaleString('hu-HU') + ' kWh';
+  if (tobbMegtakElOut) tobbMegtakElOut.textContent = Math.round(rows[0].tobbletMegtak).toLocaleString('hu-HU') + ' Ft';
+  if (megterulesEl) megterulesEl.textContent = megterulesEv ? megterulesEv + ' év' : '>' + elettartam + ' év';
+
+  if (tbody) {
+    const fmt  = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
+    const fmtN = n => Math.round(n).toLocaleString('hu-HU');
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      if (r.megterult) tr.className = 'megtérült';
+      tr.innerHTML = `
+        <td>${r.calendarYear}</td>
+        <td>${fmtN(r.ujTermeles)} kWh</td>
+        <td>${fmt(r.tobbletMegtak)}</td>
+        <td>${fmt(r.kumTobbletMegtak)}</td>
+        <td>${r.megterult ? '✅ Megtérült!' : (r.kumTobbletMegtak > 0 ? Math.round((r.kumTobbletMegtak / bovitesCost) * 100) + '%' : '')}</td>
+      `;
+      tbody.appendChild(tr);
+    });
   }
 }
 
