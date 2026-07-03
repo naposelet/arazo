@@ -669,7 +669,52 @@
       <div id="sofar-files-list" style="margin-top:0.6rem;display:grid;gap:0.35rem"></div>
       <div id="sofar-data-preview" style="display:none;margin-top:0.75rem;font-size:0.78rem;color:var(--text-muted)"></div>
     </div>
- 
+
+    <!-- SofarCloud API panel -->
+    <div class="sofar-panel" id="sofar-api-panel" style="margin-top:0.75rem">
+      <h3>📡 SofarCloud API – automatikus lekérés</h3>
+      <div style="font-size:0.78rem;color:#4da6ff;margin-bottom:0.75rem">
+        Meglévő ügyfél bővítésekor: jelentkezz be SofarCloud fiókoddal, majd válaszd ki a rendszert
+      </div>
+      <div id="sofar-api-login" style="display:grid;gap:0.5rem">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+          <div class="mt-field">
+            <label>SofarCloud e-mail</label>
+            <input type="email" id="sofar-api-email" placeholder="pelda@email.com"
+              style="background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.6rem 0.75rem;color:var(--text);font-size:0.85rem;width:100%">
+          </div>
+          <div class="mt-field">
+            <label>Jelszó</label>
+            <input type="password" id="sofar-api-password" placeholder="••••••••"
+              style="background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.6rem 0.75rem;color:var(--text);font-size:0.85rem;width:100%">
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.75rem">
+          <button onclick="sofar_apiLogin()"
+            style="background:var(--sun);color:#000;border:none;border-radius:0.6rem;padding:0.6rem 1.25rem;font-weight:700;cursor:pointer;font-size:0.85rem">
+            🔐 Bejelentkezés
+          </button>
+          <div id="sofar-api-login-status" style="font-size:0.78rem;color:var(--text-muted)"></div>
+        </div>
+      </div>
+      <div id="sofar-api-stations" style="display:none;margin-top:0.75rem;border-top:1px solid var(--border);padding-top:0.75rem">
+        <div style="font-size:0.82rem;color:var(--text);font-weight:600;margin-bottom:0.5rem">Válaszd ki az ügyfél rendszerét:</div>
+        <div id="sofar-api-station-list" style="display:grid;gap:0.35rem;max-height:200px;overflow-y:auto"></div>
+      </div>
+      <div id="sofar-api-fetch-wrap" style="display:none;margin-top:0.75rem;border-top:1px solid var(--border);padding-top:0.75rem">
+        <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+          <div style="font-size:0.82rem;color:var(--text)">
+            Kiválasztva: <strong id="sofar-api-selected-name" style="color:var(--sun)">—</strong>
+          </div>
+          <button onclick="sofar_apiFetchHistory()"
+            style="background:linear-gradient(135deg,#1a3a5c,#2e6da4);color:#fff;border:none;border-radius:0.6rem;padding:0.6rem 1.25rem;font-weight:700;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:0.4rem">
+            📊 Termelési adatok lekérése
+          </button>
+        </div>
+        <div id="sofar-api-fetch-status" style="font-size:0.78rem;color:var(--text-muted);margin-top:0.4rem"></div>
+      </div>
+    </div>
+
     <!-- Ügyfél típus -->
     <div class="mt-card">
       <h3>👤 Ügyfél és rendszer adatok</h3>
@@ -3204,6 +3249,145 @@ function sofar_updatePreview() {
   </div>`;
   prev.style.display = 'block';
   prev.innerHTML = html;
+}
+
+// ============================================================
+// SOFARCLOUD OPEN API INTEGRÁCIÓ
+// ============================================================
+let sofar_apiToken = null;
+let sofar_apiSelectedStation = null;
+const SOFAR_WORKER = 'https://sofar-proxy.nagyker.workers.dev';
+
+async function sofar_apiLogin() {
+  const email    = document.getElementById('sofar-api-email')?.value?.trim();
+  const password = document.getElementById('sofar-api-password')?.value;
+  const statusEl = document.getElementById('sofar-api-login-status');
+  if (!email || !password) {
+    statusEl.textContent = '⚠️ Add meg az e-mail címet és jelszót!';
+    statusEl.style.color = 'var(--red)'; return;
+  }
+  statusEl.textContent = '⏳ Bejelentkezés...';
+  statusEl.style.color = 'var(--sun)';
+  try {
+    const resp = await fetch(`${SOFAR_WORKER}/sofar/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await resp.json();
+    if (data.code === '200' && data.data?.token) {
+      sofar_apiToken = data.data.token;
+      statusEl.textContent = '✅ Sikeres bejelentkezés!';
+      statusEl.style.color = 'var(--green)';
+      document.getElementById('sofar-api-password').value = '';
+      await sofar_apiLoadStations();
+    } else {
+      statusEl.textContent = `❌ Hiba: ${data.message || 'Ismeretlen hiba'}`;
+      statusEl.style.color = 'var(--red)';
+    }
+  } catch(err) {
+    statusEl.textContent = '❌ Kapcsolódási hiba';
+    statusEl.style.color = 'var(--red)';
+  }
+}
+
+async function sofar_apiLoadStations() {
+  const listEl   = document.getElementById('sofar-api-station-list');
+  const wrapEl   = document.getElementById('sofar-api-stations');
+  const statusEl = document.getElementById('sofar-api-login-status');
+  statusEl.textContent = '⏳ Rendszerek betöltése...';
+  try {
+    const resp = await fetch(`${SOFAR_WORKER}/sofar/stations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: sofar_apiToken })
+    });
+    const data = await resp.json();
+    if (data.code === '200' && data.data?.rows?.length > 0) {
+      wrapEl.style.display = 'block';
+      listEl.innerHTML = '';
+      data.data.rows.forEach(station => {
+        const btn = document.createElement('button');
+        btn.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:0.5rem;padding:0.5rem 0.75rem;color:var(--text);cursor:pointer;text-align:left;font-size:0.82rem;transition:all 0.15s;width:100%';
+        btn.innerHTML = `<span style="color:var(--sun);font-weight:600">${station.stationName || 'Rendszer #'+station.stationId}</span>
+          <span style="color:var(--text-muted);margin-left:0.5rem;font-size:0.75rem">${station.installedCapacity||''} kWp · ${station.address||''}</span>`;
+        btn.onmouseover = () => btn.style.borderColor = 'var(--sun)';
+        btn.onmouseout  = () => btn.style.borderColor = sofar_apiSelectedStation?.stationId === station.stationId ? 'var(--sun)' : 'var(--border)';
+        btn.onclick = () => sofar_apiSelectStation(station, btn);
+        listEl.appendChild(btn);
+      });
+      statusEl.textContent = `✅ ${data.data.rows.length} rendszer betöltve`;
+      statusEl.style.color = 'var(--green)';
+    } else {
+      statusEl.textContent = '⚠️ Nem található rendszer ezen a fiókon';
+      statusEl.style.color = 'var(--red)';
+    }
+  } catch(err) {
+    statusEl.textContent = '❌ Rendszerek betöltése sikertelen';
+    statusEl.style.color = 'var(--red)';
+  }
+}
+
+function sofar_apiSelectStation(station, btn) {
+  document.querySelectorAll('#sofar-api-station-list button').forEach(b => {
+    b.style.borderColor = 'var(--border)';
+    b.style.background  = 'var(--bg)';
+  });
+  btn.style.borderColor = 'var(--sun)';
+  btn.style.background  = 'rgba(247,166,0,0.08)';
+  sofar_apiSelectedStation = station;
+  document.getElementById('sofar-api-selected-name').textContent = station.stationName || 'Rendszer #'+station.stationId;
+  document.getElementById('sofar-api-fetch-wrap').style.display = 'block';
+}
+
+async function sofar_apiFetchHistory() {
+  if (!sofar_apiToken || !sofar_apiSelectedStation) return;
+  const statusEl = document.getElementById('sofar-api-fetch-status');
+  statusEl.textContent = '⏳ Havi adatok lekérése (2022–most)... pár másodperc...';
+  statusEl.style.color = 'var(--sun)';
+  try {
+    const resp = await fetch(`${SOFAR_WORKER}/sofar/history`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: sofar_apiToken, stationId: sofar_apiSelectedStation.stationId })
+    });
+    const data = await resp.json();
+    if (data.code === '200' && data.data) {
+      mt_sofarMonthly = {};
+      mt_sofarName = sofar_apiSelectedStation.stationName || '';
+      mt_sofarKwp  = parseFloat(sofar_apiSelectedStation.installedCapacity) || null;
+      Object.entries(data.data).forEach(([year, yearData]) => {
+        if (!yearData || !Array.isArray(yearData)) return;
+        yearData.forEach(item => {
+          if (!item.time || item.value == null) return;
+          const m = String(item.time).match(/(\d{4})-(\d{2})/);
+          if (!m) return;
+          const val = parseFloat(item.value);
+          if (!isNaN(val) && val > 0) mt_sofarMonthly[`${m[1]}-${m[2]}`] = val;
+        });
+      });
+      const cnt = Object.keys(mt_sofarMonthly).length;
+      if (cnt > 0) {
+        statusEl.textContent = `✅ ${cnt} hónap adat betöltve`;
+        statusEl.style.color = 'var(--green)';
+        sofar_updatePreview();
+        if (mt_sofarKwp) {
+          const el = document.getElementById('mt-kwp');
+          if (el) el.value = mt_sofarKwp;
+        }
+        mt_recalculate();
+      } else {
+        statusEl.textContent = '⚠️ Nem érkezett termelési adat';
+        statusEl.style.color = 'var(--red)';
+      }
+    } else {
+      statusEl.textContent = `❌ API hiba: ${data.message || 'Ismeretlen hiba'}`;
+      statusEl.style.color = 'var(--red)';
+    }
+  } catch(err) {
+    statusEl.textContent = '❌ Lekérés sikertelen – próbáld újra';
+    statusEl.style.color = 'var(--red)';
+  }
 }
 
 // ============================================================
