@@ -3297,7 +3297,6 @@ async function sofar_apiLoadStations() {
   }
 }
 
-  
 function sofar_apiSelectStation(station, btn) {
   document.querySelectorAll('#sofar-api-station-list button').forEach(b => {
     b.style.borderColor = 'var(--border)';
@@ -3308,6 +3307,39 @@ function sofar_apiSelectStation(station, btn) {
   sofar_apiSelectedStation = station;
   document.getElementById('sofar-api-selected-name').textContent = station.stationName || 'Rendszer #'+station.stationId;
   document.getElementById('sofar-api-fetch-wrap').style.display = 'block';
+
+  // Automatikus kitöltés az ügyfél adatok mezőibe
+  const nevEl = document.getElementById('mt-ugyfel-nev');
+  if (nevEl && !nevEl.value || nevEl.value === 'Kovács János') 
+    nevEl.value = station.stationName || '';
+
+  const helyszinEl = document.getElementById('mt-helyszin');
+  if (helyszinEl) 
+    helyszinEl.value = station.stationAddress || '';
+
+  // GPS koordináták kitöltése
+  const latEl = document.getElementById('mt-lat');
+  const lonEl = document.getElementById('mt-lon');
+  if (latEl && station.latitude)  latEl.value = parseFloat(station.latitude).toFixed(4);
+  if (lonEl && station.longitude) lonEl.value = parseFloat(station.longitude).toFixed(4);
+
+  // kWp kitöltése
+  const kwpEl = document.getElementById('mt-kwp');
+  if (kwpEl) {
+    const kw = parseFloat(station.installCapacity || station.installedCapacity);
+    if (!isNaN(kw) && kw > 0) kwpEl.value = kw;
+  }
+
+  // Helyszín keresés mező frissítése
+  const keresEl = document.getElementById('mt-helyszin-kereses');
+  if (keresEl && station.stationAddress) keresEl.value = station.stationAddress;
+
+  // PVGIS státusz frissítése
+  const pvgisStatus = document.getElementById('pvgis-inline-status');
+  if (pvgisStatus && station.latitude && station.longitude) {
+    pvgisStatus.textContent = `📍 Koordináták betöltve (${parseFloat(station.latitude).toFixed(4)}, ${parseFloat(station.longitude).toFixed(4)}) – kattints a PVGIS lekérésre`;
+    pvgisStatus.style.color = 'var(--sun)';
+  }
 }
 
 async function sofar_apiFetchHistory() {
