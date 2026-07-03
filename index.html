@@ -3246,49 +3246,20 @@ let sofar_apiToken = null;
 let sofar_apiSelectedStation = null;
 const SOFAR_WORKER = 'https://sofar-proxy.nagyker.workers.dev';
 
-async function sofar_apiLogin() {
-  const email    = document.getElementById('sofar-api-email')?.value?.trim();
-  const password = document.getElementById('sofar-api-password')?.value;
-  const statusEl = document.getElementById('sofar-api-login-status');
-  if (!email || !password) {
-    statusEl.textContent = '⚠️ Add meg az e-mail címet és jelszót!';
-    statusEl.style.color = 'var(--red)'; return;
-  }
-  statusEl.textContent = '⏳ Bejelentkezés...';
-  statusEl.style.color = 'var(--sun)';
-  try {
-    const resp = await fetch(`${SOFAR_WORKER}/sofar/token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    const data = await resp.json();
-    if (data.code === '200' && data.data?.token) {
-      sofar_apiToken = data.data.token;
-      statusEl.textContent = '✅ Sikeres bejelentkezés!';
-      statusEl.style.color = 'var(--green)';
-      document.getElementById('sofar-api-password').value = '';
-      await sofar_apiLoadStations();
-    } else {
-      statusEl.textContent = `❌ Hiba: ${data.message || 'Ismeretlen hiba'}`;
-      statusEl.style.color = 'var(--red)';
-    }
-  } catch(err) {
-    statusEl.textContent = '❌ Kapcsolódási hiba';
-    statusEl.style.color = 'var(--red)';
-  }
-}
 
+
+  
 async function sofar_apiLoadStations() {
   const listEl   = document.getElementById('sofar-api-station-list');
   const wrapEl   = document.getElementById('sofar-api-stations');
   const statusEl = document.getElementById('sofar-api-login-status');
   statusEl.textContent = '⏳ Rendszerek betöltése...';
+  statusEl.style.color = 'var(--sun)';
   try {
     const resp = await fetch(`${SOFAR_WORKER}/sofar/stations`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: sofar_apiToken })
+      body: JSON.stringify({})
     });
     const data = await resp.json();
     if (data.code === '200' && data.data?.rows?.length > 0) {
@@ -3307,15 +3278,16 @@ async function sofar_apiLoadStations() {
       statusEl.textContent = `✅ ${data.data.rows.length} rendszer betöltve`;
       statusEl.style.color = 'var(--green)';
     } else {
-      statusEl.textContent = '⚠️ Nem található rendszer ezen a fiókon';
+      statusEl.textContent = '⚠️ Nem található rendszer';
       statusEl.style.color = 'var(--red)';
     }
   } catch(err) {
-    statusEl.textContent = '❌ Rendszerek betöltése sikertelen';
+    statusEl.textContent = '❌ Betöltés sikertelen';
     statusEl.style.color = 'var(--red)';
   }
 }
 
+  
 function sofar_apiSelectStation(station, btn) {
   document.querySelectorAll('#sofar-api-station-list button').forEach(b => {
     b.style.borderColor = 'var(--border)';
@@ -3337,7 +3309,7 @@ async function sofar_apiFetchHistory() {
     const resp = await fetch(`${SOFAR_WORKER}/sofar/history`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: sofar_apiToken, stationId: sofar_apiSelectedStation.stationId })
+      body: JSON.stringify({ stationId: sofar_apiSelectedStation.stationId })
     });
     const data = await resp.json();
     if (data.code === '200' && data.data) {
