@@ -3267,11 +3267,12 @@ async function sofar_apiLoadStations() {
       body: JSON.stringify({})
     });
     const data = await resp.json();
-    if (data.code === '200' && data.data?.rows?.length > 0) {
+    const stationList = data.data?.rows || data.data?.row || [];
+    if (data.code === '200' && stationList.length > 0) {
       wrapEl.style.display = 'block';
       listEl.innerHTML = '';
-      data.data.rows.forEach(station => {
-        const btn = document.createElement('button');
+      stationList.forEach(station => {
+         const btn = document.createElement('button');
         btn.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:0.5rem;padding:0.5rem 0.75rem;color:var(--text);cursor:pointer;text-align:left;font-size:0.82rem;transition:all 0.15s;width:100%';
         btn.innerHTML = `<span style="color:var(--sun);font-weight:600">${station.stationName || 'Rendszer #'+station.stationId}</span>
           <span style="color:var(--text-muted);margin-left:0.5rem;font-size:0.75rem">${station.installedCapacity||''} kWp · ${station.address||''}</span>`;
