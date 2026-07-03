@@ -3275,13 +3275,13 @@ async function sofar_apiLoadStations() {
          const btn = document.createElement('button');
         btn.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:0.5rem;padding:0.5rem 0.75rem;color:var(--text);cursor:pointer;text-align:left;font-size:0.82rem;transition:all 0.15s;width:100%';
         btn.innerHTML = `<span style="color:var(--sun);font-weight:600">${station.stationName || 'Rendszer #'+station.stationId}</span>
-          <span style="color:var(--text-muted);margin-left:0.5rem;font-size:0.75rem">${station.installedCapacity||''} kWp · ${station.address||''}</span>`;
+          <span style="color:var(--text-muted);margin-left:0.5rem;font-size:0.75rem">${station.installCapacity||station.installedCapacity||''} kWp · ${station.stationAddress||station.address||''}</span>`;
         btn.onmouseover = () => btn.style.borderColor = 'var(--sun)';
         btn.onmouseout  = () => btn.style.borderColor = sofar_apiSelectedStation?.stationId === station.stationId ? 'var(--sun)' : 'var(--border)';
         btn.onclick = () => sofar_apiSelectStation(station, btn);
         listEl.appendChild(btn);
       });
-      statusEl.textContent = `✅ ${data.data.rows.length} rendszer betöltve`;
+      statusEl.textContent = `✅ ${stationList.length} rendszer betöltve`;
       statusEl.style.color = 'var(--green)';
     } else {
       statusEl.textContent = '⚠️ Nem található rendszer';
@@ -3321,7 +3321,7 @@ async function sofar_apiFetchHistory() {
     if (data.code === '200' && data.data) {
       mt_sofarMonthly = {};
       mt_sofarName = sofar_apiSelectedStation.stationName || '';
-      mt_sofarKwp  = parseFloat(sofar_apiSelectedStation.installedCapacity) || null;
+      mt_sofarKwp  = parseFloat(sofar_apiSelectedStation.installCapacity || sofar_apiSelectedStation.installedCapacity) || null;
       Object.entries(data.data).forEach(([year, yearData]) => {
         if (!yearData || !Array.isArray(yearData)) return;
         yearData.forEach(item => {
