@@ -3307,7 +3307,11 @@ function sofar_apiSelectStation(station, btn) {
 }
 
 async function sofar_apiFetchHistory() {
-  if (!sofar_apiToken || !sofar_apiSelectedStation) return;
+  if (!sofar_apiSelectedStation) {
+    const s = document.getElementById('sofar-api-fetch-status');
+    if (s) { s.textContent = '⚠️ Válassz ki egy rendszert!'; s.style.color = 'var(--red)'; }
+    return;
+  }
   const statusEl = document.getElementById('sofar-api-fetch-status');
   statusEl.textContent = '⏳ Havi adatok lekérése (2022–most)... pár másodperc...';
   statusEl.style.color = 'var(--sun)';
@@ -3315,7 +3319,7 @@ async function sofar_apiFetchHistory() {
     const resp = await fetch(`${SOFAR_WORKER}/sofar/history`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stationId: sofar_apiSelectedStation.stationId })
+      body: JSON.stringify({ stationId: sofar_apiSelectedStation.id || sofar_apiSelectedStation.stationId })
     });
     const data = await resp.json();
     if (data.code === '200' && data.data) {
