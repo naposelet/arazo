@@ -672,32 +672,18 @@
       <div id="sofar-data-preview" style="display:none;margin-top:0.75rem;font-size:0.78rem;color:var(--text-muted)"></div>
     </div>
 
-    <!-- SofarCloud API panel -->
+<!-- SofarCloud API panel -->
     <div class="sofar-panel" id="sofar-api-panel" style="margin-top:0.75rem">
       <h3>📡 SofarCloud API – automatikus lekérés</h3>
       <div style="font-size:0.78rem;color:#4da6ff;margin-bottom:0.75rem">
-        Meglévő ügyfél bővítésekor: jelentkezz be SofarCloud fiókoddal, majd válaszd ki a rendszert
+        Meglévő ügyfél bővítésekor: válaszd ki a rendszert és kérd le a tényleges termelési adatokat
       </div>
-      <div id="sofar-api-login" style="display:grid;gap:0.5rem">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
-          <div class="mt-field">
-            <label>SofarCloud e-mail</label>
-            <input type="email" id="sofar-api-email" placeholder="pelda@email.com"
-              style="background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.6rem 0.75rem;color:var(--text);font-size:0.85rem;width:100%">
-          </div>
-          <div class="mt-field">
-            <label>Jelszó</label>
-            <input type="password" id="sofar-api-password" placeholder="••••••••"
-              style="background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.6rem 0.75rem;color:var(--text);font-size:0.85rem;width:100%">
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:0.75rem">
-          <button onclick="sofar_apiLogin()"
-            style="background:var(--sun);color:#000;border:none;border-radius:0.6rem;padding:0.6rem 1.25rem;font-weight:700;cursor:pointer;font-size:0.85rem">
-            🔐 Bejelentkezés
-          </button>
-          <div id="sofar-api-login-status" style="font-size:0.78rem;color:var(--text-muted)"></div>
-        </div>
+      <div style="display:flex;align-items:center;gap:0.75rem">
+        <button onclick="sofar_apiLoadStations()"
+          style="background:var(--sun);color:#000;border:none;border-radius:0.6rem;padding:0.6rem 1.25rem;font-weight:700;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:0.4rem">
+          📋 Rendszerek betöltése
+        </button>
+        <div id="sofar-api-login-status" style="font-size:0.78rem;color:var(--text-muted)"></div>
       </div>
       <div id="sofar-api-stations" style="display:none;margin-top:0.75rem;border-top:1px solid var(--border);padding-top:0.75rem">
         <div style="font-size:0.82rem;color:var(--text);font-weight:600;margin-bottom:0.5rem">Válaszd ki az ügyfél rendszerét:</div>
@@ -716,7 +702,7 @@
         <div id="sofar-api-fetch-status" style="font-size:0.78rem;color:var(--text-muted);margin-top:0.4rem"></div>
       </div>
     </div>
-
+    
     <!-- Ügyfél típus -->
     <div class="mt-card">
       <h3>👤 Ügyfél és rendszer adatok</h3>
