@@ -3330,16 +3330,20 @@ async function sofar_apiFetchHistory() {
       mt_sofarMonthly = {};
       mt_sofarName = sofar_apiSelectedStation.stationName || '';
       mt_sofarKwp  = parseFloat(sofar_apiSelectedStation.installCapacity || sofar_apiSelectedStation.installedCapacity) || null;
-      Object.entries(data.data).forEach(([year, yearData]) => {
-        if (!yearData || !Array.isArray(yearData)) return;
-        yearData.forEach(item => {
-          if (!item.time || item.value == null) return;
-          const m = String(item.time).match(/(\d{4})-(\d{2})/);
-          if (!m) return;
-          const val = parseFloat(item.value);
-          if (!isNaN(val) && val > 0) mt_sofarMonthly[`${m[1]}-${m[2]}`] = val;
+       Object.entries(data.data).forEach(([year, yearData]) => {
+        if (!yearData || !yearData.rows) return;
+        yearData.rows.forEach(row => {
+          if (!row.timeSeries || !Array.isArray(row.timeSeries)) return;
+          row.timeSeries.forEach(item => {
+            if (!item.time || item.value == null) return;
+            const m = String(item.time).match(/(\d{4})-(\d{2})/);
+            if (!m) return;
+            const val = parseFloat(item.value);
+            if (!isNaN(val) && val > 0) mt_sofarMonthly[`${m[1]}-${m[2]}`] = val;
+          });
         });
       });
+    
       const cnt = Object.keys(mt_sofarMonthly).length;
       if (cnt > 0) {
         statusEl.textContent = `✅ ${cnt} hónap adat betöltve`;
