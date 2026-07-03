@@ -428,8 +428,9 @@
       <div class="sun-icon">☀️</div>
       <h1>Solar Future</h1>
       <p>Árazó rendszer</p>
+      <div id="login-ver" style="margin-top:0.5rem;font-size:0.75rem;color:var(--text-muted);opacity:0.6"></div>
     </div>
-    <div class="form-group">
+      <div class="form-group">
       <label>Email cím</label>
       <input type="email" id="login-email" placeholder="pelda@email.com" autocomplete="email">
     </div>
@@ -1133,7 +1134,11 @@
 // ADATOK
 // ============================================================
 const SHEETS_API = 'https://script.google.com/macros/s/AKfycbwcELD2MLNn3-9Odjsc8ullBmI7zHJtZmmrcqb19HjDcFc4YNnr7BnLJ6c3hjBf3SPj/exec';
-const APP_VERSION = 'v2.31 – 2026-06-05';
+const APP_VERSION = 'v2.42 – 2026-07-03';
+
+// Verzió kiírása a login oldalra
+const loginVer = document.getElementById('login-ver');
+if (loginVer) loginVer.textContent = APP_VERSION;
  
 // Számítási paraméterek - admin felületen módosíthatók
 const CALC_SETTINGS = {
