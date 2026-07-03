@@ -3509,7 +3509,11 @@ const vanElozmenyadat = Object.keys(mt_sofarMonthly).length > 0;
   // Összesen sor
   const osszesTenyleges = Object.values(mt_sofarMonthly).reduce((s,v)=>s+v,0);
   const osszesPvgis = pvgisHavi.reduce((s,v)=>s+v,0);
-  const osszPct = osszesPvgis > 0 ? Math.round((osszesTenyleges/osszesPvgis)*100) : null;
+  // Évek száma a betöltött adatokból
+  const betoltottEvek = Object.keys(byYear).length || 1;
+  // PVGIS-t az évek számával szorozzuk az összes tényleges mellé
+  const pvgisOsszesEv = osszesPvgis * betoltottEvek;
+  const osszPct = pvgisOsszesEv > 0 ? Math.round((osszesTenyleges/pvgisOsszesEv)*100) : null;
 
   // Cashflow táblázat sorok
   let cashflowSorok = cashflow.map(r => `<tr style="${r.kumMegtak >= rendszerAr && cashflow[cashflow.indexOf(r)-1]?.kumMegtak < rendszerAr ? 'background:#16a34a15;font-weight:700' : ''}">
