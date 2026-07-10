@@ -5,6 +5,27 @@
   Verzió: ld. APP_VERSION állandó a JS elején (egyetlen hely, ahol a verziószámot módosítani kell)
   Utolsó módosítás: 2026-07-10 (Budapest)
 
+  Változások v2.51-ben:
+  - Pontosítás a v2.50-hez képest: a 3 szintű árazás (Bekerülési/Minimum/Ajánlott) KIZÁRÓLAG
+    Új módban aktív. Régi mód visszaállítva az eredeti, egyetlen áras logikára:
+    (anyag+munkadíj) × haszonkulcs (alap 1.38) – a félreértések elkerülése végett, ahogy
+    kérve lett. Az admin "ár-láthatóság" beállítás Régi módú kalkulátoroknál nem releváns.
+
+  Változások v2.50-ben:
+  - 3 szintű árazás az Árazó tabon: 1. Bekerülési anyagköltség (nincs működési költség),
+    2. Minimum ár (anyagköltség + működési költség × admin szorzó, alap 1.0), 3. Ajánlott ár
+    (anyagköltség + működési költség × admin szorzó, alap 1.2 = +20%). A működési költséget
+    (munkadíj) a jelenlegi Régi/Új/Bővítés mód logikája adja változatlanul, csak ennek
+    felhasználásában tér el a 3 ár. FONTOS: Régi módban ezzel a "haszonkulcs" beállítás
+    (ami eddig anyag+munkadíj együttes szorzója volt) funkcionálisan kiváltásra kerül a 3
+    szintű árazással – a CALC_SETTINGS-ben megmarad, de az új árképzésben nem használjuk.
+  - Admin felület: kalkulátoronként (1-6) külön be/kikapcsolható mindhárom ár láthatósága
+    (pl. junior kolléga csak az Ajánlott árat lássa)
+  - Eredménysáv (alsó fix sáv) és a részletező panel is dinamikusan a kalkulátorhoz beállított
+    látható ár(ak)at mutatja
+  - Ajánlat mentéskor (Sheets) mindhárom ár (netto/áfa/bruttó) rögzítésre kerül, függetlenül
+    attól, hogy melyik látszik az adott kalkulátornál
+
   Változások v2.49-ben:
   - Fogyasztás vs. termelés infósáv: mindkét módban (új rendszer / bővítés) megmutatja az
     ügyfél éves fogyasztását és a (meglévő vagy új) rendszer várható éves termelését +
@@ -426,7 +447,7 @@
     text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 0.3rem 0;
   }
   .rbar-main {
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-bottom: 0.3rem;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 0.5rem; margin-bottom: 0.3rem;
   }
   .rbar-item { text-align: center; }
   .rbar-label { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
@@ -476,7 +497,7 @@
   <div class="topbar">
     <div class="topbar-left">
       <span class="topbar-logo">☀️ Solar Future</span>
-      <span id="ver-badge" title="Verziótörténet a JS elején (_HISTORY)" style="font-size:0.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:0.4rem;padding:0.1rem 0.4rem;background:var(--bg);cursor:help"></span>
+      <span id="ver-badge" title="Verziótörténet a JS elején (APP_VERSION_HISTORY)" style="font-size:0.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:0.4rem;padding:0.1rem 0.4rem;background:var(--bg);cursor:help"></span>
       <span class="user-badge" id="topbar-user">—</span>
     </div>
     <div class="topbar-right">
@@ -649,26 +670,12 @@
         <span>☝️ Válassz napelemtípust a kalkuláció elindításához</span>
       </div>
       <div class="rbar-state-full" id="rbar-full" style="display:none">
-        <div class="rbar-main">
-          <div class="rbar-item">
-            <div class="rbar-label">BRUTTÓ</div>
-            <div class="rbar-val brutto" id="res-brutto">—</div>
-          </div>
-          <div class="rbar-item">
-            <div class="rbar-label">NETTÓ</div>
-            <div class="rbar-val" id="res-netto">—</div>
-          </div>
-          <div class="rbar-item">
-            <div class="rbar-label">ÁFA</div>
-            <div class="rbar-val" id="res-afa">—</div>
-          </div>
-          <div class="rbar-item">
-            <div class="rbar-label">MÉRET</div>
-            <div class="rbar-val kw" id="res-kw">—</div>
-          </div>
+        <div class="rbar-main" id="rbar-main">
+          <!-- JS tölti fel dinamikusan (calculate()): 1-3 ártétel + MÉRET, a kalkulátor
+               admin-beállított ár-láthatósága szerint (getActiveArVis()) -->
         </div>
         <div class="rbar-sub" style="display:flex;align-items:center;justify-content:center;gap:1rem;flex-wrap:wrap">
-          <span><span id="res-kw-net">—</span> nettó/kW &nbsp;|&nbsp; <span id="res-kw-gross">—</span> bruttó/kW</span>
+          <span id="res-kw-sub">—</span>
           <span id="res-breakdown" style="color:var(--text-muted)">—</span>
           <button onclick="saveAjanlat()" id="save-btn"
             style="background:var(--green);color:#fff;border:none;border-radius:0.5rem;padding:0.25rem 0.75rem;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap">
@@ -1220,7 +1227,7 @@ const SHEETS_API = 'https://script.google.com/macros/s/AKfycbwcELD2MLNn3-9Odjsc8
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.49 – 2026-07-10';
+const APP_VERSION = 'v2.51 – 2026-07-10';
 const APP_VERSION_HISTORY = [
   'v2.1 (2026-05-29): Megtérülés kalkulátor, PVGIS integráció',
   'v2.3 (2026-05-29): Sávos áramár, cashflow táblázat, grafikonok',
@@ -1234,6 +1241,8 @@ const APP_VERSION_HISTORY = [
   'v2.47 (2026-07-03): Bővítés-összehasonlítás a PDF riportba is beépítve; verziószám egyetlen helyre konszolidálva',
   'v2.48 (2026-07-10): Rögzített (sticky) fejlécek Árazó+Megtérülés tabon; Megtérülés gyorsgomb-sáv; "Bővítés kalkuláció" checkbox (anyagköltség × admin szorzó, munkadíj nélkül); hibajavítás – napelem nélkül (csak inverter/akku/egyéb) is elindul a kalkuláció',
   'v2.49 (2026-07-10): Fogyasztás vs. termelés infósáv mindkét módban (új rendszer és bővítés is) + figyelmeztetés, ha a meglévő rendszer már közel lefedi a fogyasztást (szaldó-modell miatt gyenge bővítés-megtérülés magyarázata)',
+  'v2.50 (2026-07-10): 3 szintű árazás az Árazó tabon (Bekerülési anyagköltség / Minimum ár / Ajánlott ár) – a működési költséget (munkadíj) a Régi/Új/Bővítés mód adja, ezt szorozzuk admin-állítható szorzókkal (min_ar_szorzo alap 1.0, ajanlott_ar_szorzo alap 1.2); kalkulátoronként (1-6) admin-beállítható, melyik ár(ak) látszanak; eredménysáv és részletező is a látható árakat mutatja; Sheets mentés mindhárom árat rögzíti',
+  'v2.51 (2026-07-10): Pontosítás – a 3 szintű árazás KIZÁRÓLAG Új módban aktív. Régi mód visszaállítva az eredeti, egyetlen áras logikára: (anyag+munkadíj) × haszonkulcs (alap 1.38), a félreértések elkerülése végett. Bővítés kalkuláció változatlanul saját, egyetlen áras logikájú.',
 ];
 
 // Verzió kiírása minden előforduláshoz
@@ -1250,6 +1259,8 @@ const CALC_SETTINGS = {
   // KÖZÖS
   afa:              { label: 'ÁFA kulcs (%)', value: 27, min: 0, max: 30, step: 1, desc: 'Általános ÁFA kulcs.', mode: 'both' },
   bovites_szorzo:   { label: 'Bővítés kalkuláció – anyagköltség szorzó', value: 1.5, min: 1.0, max: 3.0, step: 0.05, desc: 'Bővítés kalkuláció bepipálva: munkadíj nélkül, az anyagköltséget szorozzuk ezzel az értékkel (alap: 1.5×).', mode: 'both' },
+  min_ar_szorzo:      { label: '2. ár (Minimum ár) – működési költség szorzó – Új', value: 1.0, min: 0.5, max: 3.0, step: 0.05, desc: 'Csak Új módban: Minimum ár = anyagköltség + működési költség × ez a szorzó. Alap: 1.0 (nincs felár a működési költségen).', mode: 'uj' },
+  ajanlott_ar_szorzo: { label: '3. ár (Ajánlott ár) – működési költség szorzó – Új', value: 1.2, min: 0.5, max: 3.0, step: 0.05, desc: 'Csak Új módban: Ajánlott ár = anyagköltség + működési költség × ez a szorzó. Alap: 1.2 (+20% felár a működési költségen).', mode: 'uj' },
   // RÉGI MÓD
   haszonkulcs:      { label: 'Haszonkulcs – Régi (szorzó)', value: 1.38, min: 1.0, max: 3.0, step: 0.01, desc: '(Anyag + munkadíj) × haszonkulcs = Nettó ár. 1.38 = 38% felár.', mode: 'regi' },
   munkadij_alap:    { label: 'Munkadíj 0–5 kW (Ft/kW) – Régi', value: 50000, min: 10000, max: 200000, step: 1000, desc: 'Az első 5 kW-ig kW-onkénti munkadíj.', mode: 'regi' },
@@ -1383,6 +1394,63 @@ function hasAnyProductSelected() {
     (optiSel && optiQty > 0) ||
     hasExtra
   );
+}
+
+// ============================================================
+// 3 SZINTŰ ÁRAZÁS (Bekerülési anyagköltség / Minimum ár / Ajánlott ár)
+// ============================================================
+// A "működési költség" (munkadíj) kiszámítása változatlan – a jelenlegi Régi/Új/Bővítés
+// mód logikája adja (ld. calculate()/refreshDetail()/saveAjanlat()). Ez a 3 ár csak ennek
+// a munkadíjnak a felhasználásában térnek el egymástól.
+const AR_TIER_DEFS = [
+  { key: 'ar1', label: '1. Bekerülési anyagköltség' },
+  { key: 'ar2', label: '2. Minimum ár' },
+  { key: 'ar3', label: '3. Ajánlott ár' },
+];
+const DEFAULT_CALC_AR_VIS = { 1:{ar1:true,ar2:true,ar3:true}, 2:{ar1:true,ar2:true,ar3:true}, 3:{ar1:true,ar2:true,ar3:true}, 4:{ar1:true,ar2:true,ar3:true}, 5:{ar1:true,ar2:true,ar3:true}, 6:{ar1:true,ar2:true,ar3:true} };
+
+function getCalcArVis() {
+  try {
+    const stored = JSON.parse(localStorage.getItem('sf_calc_ar_vis') || 'null');
+    if (!stored) return JSON.parse(JSON.stringify(DEFAULT_CALC_AR_VIS));
+    // Hiányzó kalkulátor-kulcsok pótlása (pl. ha később bővült a lista)
+    [1,2,3,4,5,6].forEach(c => { if (!stored[c]) stored[c] = { ar1:true, ar2:true, ar3:true }; });
+    return stored;
+  } catch { return JSON.parse(JSON.stringify(DEFAULT_CALC_AR_VIS)); }
+}
+function saveCalcArVis(v) { localStorage.setItem('sf_calc_ar_vis', JSON.stringify(v)); }
+
+function getActiveArVis() {
+  const v = getCalcArVis();
+  return v[activeCalc] || { ar1: true, ar2: true, ar3: true };
+}
+
+function setCalcArVis(calcNum, tier, checked) {
+  const v = getCalcArVis();
+  if (!v[calcNum]) v[calcNum] = { ar1: true, ar2: true, ar3: true };
+  v[calcNum][tier] = checked;
+  saveCalcArVis(v);
+  if (calcNum === activeCalc) { calculate(); refreshDetail(); }
+}
+
+// Kiszámolja mindhárom árat (nettó/kedvezményes nettó/áfa/bruttó/kW-ár) egy adott
+// anyagköltség + működési költség (munkadíj) párosból. A visszaadott tömb mindig
+// mindhárom szintet tartalmazza – a megjelenítésnél kell szűrni getActiveArVis() szerint.
+function computeAr3Tier(anyagok, munkadij, discount, afaKulcs, rendszerKw) {
+  const raw = {
+    ar1: anyagok,
+    ar2: anyagok + munkadij * CALC_SETTINGS.min_ar_szorzo.value,
+    ar3: anyagok + munkadij * CALC_SETTINGS.ajanlott_ar_szorzo.value,
+  };
+  return AR_TIER_DEFS.map(def => {
+    const netto      = raw[def.key];
+    const nettoKedv  = netto * (1 - discount / 100);
+    const afaKedv    = nettoKedv * afaKulcs;
+    const bruttoKedv = nettoKedv * (1 + afaKulcs);
+    const kwNetKedv  = rendszerKw > 0 ? nettoKedv / rendszerKw : 0;
+    const kwGrossKedv = rendszerKw > 0 ? bruttoKedv / rendszerKw : 0;
+    return { key: def.key, label: def.label, netto, nettoKedv, afaKedv, bruttoKedv, kwNetKedv, kwGrossKedv };
+  });
 }
  
 function getCalcNames() {
@@ -1651,12 +1719,11 @@ async function saveAjanlat(silent = false) {
 
   const anyagköltseg = panelCost + tartCost + inv1Cost + inv2Cost + optiCost + egyebCost;
   const AFA = CALC_SETTINGS.afa.value / 100;
-  let munkadij = 0, netto = 0;
+  let munkadij = 0;
 
   if (bovitesMod) {
-    // BŐVÍTÉS KALKULÁCIÓ: nincs munkadíj, anyagköltség × admin szorzó
+    // BŐVÍTÉS KALKULÁCIÓ: nincs munkadíj
     munkadij = 0;
-    netto = anyagköltseg * CALC_SETTINGS.bovites_szorzo.value;
   } else if (mode === 'regi') {
     const md_alap = CALC_SETTINGS.munkadij_alap.value;
     const md_extra = CALC_SETTINGS.munkadij_extra.value;
@@ -1664,23 +1731,53 @@ async function saveAjanlat(silent = false) {
     munkadij = rendszerKw <= md_hatar
       ? rendszerKw * md_alap
       : md_hatar * md_alap + (rendszerKw - md_hatar) * md_extra;
-    netto = (anyagköltseg + munkadij) * CALC_SETTINGS.haszonkulcs.value;
   } else {
     const manualNapEl = document.getElementById('manual-nap');
     const napok = (manualNapEl && manualNapEl.value) ? parseInt(manualNapEl.value) : calcDaysForKw(rendszerKw);
     munkadij = napok * CALC_SETTINGS.napi_munkadij.value * (1 + CALC_SETTINGS.munkadij_pct.value/100);
-    netto = anyagköltseg + munkadij;
   }
 
-  const nettoKedv  = netto * (1 - discount/100);
-  const bruttoKedv = nettoKedv * (1 + AFA);
   const names = getCalcNames();
-
   const fmt = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
+
+  // Fő (payload-kompatibilitási) ár mezők + a 3 szintű árazás mentése
+  let netto, nettoKedv, bruttoKedv, arTipus;
+  let ar3Fields = {};
+
+  if (bovitesMod) {
+    const bNetto = anyagköltseg * CALC_SETTINGS.bovites_szorzo.value;
+    netto      = bNetto;
+    nettoKedv  = bNetto * (1 - discount / 100);
+    bruttoKedv = nettoKedv * (1 + AFA);
+    arTipus    = 'Bővítés';
+  } else if (mode === 'regi') {
+    // RÉGI MÓD – változatlan, egyetlen ár, nincs 3 szintű árazás
+    const rNetto = (anyagköltseg + munkadij) * CALC_SETTINGS.haszonkulcs.value;
+    netto      = rNetto;
+    nettoKedv  = rNetto * (1 - discount / 100);
+    bruttoKedv = nettoKedv * (1 + AFA);
+    arTipus    = 'Régi (haszonkulcsos)';
+  } else {
+    // ÚJ MÓD – 3 szintű árazás
+    const tiers = computeAr3Tier(anyagköltseg, munkadij, discount, AFA, rendszerKw);
+    const [t1, t2, t3] = tiers;
+    // A "fő" netto/brutto mező (visszamenőleges kompatibilitás a Sheets riportokkal) az Ajánlott árat tükrözi
+    netto      = t3.netto;
+    nettoKedv  = t3.nettoKedv;
+    bruttoKedv = t3.bruttoKedv;
+    arTipus    = 'Ajánlott (3 szintű árazás)';
+    ar3Fields = {
+      ar1Nev: t1.label, ar1Netto: Math.round(t1.nettoKedv), ar1Afa: Math.round(t1.afaKedv), ar1Brutto: Math.round(t1.bruttoKedv),
+      ar2Nev: t2.label, ar2Netto: Math.round(t2.nettoKedv), ar2Afa: Math.round(t2.afaKedv), ar2Brutto: Math.round(t2.bruttoKedv),
+      ar3Nev: t3.label, ar3Netto: Math.round(t3.nettoKedv), ar3Afa: Math.round(t3.afaKedv), ar3Brutto: Math.round(t3.bruttoKedv),
+    };
+  }
+
   const payload = {
     ertekesito:       currentUser.name || currentUser.email,
     kalkulator:       names[activeCalc] || 'Kalkulátor ' + activeCalc,
     mod:              bovitesMod ? 'Bővítés' : (mode === 'regi' ? 'Régi' : 'Új'),
+    arTipus,
     // Napelem
     napelem:          panelSel ? panelSel.name : '',
     napelemDb:        panelSel ? panelQty : 0,
@@ -1712,7 +1809,11 @@ async function saveAjanlat(silent = false) {
     anyagköltseg:     Math.round(anyagköltseg),
     munkadij:         Math.round(munkadij),
     bekerulesi:       Math.round(anyagköltseg + munkadij),
-    haszonkulcs:      bovitesMod ? CALC_SETTINGS.bovites_szorzo.value : (mode === 'regi' ? CALC_SETTINGS.haszonkulcs.value : 1),
+    haszonkulcs:      bovitesMod ? CALC_SETTINGS.bovites_szorzo.value : (mode === 'regi' ? CALC_SETTINGS.haszonkulcs.value : CALC_SETTINGS.ajanlott_ar_szorzo.value),
+    // 3 szintű árazás (régi/új módban mindhárom kitöltve; bővítés módban üres, mert ott 1 ár van)
+    ...ar3Fields,
+    // Fő ár mezők – visszamenőleges kompatibilitás: bővítés módban a bővítés ára,
+    // egyébként az Ajánlott ár (3. szint)
     nettoKedvNelkul:  Math.round(netto),
     kedvezmeny:       discount,
     kedvezmenyOsszeg: Math.round(netto - nettoKedv),
@@ -1801,18 +1902,14 @@ function refreshDetail() {
 
   const anyagok = panelCost + tartCost + inv1Cost + inv2Cost + optiCost + egyebCost;
 
-  // --- MUNKADÍJ ---
+  // --- MŰKÖDÉSI KÖLTSÉG (munkadíj) – változatlan Régi/Új/Bővítés logika ---
   const AFA = CALC_SETTINGS.afa.value / 100;
   let munkadij = 0;
   let munkadijLabel = '';
-  let netto = 0;
-  let napok = 0;
 
   if (bovitesMod) {
-    // BŐVÍTÉS KALKULÁCIÓ: nincs munkadíj, anyagköltség × admin szorzó
     munkadij = 0;
     munkadijLabel = 'bővítés módban nincs munkadíj';
-    netto = anyagok * CALC_SETTINGS.bovites_szorzo.value;
   } else if (mode === 'regi') {
     const md_alap  = CALC_SETTINGS.munkadij_alap.value;
     const md_extra = CALC_SETTINGS.munkadij_extra.value;
@@ -1824,9 +1921,8 @@ function refreshDetail() {
       munkadij = md_hatar * md_alap + (rendszerKw - md_hatar) * md_extra;
       munkadijLabel = `${md_hatar} kW × ${fmt(md_alap)} + ${(rendszerKw-md_hatar).toFixed(2)} kW × ${fmt(md_extra)}`;
     }
-    netto = (anyagok + munkadij) * CALC_SETTINGS.haszonkulcs.value;
   } else {
-    napok = (() => {
+    const napok = (() => {
       const manualNapEl = document.getElementById('manual-nap');
       if (manualNapEl && manualNapEl.value) return parseInt(manualNapEl.value);
       return calcDaysForKw(rendszerKw);
@@ -1835,14 +1931,7 @@ function refreshDetail() {
     const felarPct = CALC_SETTINGS.munkadij_pct.value / 100;
     munkadij = napok * napi * (1 + felarPct);
     munkadijLabel = `${napok} nap × ${fmt(napi)}${felarPct > 0 ? ' × ' + (1+felarPct) : ''}`;
-    netto = anyagok + munkadij;
   }
-
-  const nettoKedv   = netto * (1 - discount/100);
-  const afaKedv     = nettoKedv * AFA;
-  const bruttoKedv  = nettoKedv * (1 + AFA);
-  const kwNetKedv   = rendszerKw > 0 ? nettoKedv / rendszerKw : 0;
-  const kwGrossKedv = rendszerKw > 0 ? bruttoKedv / rendszerKw : 0;
 
   const modeLabel = bovitesMod
     ? `📦 Bővítés kalkuláció (szorzó: ×${CALC_SETTINGS.bovites_szorzo.value})`
@@ -1920,51 +2009,44 @@ function refreshDetail() {
     });
   }
 
-  // Összesítő
+  // Összesítő – anyagköltség + működési költség (nyers, szorzók nélkül)
   html += `
     <div style="border-top:2px solid var(--border);margin-top:0.75rem;padding-top:0.75rem">
       <div style="${rowStyle}">
         <span style="font-weight:600">Anyagköltség összesen</span><strong>${fmt(anyagok)}</strong>
       </div>`;
-
   if (!bovitesMod) {
     html += `
       <div style="${rowStyle}">
-        <span>Munkadíj <span style="${subStyle}">(${munkadijLabel})</span></span>
+        <span>Működési költség <span style="${subStyle}">(${munkadijLabel})</span></span>
         <strong>${fmt(munkadij)}</strong>
       </div>`;
   }
+  html += `</div>`;
 
   if (bovitesMod) {
-    html += `
-      <div style="${rowStyle}">
-        <span style="color:var(--text-muted)">× ${CALC_SETTINGS.bovites_szorzo.value} bővítés szorzó <span style="${subStyle}">(munkadíj nélkül)</span></span><span>${fmt(netto)}</span>
-      </div>`;
-  } else if (mode === 'regi') {
-    html += `
-      <div style="${rowStyle}">
-        <span style="color:var(--text-muted)">Bekerülési ár összesen</span><span>${fmt(anyagok + munkadij)}</span>
-      </div>
-      <div style="${rowStyle}">
-        <span style="color:var(--text-muted)">× ${CALC_SETTINGS.haszonkulcs.value} haszonkulcs</span><span>${fmt(netto)}</span>
-      </div>`;
-  } else {
-    html += `
-      <div style="${rowStyle}">
-        <span style="color:var(--text-muted)">Nettó összesen (anyag + munkadíj)</span><span>${fmt(netto)}</span>
-      </div>`;
-  }
+    // ============================================================
+    // BŐVÍTÉS KALKULÁCIÓ – egyetlen ár, saját képlettel
+    // ============================================================
+    const netto      = anyagok * CALC_SETTINGS.bovites_szorzo.value;
+    const nettoKedv  = netto * (1 - discount / 100);
+    const afaKedv    = nettoKedv * AFA;
+    const bruttoKedv = nettoKedv * (1 + AFA);
+    const kwNetKedv   = rendszerKw > 0 ? nettoKedv / rendszerKw : 0;
+    const kwGrossKedv = rendszerKw > 0 ? bruttoKedv / rendszerKw : 0;
 
-  if (discount > 0) {
-    html += `<div style="${rowStyle}"><span style="color:var(--red)">Kedvezmény (−${discount}%)</span><span style="color:var(--red)">−${fmt(netto - nettoKedv)}</span></div>`;
-  }
-
-  html += `
+    html += `
+    <div style="${rowStyle}">
+      <span style="color:var(--text-muted)">× ${CALC_SETTINGS.bovites_szorzo.value} bővítés szorzó <span style="${subStyle}">(munkadíj nélkül)</span></span><span>${fmt(netto)}</span>
+    </div>`;
+    if (discount > 0) {
+      html += `<div style="${rowStyle}"><span style="color:var(--red)">Kedvezmény (−${discount}%)</span><span style="color:var(--red)">−${fmt(netto - nettoKedv)}</span></div>`;
+    }
+    html += `
       <div style="display:flex;justify-content:space-between;padding:0.4rem 0;font-size:0.83rem">
         <span style="color:var(--text-muted)">ÁFA (${CALC_SETTINGS.afa.value}%)</span>
         <span>${fmt(afaKedv)}</span>
       </div>
-    </div>
 
     <!-- VÉGEREDMÉNY -->
     <div style="background:linear-gradient(135deg,var(--surface),var(--surface2));border:1px solid var(--sun);border-radius:0.75rem;padding:1rem;margin-top:0.75rem">
@@ -1986,7 +2068,94 @@ function refreshDetail() {
           <div style="font-size:0.95rem;font-weight:700;color:var(--green)">${rendszerKw > 0 ? fmt(kwGrossKedv) + '/kW' : '—'}</div>
         </div>
       </div>
+    </div>`;
+
+  } else if (mode === 'regi') {
+    // ============================================================
+    // RÉGI MÓD – változatlan, egyetlen ár: (anyag + munkadíj) × haszonkulcs
+    // ============================================================
+    const netto      = (anyagok + munkadij) * CALC_SETTINGS.haszonkulcs.value;
+    const nettoKedv  = netto * (1 - discount / 100);
+    const afaKedv    = nettoKedv * AFA;
+    const bruttoKedv = nettoKedv * (1 + AFA);
+    const kwNetKedv   = rendszerKw > 0 ? nettoKedv / rendszerKw : 0;
+    const kwGrossKedv = rendszerKw > 0 ? bruttoKedv / rendszerKw : 0;
+
+    html += `
+    <div style="${rowStyle}">
+      <span style="color:var(--text-muted)">Bekerülési ár összesen</span><span>${fmt(anyagok + munkadij)}</span>
     </div>
+    <div style="${rowStyle}">
+      <span style="color:var(--text-muted)">× ${CALC_SETTINGS.haszonkulcs.value} haszonkulcs</span><span>${fmt(netto)}</span>
+    </div>`;
+    if (discount > 0) {
+      html += `<div style="${rowStyle}"><span style="color:var(--red)">Kedvezmény (−${discount}%)</span><span style="color:var(--red)">−${fmt(netto - nettoKedv)}</span></div>`;
+    }
+    html += `
+      <div style="display:flex;justify-content:space-between;padding:0.4rem 0;font-size:0.83rem">
+        <span style="color:var(--text-muted)">ÁFA (${CALC_SETTINGS.afa.value}%)</span>
+        <span>${fmt(afaKedv)}</span>
+      </div>
+
+    <!-- VÉGEREDMÉNY -->
+    <div style="background:linear-gradient(135deg,var(--surface),var(--surface2));border:1px solid var(--sun);border-radius:0.75rem;padding:1rem;margin-top:0.75rem">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;text-align:center">
+        <div>
+          <div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.2rem">Nettó ár</div>
+          <div style="font-size:1.1rem;font-weight:800">${fmt(nettoKedv)}</div>
+        </div>
+        <div>
+          <div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.2rem">Bruttó ár</div>
+          <div style="font-size:1.3rem;font-weight:800;color:var(--sun)">${fmt(bruttoKedv)}</div>
+        </div>
+        <div>
+          <div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.2rem">kW ár nettó</div>
+          <div style="font-size:0.95rem;font-weight:700;color:var(--green)">${rendszerKw > 0 ? fmt(kwNetKedv) + '/kW' : '—'}</div>
+        </div>
+        <div>
+          <div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.2rem">kW ár bruttó</div>
+          <div style="font-size:0.95rem;font-weight:700;color:var(--green)">${rendszerKw > 0 ? fmt(kwGrossKedv) + '/kW' : '—'}</div>
+        </div>
+      </div>
+    </div>`;
+
+  } else {
+    // ============================================================
+    // 3 SZINTŰ ÁRAZÁS – Bekerülési anyagköltség / Minimum ár / Ajánlott ár (csak Új mód)
+    // ============================================================
+    const tiers = computeAr3Tier(anyagok, munkadij, discount, AFA, rendszerKw);
+    const activeVis = getActiveArVis();
+    const visible = tiers.filter(t => activeVis[t.key]);
+
+    if (visible.length === 0) {
+      html += `
+      <div style="background:var(--bg);border:1px dashed var(--border);border-radius:0.75rem;padding:1rem;margin-top:0.75rem;text-align:center;color:var(--text-muted);font-size:0.85rem">
+        Ehhez a kalkulátorhoz nincs látható ár beállítva – kérd az adminisztrátort az "Ár-láthatóság" beállításánál.
+      </div>`;
+    } else {
+      html += `<div style="display:grid;grid-template-columns:repeat(${visible.length},1fr);gap:0.6rem;margin-top:0.75rem">`;
+      visible.forEach((t, i) => {
+        const highlight = i === visible.length - 1; // az utolsó (jellemzően "Ajánlott ár") kiemelve
+        html += `
+        <div style="background:${highlight ? 'linear-gradient(135deg,var(--surface),var(--surface2))' : 'var(--bg)'};border:1px solid ${highlight ? 'var(--sun)' : 'var(--border)'};border-radius:0.75rem;padding:0.85rem;text-align:center">
+          <div style="font-size:0.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">${t.label}</div>
+          <div style="font-size:${highlight ? '1.15rem' : '1rem'};font-weight:800;color:${highlight ? 'var(--sun)' : 'var(--text)'}">${fmt(t.bruttoKedv)}</div>
+          <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.15rem">bruttó</div>
+          <div style="border-top:1px solid var(--border);margin:0.5rem 0"></div>
+          <div style="font-size:0.78rem;color:var(--text-muted)">nettó: <strong style="color:var(--text)">${fmt(t.nettoKedv)}</strong></div>
+          <div style="font-size:0.78rem;color:var(--text-muted)">ÁFA: <strong style="color:var(--text)">${fmt(t.afaKedv)}</strong></div>
+          <div style="font-size:0.72rem;color:var(--green);margin-top:0.3rem">${rendszerKw > 0 ? fmt(t.kwNetKedv) + '/kW nettó' : '—'}</div>
+          <div style="font-size:0.72rem;color:var(--green)">${rendszerKw > 0 ? fmt(t.kwGrossKedv) + '/kW bruttó' : '—'}</div>
+        </div>`;
+      });
+      html += `</div>`;
+      if (discount > 0) {
+        html += `<div style="text-align:center;font-size:0.75rem;color:var(--red);margin-top:0.5rem">Kedvezmény: −${discount}% (minden árban érvényesítve)</div>`;
+      }
+    }
+  }
+
+  html += `
     <div style="margin-top:0.75rem;font-size:0.72rem;color:var(--text-muted);text-align:center">
       Frissítve: ${new Date().toLocaleTimeString('hu-HU')}
     </div>`;
@@ -2278,21 +2447,21 @@ function calculate() {
 
   const anyagok = panelCost + tartCost + invCost + optiCost + egyebCost;
 
-  // === MUNKADÍJ + SZÁMÍTÁS ===
+  // === MŰKÖDÉSI KÖLTSÉG (munkadíj) – változatlan logika Régi/Új/Bővítés szerint ===
   const AFA_KULCS = CALC_SETTINGS.afa.value / 100;
   const mode = getActiveMode();
   let munkadij = 0;
-  let netto = 0;
   let javasoltNap = 0;
   let tenylegNap = 0;
+  let modeLabel = '';
 
   if (bovitesMod) {
-    // BŐVÍTÉS KALKULÁCIÓ: nincs szerelési munkadíj, az anyagköltséget szorozzuk be
-    // egy admin-beállítható szorzóval (alap: 1.5×). Régi/Új mód ilyenkor figyelmen kívül marad.
+    // BŐVÍTÉS KALKULÁCIÓ: nincs szerelési munkadíj – saját, önálló képlete van (ld. lentebb),
+    // nem megy át a 3 szintű árazáson.
     munkadij = 0;
-    netto = anyagok * CALC_SETTINGS.bovites_szorzo.value;
+    modeLabel = ` | ×${CALC_SETTINGS.bovites_szorzo.value} bővítés szorzó (munkadíj nélkül)`;
   } else if (mode === 'regi') {
-    // RÉGI MÓD: (anyag + munkadíj) × haszonkulcs
+    // RÉGI MÓD munkadíj-formula (kW-sávos)
     const md_alap  = CALC_SETTINGS.munkadij_alap.value;
     const md_extra = CALC_SETTINGS.munkadij_extra.value;
     const md_hatar = CALC_SETTINGS.munkadij_hatar.value;
@@ -2301,48 +2470,121 @@ function calculate() {
     } else {
       munkadij = md_hatar * md_alap + (rendszerKw - md_hatar) * md_extra;
     }
-    netto = (anyagok + munkadij) * CALC_SETTINGS.haszonkulcs.value;
+    modeLabel = ` | ×${CALC_SETTINGS.haszonkulcs.value} haszonkulcs`;
   } else {
-    // ÚJ MÓD: anyag bszeráron + munkadíj (nap × napi díj × (1 + felár%))
+    // ÚJ MÓD munkadíj-formula (nap × napi díj × (1 + felár%))
     javasoltNap = calcDaysForKw(rendszerKw);
     const manualNapEl = document.getElementById('manual-nap');
     tenylegNap = (manualNapEl && manualNapEl.value) ? parseInt(manualNapEl.value) : javasoltNap;
     const napi = CALC_SETTINGS.napi_munkadij.value;
     const felarPct = CALC_SETTINGS.munkadij_pct.value / 100;
     munkadij = tenylegNap * napi * (1 + felarPct);
-    netto = anyagok + munkadij;
+    modeLabel = ` | ${tenylegNap} nap × ${Math.round(napi).toLocaleString('hu-HU')} Ft${felarPct > 0 ? ' +' + CALC_SETTINGS.munkadij_pct.value + '%' : ''}`;
     // Update javasolt nap display
     const jnEl = document.getElementById('javasolt-nap');
     if (jnEl) jnEl.textContent = javasoltNap + ' nap (' + rendszerKw.toFixed(2) + ' kW)';
   }
 
-  const afa = netto * AFA_KULCS;
-  const brutto = netto * (1 + AFA_KULCS);
-
-  // Kedvezmény
-  const nettoKedv = netto * (1 - discount / 100);
-  const afaKedv = nettoKedv * AFA_KULCS;
-  const bruttoKedv = nettoKedv * (1 + AFA_KULCS);
-
-  const kwNetKedv = rendszerKw > 0 ? nettoKedv / rendszerKw : 0;
-  const kwGrossKedv = rendszerKw > 0 ? bruttoKedv / rendszerKw : 0;
-
-  // MEGJELENÍTÉS
   const fmt = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
-  document.getElementById('res-brutto').textContent = fmt(bruttoKedv);
-  document.getElementById('res-netto').textContent = fmt(nettoKedv);
-  document.getElementById('res-afa').textContent = fmt(afaKedv);
-  document.getElementById('res-kw').textContent = rendszerKw.toFixed(2) + ' kW';
-  document.getElementById('res-kw-net').textContent = fmt(kwNetKedv);
-  document.getElementById('res-kw-gross').textContent = fmt(kwGrossKedv);
-  let modeLabel = '';
+  let mainHtml = '';
+
   if (bovitesMod) {
-    modeLabel = ` | ×${CALC_SETTINGS.bovites_szorzo.value} bővítés szorzó (munkadíj nélkül)`;
+    // ============================================================
+    // BŐVÍTÉS KALKULÁCIÓ: egyetlen ár, saját (anyagköltség × szorzó) képlettel
+    // ============================================================
+    const netto      = anyagok * CALC_SETTINGS.bovites_szorzo.value;
+    const nettoKedv  = netto * (1 - discount / 100);
+    const afaKedv    = nettoKedv * AFA_KULCS;
+    const bruttoKedv = nettoKedv * (1 + AFA_KULCS);
+    const kwNetKedv   = rendszerKw > 0 ? nettoKedv / rendszerKw : 0;
+    const kwGrossKedv = rendszerKw > 0 ? bruttoKedv / rendszerKw : 0;
+
+    mainHtml = `
+      <div class="rbar-item">
+        <div class="rbar-label">Bővítés ár (bruttó)</div>
+        <div class="rbar-val brutto">${fmt(bruttoKedv)}</div>
+      </div>
+      <div class="rbar-item">
+        <div class="rbar-label">Nettó</div>
+        <div class="rbar-val">${fmt(nettoKedv)}</div>
+      </div>
+      <div class="rbar-item">
+        <div class="rbar-label">ÁFA</div>
+        <div class="rbar-val">${fmt(afaKedv)}</div>
+      </div>
+      <div class="rbar-item">
+        <div class="rbar-label">Méret</div>
+        <div class="rbar-val kw">${rendszerKw.toFixed(2)} kW</div>
+      </div>`;
+    document.getElementById('res-kw-sub').textContent = `${fmt(kwNetKedv)} nettó/kW | ${fmt(kwGrossKedv)} bruttó/kW`;
+
   } else if (mode === 'regi') {
-    modeLabel = ` | ×${CALC_SETTINGS.haszonkulcs.value} haszonkulcs`;
+    // ============================================================
+    // RÉGI MÓD: változatlan, egyetlen ár – (anyag + munkadíj) × haszonkulcs
+    // (nem megy át a 3 szintű árazáson, hogy elkerüljük a félreértéseket)
+    // ============================================================
+    const netto      = (anyagok + munkadij) * CALC_SETTINGS.haszonkulcs.value;
+    const nettoKedv  = netto * (1 - discount / 100);
+    const afaKedv    = nettoKedv * AFA_KULCS;
+    const bruttoKedv = nettoKedv * (1 + AFA_KULCS);
+    const kwNetKedv   = rendszerKw > 0 ? nettoKedv / rendszerKw : 0;
+    const kwGrossKedv = rendszerKw > 0 ? bruttoKedv / rendszerKw : 0;
+
+    mainHtml = `
+      <div class="rbar-item">
+        <div class="rbar-label">Bruttó</div>
+        <div class="rbar-val brutto">${fmt(bruttoKedv)}</div>
+      </div>
+      <div class="rbar-item">
+        <div class="rbar-label">Nettó</div>
+        <div class="rbar-val">${fmt(nettoKedv)}</div>
+      </div>
+      <div class="rbar-item">
+        <div class="rbar-label">ÁFA</div>
+        <div class="rbar-val">${fmt(afaKedv)}</div>
+      </div>
+      <div class="rbar-item">
+        <div class="rbar-label">Méret</div>
+        <div class="rbar-val kw">${rendszerKw.toFixed(2)} kW</div>
+      </div>`;
+    document.getElementById('res-kw-sub').textContent = `${fmt(kwNetKedv)} nettó/kW | ${fmt(kwGrossKedv)} bruttó/kW`;
+
   } else {
-    modeLabel = ` | ${tenylegNap} nap × ${fmt(CALC_SETTINGS.napi_munkadij.value)}${CALC_SETTINGS.munkadij_pct.value > 0 ? ' +' + CALC_SETTINGS.munkadij_pct.value + '%' : ''}`;
+    // ============================================================
+    // ÚJ MÓD: 3 szintű árazás – Bekerülési anyagköltség / Minimum ár / Ajánlott ár
+    // ============================================================
+    const tiers = computeAr3Tier(anyagok, munkadij, discount, AFA_KULCS, rendszerKw);
+    const activeVis = getActiveArVis();
+    const visible = tiers.filter(t => activeVis[t.key]);
+
+    if (visible.length === 0) {
+      mainHtml = `<div class="rbar-item" style="grid-column:1/-1">
+        <div class="rbar-label">Nincs látható ár ehhez a kalkulátorhoz</div>
+        <div class="rbar-val" style="font-size:0.85rem;color:var(--text-muted)">Kérd az adminisztrátort az ár-láthatóság beállításához</div>
+      </div>`;
+      document.getElementById('res-kw-sub').textContent = '';
+    } else {
+      visible.forEach(t => {
+        mainHtml += `
+      <div class="rbar-item">
+        <div class="rbar-label">${t.label.replace(/^\d+\.\s*/, '')} (bruttó)</div>
+        <div class="rbar-val brutto">${fmt(t.bruttoKedv)}</div>
+      </div>`;
+      });
+      const t0 = visible[visible.length - 1]; // az utolsó (legmagasabb) látható tétel kW-ára a fő referencia
+      document.getElementById('res-kw-sub').textContent =
+        `${t0.label.replace(/^\d+\.\s*/, '')}: ${fmt(t0.kwNetKedv)} nettó/kW | ${fmt(t0.kwGrossKedv)} bruttó/kW`;
+    }
+
+    mainHtml += `
+      <div class="rbar-item">
+        <div class="rbar-label">Méret</div>
+        <div class="rbar-val kw">${rendszerKw.toFixed(2)} kW</div>
+      </div>`;
   }
+
+  document.getElementById('rbar-main').innerHTML = mainHtml;
+
   document.getElementById('res-breakdown').innerHTML =
     (panelCost ? `Napelem: ${fmt(panelCost)}` : '') +
     (tartCost ? ` | Tartó: ${fmt(tartCost)}` : '') +
@@ -2550,7 +2792,8 @@ function renderCalcSettings() {
   if (!grid) return;
   const modes = getCalcModes();
   const names = getCalcNames();
- 
+  const arVis = getCalcArVis();
+
   // Per-calculator mode settings
   let modeHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">Kalkulátorok módja</div><div style="display:grid;gap:0.5rem">';
   [1,2,3,4,5,6].forEach(c => {
@@ -2566,12 +2809,33 @@ function renderCalcSettings() {
     </div>`;
   });
   modeHtml += '</div></div>';
- 
+
+  // Per-calculator ár-láthatóság (melyik kalkulátor melyik árat láthatja)
+  let arVisHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">💰 Kalkulátorok – melyik árat mutassa (csak Új módban aktív)</div><div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:0.5rem">Régi módú kalkulátoroknál ez a beállítás nem számít – ott mindig az eredeti, egyetlen (haszonkulcsos) ár jelenik meg.</div><div style="display:grid;gap:0.5rem">';
+  [1,2,3,4,5,6].forEach(c => {
+    const v = arVis[c] || { ar1: true, ar2: true, ar3: true };
+    arVisHtml += `<div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg);border:1px solid var(--border);border-radius:0.75rem;padding:0.6rem 1rem;flex-wrap:wrap;gap:0.5rem">
+      <span style="font-size:0.85rem">${names[c] || 'Kalkulátor ' + c}</span>
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.78rem;color:var(--text-muted);cursor:pointer">
+          <input type="checkbox" ${v.ar1 ? 'checked' : ''} onchange="setCalcArVis(${c},'ar1',this.checked)"> Bekerülési
+        </label>
+        <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.78rem;color:var(--text-muted);cursor:pointer">
+          <input type="checkbox" ${v.ar2 ? 'checked' : ''} onchange="setCalcArVis(${c},'ar2',this.checked)"> Minimum
+        </label>
+        <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.78rem;color:var(--text-muted);cursor:pointer">
+          <input type="checkbox" ${v.ar3 ? 'checked' : ''} onchange="setCalcArVis(${c},'ar3',this.checked)"> Ajánlott
+        </label>
+      </div>
+    </div>`;
+  });
+  arVisHtml += '</div></div>';
+
   // Parameter settings grouped by mode
   let regiHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">📐 Régi számítás paraméterei</div><div style="display:grid;gap:0.5rem">';
   let ujHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">🆕 Új számítás paraméterei</div><div style="display:grid;gap:0.5rem">';
   let bothHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">⚙️ Közös paraméterek</div><div style="display:grid;gap:0.5rem">';
- 
+
   Object.entries(CALC_SETTINGS).forEach(([key, s]) => {
     const row = `<div style="background:var(--bg);border:1px solid var(--border);border-radius:0.75rem;padding:0.75rem">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.3rem">
@@ -2586,12 +2850,12 @@ function renderCalcSettings() {
     else if (s.mode === 'regi') regiHtml += row;
     else ujHtml += row;
   });
- 
+
   regiHtml += '</div></div>';
   ujHtml += '</div></div>';
   bothHtml += '</div></div>';
- 
-  grid.innerHTML = modeHtml + bothHtml + regiHtml + ujHtml;
+
+  grid.innerHTML = modeHtml + arVisHtml + bothHtml + regiHtml + ujHtml;
   updateCalcPreview();
 }
  
@@ -2617,20 +2881,24 @@ function updateCalcPreview() {
   const fmt = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
   const anyag = 1500000; // példa anyagköltség
   const kw = 9.0; // példa: 20 × 450W
- 
-  // RÉGI MÓD
+
+  // RÉGI MÓD – változatlan, egyetlen ár
   const hatar = s.munkadij_hatar.value, alap = s.munkadij_alap.value, extra = s.munkadij_extra.value, hk = s.haszonkulcs.value;
   const md_regi = kw <= hatar ? kw * alap : hatar * alap + (kw - hatar) * extra;
   const netto_regi = (anyag + md_regi) * hk;
   const brutto_regi = netto_regi * (1 + afa/100);
- 
-  // ÚJ MÓD
+
+  // ÚJ MÓD – működési költség + 3 szintű árazás
   const napi = s.napi_munkadij.value;
   const nap = calcDaysForKw(kw);
-  const felár_pct = s.munkadij_pct.value;
-  const md_uj = nap * napi * (1 + felár_pct/100);
-  const netto_uj = anyag + md_uj;
-  const brutto_uj = netto_uj * (1 + afa/100);
+  const felar_pct = s.munkadij_pct.value;
+  const md_uj = nap * napi * (1 + felar_pct/100);
+  const ar1_uj = anyag;
+  const ar2_uj = anyag + md_uj * s.min_ar_szorzo.value;
+  const ar3_uj = anyag + md_uj * s.ajanlott_ar_szorzo.value;
+  const ar1_uj_brutto = ar1_uj * (1 + afa/100);
+  const ar2_uj_brutto = ar2_uj * (1 + afa/100);
+  const ar3_uj_brutto = ar3_uj * (1 + afa/100);
 
   // BŐVÍTÉS KALKULÁCIÓ
   const bov_szorzo = s.bovites_szorzo.value;
@@ -2642,7 +2910,7 @@ function updateCalcPreview() {
     <div style="font-size:0.8rem;font-weight:700;margin-bottom:0.75rem;color:var(--sun)">📊 Számítás előnézet – példa: 20 × 450W (${kw} kW), anyag: 1 500 000 Ft</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;font-size:0.78rem">
       <div style="background:var(--surface2);border-radius:0.5rem;padding:0.75rem">
-        <div style="font-weight:700;margin-bottom:0.5rem;color:var(--text-muted)">📐 RÉGI MÓD</div>
+        <div style="font-weight:700;margin-bottom:0.5rem;color:var(--text-muted)">📐 RÉGI MÓD (1 ár)</div>
         <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">Anyag:</span><span>${fmt(anyag)}</span></div>
         <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">Munkadíj (${kw}kW):</span><span>${fmt(md_regi)}</span></div>
         <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">× ${hk} haszonkulcs:</span><span>${fmt(netto_regi)}</span></div>
@@ -2650,17 +2918,16 @@ function updateCalcPreview() {
         <div style="border-top:1px solid var(--border);margin:0.4rem 0"></div>
         <div style="display:flex;justify-content:space-between;font-weight:700;color:var(--sun)"><span>Bruttó:</span><span>${fmt(brutto_regi)}</span></div>
       </div>
-      <div style="background:var(--surface2);border-radius:0.5rem;padding:0.75rem">
-        <div style="font-weight:700;margin-bottom:0.5rem;color:var(--text-muted)">🆕 ÚJ MÓD</div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">Anyag (bszeráron):</span><span>${fmt(anyag)}</span></div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">Munkadíj (${nap} nap${felár_pct>0?' +'+felár_pct+'%':''}):</span><span>${fmt(md_uj)}</span></div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">Nettó (anyag+munka):</span><span>${fmt(netto_uj)}</span></div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">ÁFA (${afa}%):</span><span>${fmt(netto_uj * afa/100)}</span></div>
-        <div style="border-top:1px solid var(--border);margin:0.4rem 0"></div>
-        <div style="display:flex;justify-content:space-between;font-weight:700;color:var(--sun)"><span>Bruttó:</span><span>${fmt(brutto_uj)}</span></div>
-      </div>
       <div style="background:var(--surface2);border-radius:0.5rem;padding:0.75rem;border:1px solid var(--sun)">
-        <div style="font-weight:700;margin-bottom:0.5rem;color:var(--text-muted)">📦 BŐVÍTÉS KALKULÁCIÓ</div>
+        <div style="font-weight:700;margin-bottom:0.5rem;color:var(--text-muted)">🆕 ÚJ MÓD (3 szintű árazás)</div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:0.5rem"><span style="color:var(--text-muted)">Működési költség (${nap} nap${felar_pct>0?' +'+felar_pct+'%':''}):</span><span>${fmt(md_uj)}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-top:1px solid var(--border)"><span style="color:var(--text-muted)">1. Bekerülési:</span><span>${fmt(ar1_uj_brutto)}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:0.25rem 0"><span style="color:var(--text-muted)">2. Minimum (×${s.min_ar_szorzo.value}):</span><span>${fmt(ar2_uj_brutto)}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-top:1px solid var(--border);font-weight:700;color:var(--sun)"><span>3. Ajánlott (×${s.ajanlott_ar_szorzo.value}):</span><span>${fmt(ar3_uj_brutto)}</span></div>
+        <div style="font-size:0.68rem;color:var(--text-muted);margin-top:0.4rem">(bruttó árak, ÁFA-val)</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:0.5rem;padding:0.75rem">
+        <div style="font-weight:700;margin-bottom:0.5rem;color:var(--text-muted)">📦 BŐVÍTÉS KALKULÁCIÓ (1 ár)</div>
         <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">Anyag:</span><span>${fmt(anyag)}</span></div>
         <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">Munkadíj:</span><span>${fmt(0)} (nincs)</span></div>
         <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">× ${bov_szorzo} bővítés szorzó:</span><span>${fmt(netto_bov)}</span></div>
