@@ -3,7 +3,18 @@
   ============================================================
   Solar Future – Árazó
   Verzió: ld. APP_VERSION állandó a JS elején (egyetlen hely, ahol a verziószámot módosítani kell)
-  Utolsó módosítás: 2026-07-10 9:27 (Budapest)
+  Utolsó módosítás: 2026-07-10 (Budapest)
+
+  Változások v2.48-ban:
+  - Rögzített (sticky) fejlécek: Árazó tab (main-nav, calc-tabs, sync-bar, uj-nap-bar) és
+    Megtérülés tab (új mt-sticky-header gyorsgomb-sáv) is a topbar alatt marad görgetéskor
+  - "Bővítés kalkuláció" checkbox az Árazó tabon: bepipálva nincs szerelési munkadíj,
+    az anyagköltséget egy admin-beállítható szorzóval (alap: 1.5×) szorozzuk
+    (CALC_SETTINGS.bovites_szorzo, kalkulátoronként tárolva)
+  - Hibajavítás: ha nem napelemet, hanem csak invertert/akkut/egyéb tételt választott ki
+    valaki, korábban üresen maradt a kalkuláció – mostantól bármilyen tétel elindítja
+    (ld. hasAnyProductSelected())
+
   Változások v2.4-ban:
   - sofarcloud API lekérdezés beletétele
 
@@ -275,6 +286,15 @@
   }
   .main-nav-tab:hover { color: var(--sun); }
   .main-nav-tab.active { color: var(--sun); border-bottom-color: var(--sun); }
+
+  /* RÖGZÍTETT (STICKY) FEJLÉCEK – a topbar alatt maradnak görgetéskor is.
+     A pontos "top" értéket a syncStickyOffsets() JS függvény számolja ki futásidőben,
+     mert a fejlécek magassága eltérő tartalom esetén változhat (pl. sok "Kalkulátor" gomb). */
+  #main-nav   { position: sticky; top: 0; z-index: 95; background: var(--surface); }
+  .calc-tabs  { position: sticky; top: 0; z-index: 90; }
+  #sync-bar   { position: sticky; top: 0; z-index: 90; }
+  #uj-nap-bar { position: sticky; top: 0; z-index: 90; }
+  #mt-sticky-header { position: sticky; top: 0; z-index: 95; background: var(--surface); border-bottom: 1px solid var(--border); }
  
   /* MEGTÉRÜLÉS KALKULÁTOR */
   #megterules-view {
@@ -475,6 +495,11 @@
         <button id="mode-regi-btn" onclick="setCalcMode('regi')" style="padding:0.2rem 0.7rem;border:none;cursor:pointer;font-size:0.75rem;transition:all 0.2s">📐 Régi</button>
         <button id="mode-uj-btn" onclick="setCalcMode('uj')" style="padding:0.2rem 0.7rem;border:none;cursor:pointer;font-size:0.75rem;transition:all 0.2s">🆕 Új</button>
       </div>
+      <label style="display:flex;align-items:center;gap:0.35rem;font-size:0.75rem;color:var(--text-muted);cursor:pointer;white-space:nowrap"
+        title="Bepipálva: nincs szerelési munkadíj, az anyagköltséget egy admin által állítható szorzóval (alap: 1.5×) szorozzuk. Meglévő rendszer bővítéséhez.">
+        <input type="checkbox" id="bovites-kalk-checkbox" onchange="setBovitesKalkulacio(this.checked)">
+        📦 Bővítés kalkuláció
+      </label>
       <span style="color:var(--text-muted)">EUR: <strong id="eur-rate" style="color:var(--sun)">—</strong> &nbsp;|&nbsp; Frissítve: <span id="sync-time">—</span></span>
     </div>
   </div>
@@ -649,7 +674,23 @@
  
   <!-- MEGTÉRÜLÉS KALKULÁTOR -->
   <div id="megterules-view">
- 
+
+    <!-- Rögzített (sticky) gyorsgombok – görgetéskor is mindig látszanak -->
+    <div id="mt-sticky-header" style="padding:0.6rem 1rem;display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">
+      <button onclick="mt_importFromArazo(true)"
+        style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.6rem;padding:0.45rem 0.9rem;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:0.4rem">
+        🔄 Ár frissítése az Árazóból
+      </button>
+      <button onclick="sofar_apiLoadStations()"
+        style="background:var(--sun);color:#000;border:none;border-radius:0.6rem;padding:0.45rem 0.9rem;font-weight:700;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:0.4rem">
+        📋 SofarCloud rendszerek betöltése
+      </button>
+      <button onclick="mt_pvgisManual()"
+        style="background:linear-gradient(135deg,#1a3a5c,#2e6da4);color:#fff;border:none;border-radius:0.6rem;padding:0.45rem 0.9rem;font-weight:700;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:0.4rem">
+        🛰️ PVGIS lekérése
+      </button>
+    </div>
+
 <!-- Tényleges termelési adatok – Excel import -->
     <div class="sofar-panel" id="sofar-panel">
       <h3>📂 Tényleges termelési adatok (SofarCloud export)</h3>
@@ -1173,7 +1214,7 @@ const SHEETS_API = 'https://script.google.com/macros/s/AKfycbwcELD2MLNn3-9Odjsc8
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.47 – 2026-07-10';
+const APP_VERSION = 'v2.48 – 2026-07-10';
 const APP_VERSION_HISTORY = [
   'v2.1 (2026-05-29): Megtérülés kalkulátor, PVGIS integráció',
   'v2.3 (2026-05-29): Sávos áramár, cashflow táblázat, grafikonok',
@@ -1183,8 +1224,9 @@ const APP_VERSION_HISTORY = [
   'v2.43 (2026-07-03): dateTime parsing fix, mezők auto-kitöltés, riport összehasonlítás fix',
   'v2.44 (2026-07-03): SofarCloud eszközlista (inverterek), "Jelenlegi rendszer" kártya',
   'v2.45 (2026-07-03): Rendszerbővítés tervező kártya (később törölve, ld. v2.46)',
-  'v2.46 (2026-07-10): Bővítés = Árazó tétel (nem külön katalógus); jelenlegi vs. bővítéssel összehasonlítás',
-  'v2.47 (2026-07-10): Bővítés-összehasonlítás a PDF riportba is beépítve; verziószám egyetlen helyre konszolidálva',
+  'v2.46 (2026-07-03): Bővítés = Árazó tétel (nem külön katalógus); jelenlegi vs. bővítéssel összehasonlítás',
+  'v2.47 (2026-07-03): Bővítés-összehasonlítás a PDF riportba is beépítve; verziószám egyetlen helyre konszolidálva',
+  'v2.48 (2026-07-10): Rögzített (sticky) fejlécek Árazó+Megtérülés tabon; Megtérülés gyorsgomb-sáv; "Bővítés kalkuláció" checkbox (anyagköltség × admin szorzó, munkadíj nélkül); hibajavítás – napelem nélkül (csak inverter/akku/egyéb) is elindul a kalkuláció',
 ];
 
 // Verzió kiírása minden előforduláshoz
@@ -1200,6 +1242,7 @@ if (verBadge) {
 const CALC_SETTINGS = {
   // KÖZÖS
   afa:              { label: 'ÁFA kulcs (%)', value: 27, min: 0, max: 30, step: 1, desc: 'Általános ÁFA kulcs.', mode: 'both' },
+  bovites_szorzo:   { label: 'Bővítés kalkuláció – anyagköltség szorzó', value: 1.5, min: 1.0, max: 3.0, step: 0.05, desc: 'Bővítés kalkuláció bepipálva: munkadíj nélkül, az anyagköltséget szorozzuk ezzel az értékkel (alap: 1.5×).', mode: 'both' },
   // RÉGI MÓD
   haszonkulcs:      { label: 'Haszonkulcs – Régi (szorzó)', value: 1.38, min: 1.0, max: 3.0, step: 0.01, desc: '(Anyag + munkadíj) × haszonkulcs = Nettó ár. 1.38 = 38% felár.', mode: 'regi' },
   munkadij_alap:    { label: 'Munkadíj 0–5 kW (Ft/kW) – Régi', value: 50000, min: 10000, max: 200000, step: 1000, desc: 'Az első 5 kW-ig kW-onkénti munkadíj.', mode: 'regi' },
@@ -1284,6 +1327,56 @@ function getActiveMode() {
   const modes = getCalcModes();
   return modes[activeCalc] || 'regi';
 }
+
+// ============================================================
+// BŐVÍTÉS KALKULÁCIÓ (kalkulátoronként bepipálható; ld. setBovitesKalkulacio)
+// ============================================================
+const DEFAULT_CALC_BOVITES = { 1:false, 2:false, 3:false, 4:false, 5:false, 6:false };
+
+function getCalcBovites() {
+  try { return JSON.parse(localStorage.getItem('sf_calc_bovites') || 'null') || {...DEFAULT_CALC_BOVITES}; } catch { return {...DEFAULT_CALC_BOVITES}; }
+}
+function saveCalcBovitesData(b) { localStorage.setItem('sf_calc_bovites', JSON.stringify(b)); }
+
+function isBovitesKalkulacio() {
+  const b = getCalcBovites();
+  return !!b[activeCalc];
+}
+
+function setBovitesKalkulacio(checked) {
+  const b = getCalcBovites();
+  b[activeCalc] = !!checked;
+  saveCalcBovitesData(b);
+  const ujMódSor = document.getElementById('mode-toggle');
+  if (ujMódSor) ujMódSor.style.opacity = checked ? '0.4' : '1';
+  const ujBar = document.getElementById('uj-nap-bar');
+  if (ujBar && checked) ujBar.style.display = 'none';
+  else if (ujBar && !checked && getActiveMode() === 'uj') ujBar.style.display = 'flex';
+  calculate();
+  refreshDetail();
+  updateStickyOffsets();
+}
+
+// Van-e BÁRMILYEN termék kiválasztva (napelem, inverter, optimalizátor vagy egyéb tétel)?
+// Enélkül korábban üresen maradt a kalkuláció, ha valaki csak invertert/akkut/egyebet vett fel napelem nélkül.
+function hasAnyProductSelected() {
+  const panelSel = searchState.panel ? searchState.panel.selected : null;
+  const panelQty = parseInt(document.getElementById('panel-qty')?.value) || 0;
+  const inv1Sel  = searchState.inv1 ? searchState.inv1.selected : null;
+  const inv1Qty  = parseInt(document.getElementById('inv1-qty')?.value) || 0;
+  const inv2Sel  = searchState.inv2 ? searchState.inv2.selected : null;
+  const inv2Qty  = parseInt(document.getElementById('inv2-qty')?.value) || 0;
+  const optiSel  = searchState.opti ? searchState.opti.selected : null;
+  const optiQty  = parseInt(document.getElementById('opti-qty')?.value) || 0;
+  const hasExtra = (typeof extraRows !== 'undefined') && extraRows.some(r => r.product && r.qty > 0);
+  return !!(
+    (panelSel && panelQty > 0) ||
+    (inv1Sel && inv1Qty > 0) ||
+    (inv2Sel && inv2Qty > 0) ||
+    (optiSel && optiQty > 0) ||
+    hasExtra
+  );
+}
  
 function getCalcNames() {
   try { return JSON.parse(localStorage.getItem('sf_calc_names') || 'null') || {...DEFAULT_CALC_NAMES}; } catch { return {...DEFAULT_CALC_NAMES}; }
@@ -1337,6 +1430,7 @@ function doLogin() {
   // Főoldal navigáció megjelenítése
   const mainNav = document.getElementById('main-nav');
   if (mainNav) mainNav.style.display = 'flex';
+  updateStickyOffsets();
 }
  
 document.addEventListener('keydown', e => {
@@ -1400,6 +1494,7 @@ function buildCalcTabs() {
     tabs.appendChild(btn);
   });
   activeCalc = calcs[0];
+  updateStickyOffsets();
 }
  
 // ============================================================
@@ -1413,6 +1508,7 @@ function showCalc() {
   buildTartSelect();
   addExtraRow(); // default 1 extra sor
   initModeUI();
+  updateStickyOffsets();
 }
  
 function showAdmin() {
@@ -1501,16 +1597,19 @@ async function loadAjanlatok() {
 // ============================================================
 async function saveAjanlat(silent = false) {
   const btn = document.getElementById('save-btn');
- 
+
   const panelSel = searchState.panel.selected;
   const panelQty = parseInt(document.getElementById('panel-qty')?.value) || 0;
-  if (!panelSel || panelQty === 0) {
-    if (!silent) showToast('⚠️ Nincs kiválasztott napelem!');
+
+  // JAVÍTVA: korábban csak napelem-választás esetén lehetett menteni – ha valaki csak
+  // invertert / akkut / egyéb tételt vett fel napelem nélkül, nem tudta elmenteni az ajánlatot.
+  if (!hasAnyProductSelected()) {
+    if (!silent) showToast('⚠️ Nincs kiválasztott tétel!');
     return;
   }
- 
+
   if (btn && !silent) { btn.textContent = '⏳ Mentés...'; btn.disabled = true; }
- 
+
   const tartCode  = parseInt(document.getElementById('tart-select')?.value) || 0;
   const inv1Sel   = searchState.inv1.selected;
   const inv1Qty   = parseInt(document.getElementById('inv1-qty')?.value) || 0;
@@ -1520,19 +1619,20 @@ async function saveAjanlat(silent = false) {
   const optiQty   = parseInt(document.getElementById('opti-qty')?.value) || 0;
   const discount  = parseFloat(document.getElementById('discount-val')?.value) || 0;
   const mode      = getActiveMode();
-  const rendszerKw = panelSel.kw * panelQty;
- 
+  const bovitesMod = isBovitesKalkulacio();
+  const rendszerKw = panelSel ? panelSel.kw * panelQty : 0;
+
   // Costs
-  const panelCost = panelSel.huf * panelQty;
+  const panelCost = panelSel ? panelSel.huf * panelQty : 0;
   let tartCost = 0, tartName = '';
-  if (tartCode) {
+  if (tartCode && panelSel) {
     const tart = PRODUCTS.tarts.find(t => Number(t.code) === tartCode || (PRODUCTS.tarts.indexOf(t)+1) === tartCode);
     if (tart) { tartCost = tart.base + Math.max(0,rendszerKw-3)*tart.per_kw; tartName = tart.name; }
   }
   const inv1Cost = inv1Sel ? inv1Sel.huf * inv1Qty : 0;
   const inv2Cost = inv2Sel ? inv2Sel.huf * inv2Qty : 0;
   const optiCost = optiSel ? optiSel.huf * optiQty : 0;
- 
+
   const tetelek = [];
   let egyebCost = 0;
   extraRows.forEach(row => {
@@ -1541,12 +1641,16 @@ async function saveAjanlat(silent = false) {
       egyebCost += row.product.huf * row.qty;
     }
   });
- 
+
   const anyagköltseg = panelCost + tartCost + inv1Cost + inv2Cost + optiCost + egyebCost;
-  const AFА = CALC_SETTINGS.afa.value / 100;
+  const AFA = CALC_SETTINGS.afa.value / 100;
   let munkadij = 0, netto = 0;
- 
-  if (mode === 'regi') {
+
+  if (bovitesMod) {
+    // BŐVÍTÉS KALKULÁCIÓ: nincs munkadíj, anyagköltség × admin szorzó
+    munkadij = 0;
+    netto = anyagköltseg * CALC_SETTINGS.bovites_szorzo.value;
+  } else if (mode === 'regi') {
     const md_alap = CALC_SETTINGS.munkadij_alap.value;
     const md_extra = CALC_SETTINGS.munkadij_extra.value;
     const md_hatar = CALC_SETTINGS.munkadij_hatar.value;
@@ -1560,20 +1664,20 @@ async function saveAjanlat(silent = false) {
     munkadij = napok * CALC_SETTINGS.napi_munkadij.value * (1 + CALC_SETTINGS.munkadij_pct.value/100);
     netto = anyagköltseg + munkadij;
   }
- 
+
   const nettoKedv  = netto * (1 - discount/100);
-  const bruttoKedv = nettoKedv * (1 + AFА);
+  const bruttoKedv = nettoKedv * (1 + AFA);
   const names = getCalcNames();
- 
+
   const fmt = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
   const payload = {
     ertekesito:       currentUser.name || currentUser.email,
     kalkulator:       names[activeCalc] || 'Kalkulátor ' + activeCalc,
-    mod:              mode === 'regi' ? 'Régi' : 'Új',
+    mod:              bovitesMod ? 'Bővítés' : (mode === 'regi' ? 'Régi' : 'Új'),
     // Napelem
-    napelem:          panelSel.name,
-    napelemDb:        panelQty,
-    napelemEgysegar:  Math.round(panelSel.huf),
+    napelem:          panelSel ? panelSel.name : '',
+    napelemDb:        panelSel ? panelQty : 0,
+    napelemEgysegar:  panelSel ? Math.round(panelSel.huf) : 0,
     napelemOsszeg:    Math.round(panelCost),
     rendszerKw:       Math.round(rendszerKw * 1000) / 1000,
     // Tartószerkezet
@@ -1601,7 +1705,7 @@ async function saveAjanlat(silent = false) {
     anyagköltseg:     Math.round(anyagköltseg),
     munkadij:         Math.round(munkadij),
     bekerulesi:       Math.round(anyagköltseg + munkadij),
-    haszonkulcs:      mode === 'regi' ? CALC_SETTINGS.haszonkulcs.value : 1,
+    haszonkulcs:      bovitesMod ? CALC_SETTINGS.bovites_szorzo.value : (mode === 'regi' ? CALC_SETTINGS.haszonkulcs.value : 1),
     nettoKedvNelkul:  Math.round(netto),
     kedvezmeny:       discount,
     kedvezmenyOsszeg: Math.round(netto - nettoKedv),
@@ -1611,7 +1715,7 @@ async function saveAjanlat(silent = false) {
     kwArNetto:        Math.round(rendszerKw > 0 ? nettoKedv / rendszerKw : 0),
     kwArBrutto:       Math.round(rendszerKw > 0 ? bruttoKedv / rendszerKw : 0),
   };
- 
+
   try {
     await fetch(SHEETS_API, {
       method: 'POST',
@@ -1635,7 +1739,7 @@ async function saveAjanlat(silent = false) {
 function refreshDetail() {
   const container = document.getElementById('detail-content');
   if (!container) return;
- 
+
   const panelSel  = searchState.panel.selected;
   const panelQty  = parseInt(document.getElementById('panel-qty')?.value) || 0;
   const tartCode  = parseInt(document.getElementById('tart-select')?.value) || 0;
@@ -1647,22 +1751,25 @@ function refreshDetail() {
   const optiQty   = parseInt(document.getElementById('opti-qty')?.value) || 0;
   const discount  = parseFloat(document.getElementById('discount-val')?.value) || 0;
   const mode      = getActiveMode();
- 
-  if (!panelSel || panelQty === 0) {
-    container.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:2rem">Nincs kiválasztott napelem – töltsd ki a kalkulátort!</div>';
+  const bovitesMod = isBovitesKalkulacio();
+
+  // JAVÍTVA: korábban csak napelem-választás esetén jelent meg a részletező – ha valaki csak
+  // invertert / akkut / egyéb tételt vett fel napelem nélkül, üres maradt az oldal.
+  if (!hasAnyProductSelected()) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:2rem">Nincs kiválasztott tétel – töltsd ki a kalkulátort!</div>';
     return;
   }
- 
+
   const fmt  = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
   const fmtn = n => Math.round(n).toLocaleString('hu-HU');
-  const rendszerKw = panelSel.kw * panelQty;
- 
+  const rendszerKw = panelSel ? panelSel.kw * panelQty : 0;
+
   // --- ANYAGOK ---
-  const panelCost = panelSel.huf * panelQty;
- 
+  const panelCost = panelSel ? panelSel.huf * panelQty : 0;
+
   let tartCost = 0;
   let tartName = '—';
-  if (tartCode) {
+  if (tartCode && panelSel) {
     const tart = PRODUCTS.tarts.find(t => Number(t.code) === tartCode || (PRODUCTS.tarts.indexOf(t)+1) === tartCode);
     if (tart) {
       const extraKw = Math.max(0, rendszerKw - 3);
@@ -1670,11 +1777,11 @@ function refreshDetail() {
       tartName = tart.name;
     }
   }
- 
+
   const inv1Cost = inv1Sel ? inv1Sel.huf * inv1Qty : 0;
   const inv2Cost = inv2Sel ? inv2Sel.huf * inv2Qty : 0;
   const optiCost = optiSel ? optiSel.huf * optiQty : 0;
- 
+
   let egyebRows = [];
   let egyebCost = 0;
   extraRows.forEach(row => {
@@ -1684,17 +1791,22 @@ function refreshDetail() {
       egyebCost += cost;
     }
   });
- 
+
   const anyagok = panelCost + tartCost + inv1Cost + inv2Cost + optiCost + egyebCost;
- 
+
   // --- MUNKADÍJ ---
-  const AFА = CALC_SETTINGS.afa.value / 100;
+  const AFA = CALC_SETTINGS.afa.value / 100;
   let munkadij = 0;
   let munkadijLabel = '';
   let netto = 0;
   let napok = 0;
- 
-  if (mode === 'regi') {
+
+  if (bovitesMod) {
+    // BŐVÍTÉS KALKULÁCIÓ: nincs munkadíj, anyagköltség × admin szorzó
+    munkadij = 0;
+    munkadijLabel = 'bővítés módban nincs munkadíj';
+    netto = anyagok * CALC_SETTINGS.bovites_szorzo.value;
+  } else if (mode === 'regi') {
     const md_alap  = CALC_SETTINGS.munkadij_alap.value;
     const md_extra = CALC_SETTINGS.munkadij_extra.value;
     const md_hatar = CALC_SETTINGS.munkadij_hatar.value;
@@ -1713,26 +1825,28 @@ function refreshDetail() {
       return calcDaysForKw(rendszerKw);
     })();
     const napi  = CALC_SETTINGS.napi_munkadij.value;
-    const felár = CALC_SETTINGS.munkadij_pct.value / 100;
-    munkadij = napok * napi * (1 + felár);
-    munkadijLabel = `${napok} nap × ${fmt(napi)}${felár > 0 ? ' × ' + (1+felár) : ''}`;
+    const felarPct = CALC_SETTINGS.munkadij_pct.value / 100;
+    munkadij = napok * napi * (1 + felarPct);
+    munkadijLabel = `${napok} nap × ${fmt(napi)}${felarPct > 0 ? ' × ' + (1+felarPct) : ''}`;
     netto = anyagok + munkadij;
   }
- 
+
   const nettoKedv   = netto * (1 - discount/100);
-  const afaKedv     = nettoKedv * AFА;
-  const bruttoKedv  = nettoKedv * (1 + AFА);
+  const afaKedv     = nettoKedv * AFA;
+  const bruttoKedv  = nettoKedv * (1 + AFA);
   const kwNetKedv   = rendszerKw > 0 ? nettoKedv / rendszerKw : 0;
   const kwGrossKedv = rendszerKw > 0 ? bruttoKedv / rendszerKw : 0;
- 
-  const modeLabel = mode === 'regi'
-    ? `📐 Régi mód (haszonkulcs: ×${CALC_SETTINGS.haszonkulcs.value})`
-    : `🆕 Új mód (napi díj: ${fmt(CALC_SETTINGS.napi_munkadij.value)})`;
- 
+
+  const modeLabel = bovitesMod
+    ? `📦 Bővítés kalkuláció (szorzó: ×${CALC_SETTINGS.bovites_szorzo.value})`
+    : mode === 'regi'
+      ? `📐 Régi mód (haszonkulcs: ×${CALC_SETTINGS.haszonkulcs.value})`
+      : `🆕 Új mód (napi díj: ${fmt(CALC_SETTINGS.napi_munkadij.value)})`;
+
   const rowStyle = 'display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--border);font-size:0.83rem';
   const hdrStyle = 'font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin:1rem 0 0.4rem';
   const subStyle = 'color:var(--text-muted);font-size:0.75rem';
- 
+
   let html = `
     <div style="background:var(--bg);border:1px solid var(--sun);border-radius:0.75rem;padding:1rem;margin-bottom:0.75rem;font-size:0.82rem">
       <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem">
@@ -1742,8 +1856,10 @@ function refreshDetail() {
         <span style="color:var(--text-muted)">Rendszer mérete:</span><strong>${rendszerKw.toFixed(3)} kW</strong>
       </div>
       ${discount > 0 ? `<div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">Kedvezmény:</span><strong style="color:var(--red)">−${discount}%</strong></div>` : ''}
-    </div>
- 
+    </div>`;
+
+  if (panelSel && panelQty > 0) {
+    html += `
     <div style="${hdrStyle}">🔆 Napelemek</div>
     <div style="${rowStyle}">
       <span>${panelSel.name} <span style="${subStyle}">(${panelQty} db × ${fmt(panelSel.huf)})</span></span>
@@ -1752,7 +1868,8 @@ function refreshDetail() {
     <div style="display:flex;justify-content:space-between;padding:0.2rem 0;font-size:0.75rem;color:var(--text-muted)">
       <span>Napelem egységár</span><span>${fmt(panelSel.huf)}/db</span>
     </div>`;
- 
+  }
+
   if (tartCost > 0) {
     const tart = PRODUCTS.tarts.find(t => Number(t.code) === tartCode || (PRODUCTS.tarts.indexOf(t)+1) === tartCode);
     html += `
@@ -1762,7 +1879,7 @@ function refreshDetail() {
       <strong>${fmt(tartCost)}</strong>
     </div>`;
   }
- 
+
   if (inv1Sel && inv1Qty > 0) {
     html += `
     <div style="${hdrStyle}">⚡ Inverterek</div>
@@ -1776,7 +1893,7 @@ function refreshDetail() {
       <strong>${fmt(inv2Cost)}</strong>
     </div>`;
   }
- 
+
   if (optiSel && optiQty > 0) {
     html += `
     <div style="${hdrStyle}">🔧 Optimalizátor</div>
@@ -1785,7 +1902,7 @@ function refreshDetail() {
       <strong>${fmt(optiCost)}</strong>
     </div>`;
   }
- 
+
   if (egyebRows.length > 0) {
     html += `<div style="${hdrStyle}">📦 Egyéb termékek</div>`;
     egyebRows.forEach(r => {
@@ -1795,19 +1912,28 @@ function refreshDetail() {
       </div>`;
     });
   }
- 
+
   // Összesítő
   html += `
     <div style="border-top:2px solid var(--border);margin-top:0.75rem;padding-top:0.75rem">
       <div style="${rowStyle}">
         <span style="font-weight:600">Anyagköltség összesen</span><strong>${fmt(anyagok)}</strong>
-      </div>
+      </div>`;
+
+  if (!bovitesMod) {
+    html += `
       <div style="${rowStyle}">
         <span>Munkadíj <span style="${subStyle}">(${munkadijLabel})</span></span>
         <strong>${fmt(munkadij)}</strong>
       </div>`;
- 
-  if (mode === 'regi') {
+  }
+
+  if (bovitesMod) {
+    html += `
+      <div style="${rowStyle}">
+        <span style="color:var(--text-muted)">× ${CALC_SETTINGS.bovites_szorzo.value} bővítés szorzó <span style="${subStyle}">(munkadíj nélkül)</span></span><span>${fmt(netto)}</span>
+      </div>`;
+  } else if (mode === 'regi') {
     html += `
       <div style="${rowStyle}">
         <span style="color:var(--text-muted)">Bekerülési ár összesen</span><span>${fmt(anyagok + munkadij)}</span>
@@ -1821,18 +1947,18 @@ function refreshDetail() {
         <span style="color:var(--text-muted)">Nettó összesen (anyag + munkadíj)</span><span>${fmt(netto)}</span>
       </div>`;
   }
- 
+
   if (discount > 0) {
     html += `<div style="${rowStyle}"><span style="color:var(--red)">Kedvezmény (−${discount}%)</span><span style="color:var(--red)">−${fmt(netto - nettoKedv)}</span></div>`;
   }
- 
+
   html += `
       <div style="display:flex;justify-content:space-between;padding:0.4rem 0;font-size:0.83rem">
         <span style="color:var(--text-muted)">ÁFA (${CALC_SETTINGS.afa.value}%)</span>
         <span>${fmt(afaKedv)}</span>
       </div>
     </div>
- 
+
     <!-- VÉGEREDMÉNY -->
     <div style="background:linear-gradient(135deg,var(--surface),var(--surface2));border:1px solid var(--sun);border-radius:0.75rem;padding:1rem;margin-top:0.75rem">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;text-align:center">
@@ -1846,18 +1972,18 @@ function refreshDetail() {
         </div>
         <div>
           <div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.2rem">kW ár nettó</div>
-          <div style="font-size:0.95rem;font-weight:700;color:var(--green)">${fmt(kwNetKedv)}/kW</div>
+          <div style="font-size:0.95rem;font-weight:700;color:var(--green)">${rendszerKw > 0 ? fmt(kwNetKedv) + '/kW' : '—'}</div>
         </div>
         <div>
           <div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.2rem">kW ár bruttó</div>
-          <div style="font-size:0.95rem;font-weight:700;color:var(--green)">${fmt(kwGrossKedv)}/kW</div>
+          <div style="font-size:0.95rem;font-weight:700;color:var(--green)">${rendszerKw > 0 ? fmt(kwGrossKedv) + '/kW' : '—'}</div>
         </div>
       </div>
     </div>
     <div style="margin-top:0.75rem;font-size:0.72rem;color:var(--text-muted);text-align:center">
       Frissítve: ${new Date().toLocaleTimeString('hu-HU')}
     </div>`;
- 
+
   container.innerHTML = html;
 }
  
@@ -2094,7 +2220,8 @@ function calculate() {
   const optiSel = searchState.opti.selected;
   const optiQty = parseInt(document.getElementById('opti-qty').value) || 0;
   const discount = parseFloat(document.getElementById('discount-val').value) || 0;
- 
+  const bovitesMod = isBovitesKalkulacio();
+
   // Napelem kW info
   if (panelSel) {
     const kw = panelSel.kw * panelQty;
@@ -2102,55 +2229,62 @@ function calculate() {
   } else {
     document.getElementById('panel-kw-info').textContent = '';
   }
- 
+
   const bar = document.getElementById('result-bar');
   bar.classList.add('visible');
- 
-  if (!panelSel || panelQty === 0) {
+
+  // JAVÍTVA: korábban csak napelem-választás esetén indult a számítás – ha valaki csak
+  // invertert / akkut / egyéb tételt vett fel napelem nélkül, üres maradt az oldal.
+  // Mostantól bármilyen kiválasztott tétel esetén elindul a kalkuláció.
+  if (!hasAnyProductSelected()) {
     document.getElementById('rbar-empty').style.display = 'block';
     document.getElementById('rbar-full').style.display = 'none';
     return;
   }
- 
+
   // === ANYAGKÖLTSÉG ===
-  const panelCost = panelSel.huf * panelQty;
- 
-  // Tartószerkezet: alap + per_kw * rendszer_kw
+  const panelCost = panelSel ? panelSel.huf * panelQty : 0;
+
+  // Tartószerkezet: alap + per_kw * rendszer_kw (napelem nélkül nincs tartószerkezet-igény)
+  const rendszerKw = panelSel ? panelSel.kw * panelQty : 0;
   let tartCost = 0;
-  if (tartCode) {
+  if (tartCode && panelSel) {
     const tart = PRODUCTS.tarts.find(t => Number(t.code) === tartCode || (PRODUCTS.tarts.indexOf(t) + 1) === tartCode);
     if (tart) {
-      const rendszerKw = panelSel.kw * panelQty;
       // Képlet: =(G9-3)*per_kw + base  (3 kW-ig csak az alapár)
       const extraKw = Math.max(0, rendszerKw - 3);
       tartCost = tart.base + extraKw * tart.per_kw;
     }
   }
- 
+
   // Inverter
   const invCost = (inv1Sel ? inv1Sel.huf * inv1Qty : 0) + (inv2Sel ? inv2Sel.huf * inv2Qty : 0);
- 
+
   // Optimalizátor
   const optiCost = optiSel ? optiSel.huf * optiQty : 0;
- 
+
   // Egyéb
   let egyebCost = 0;
   extraRows.forEach(row => {
     if (row.product && row.qty > 0) egyebCost += row.product.huf * row.qty;
   });
- 
+
   const anyagok = panelCost + tartCost + invCost + optiCost + egyebCost;
- 
+
   // === MUNKADÍJ + SZÁMÍTÁS ===
-  const rendszerKw = panelSel.kw * panelQty;
-  const AFА_KULCS = CALC_SETTINGS.afa.value / 100;
+  const AFA_KULCS = CALC_SETTINGS.afa.value / 100;
   const mode = getActiveMode();
   let munkadij = 0;
   let netto = 0;
   let javasoltNap = 0;
   let tenylegNap = 0;
- 
-  if (mode === 'regi') {
+
+  if (bovitesMod) {
+    // BŐVÍTÉS KALKULÁCIÓ: nincs szerelési munkadíj, az anyagköltséget szorozzuk be
+    // egy admin-beállítható szorzóval (alap: 1.5×). Régi/Új mód ilyenkor figyelmen kívül marad.
+    munkadij = 0;
+    netto = anyagok * CALC_SETTINGS.bovites_szorzo.value;
+  } else if (mode === 'regi') {
     // RÉGI MÓD: (anyag + munkadíj) × haszonkulcs
     const md_alap  = CALC_SETTINGS.munkadij_alap.value;
     const md_extra = CALC_SETTINGS.munkadij_extra.value;
@@ -2167,25 +2301,25 @@ function calculate() {
     const manualNapEl = document.getElementById('manual-nap');
     tenylegNap = (manualNapEl && manualNapEl.value) ? parseInt(manualNapEl.value) : javasoltNap;
     const napi = CALC_SETTINGS.napi_munkadij.value;
-    const felار = CALC_SETTINGS.munkadij_pct.value / 100;
-    munkadij = tenylegNap * napi * (1 + felار);
+    const felarPct = CALC_SETTINGS.munkadij_pct.value / 100;
+    munkadij = tenylegNap * napi * (1 + felarPct);
     netto = anyagok + munkadij;
     // Update javasolt nap display
     const jnEl = document.getElementById('javasolt-nap');
     if (jnEl) jnEl.textContent = javasoltNap + ' nap (' + rendszerKw.toFixed(2) + ' kW)';
   }
- 
-  const afa = netto * AFА_KULCS;
-  const brutto = netto * (1 + AFА_KULCS);
- 
+
+  const afa = netto * AFA_KULCS;
+  const brutto = netto * (1 + AFA_KULCS);
+
   // Kedvezmény
   const nettoKedv = netto * (1 - discount / 100);
-  const afaKedv = nettoKedv * AFА_KULCS;
-  const bruttoKedv = nettoKedv * (1 + AFА_KULCS);
- 
+  const afaKedv = nettoKedv * AFA_KULCS;
+  const bruttoKedv = nettoKedv * (1 + AFA_KULCS);
+
   const kwNetKedv = rendszerKw > 0 ? nettoKedv / rendszerKw : 0;
   const kwGrossKedv = rendszerKw > 0 ? bruttoKedv / rendszerKw : 0;
- 
+
   // MEGJELENÍTÉS
   const fmt = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
   document.getElementById('res-brutto').textContent = fmt(bruttoKedv);
@@ -2195,19 +2329,21 @@ function calculate() {
   document.getElementById('res-kw-net').textContent = fmt(kwNetKedv);
   document.getElementById('res-kw-gross').textContent = fmt(kwGrossKedv);
   let modeLabel = '';
-  if (mode === 'regi') {
+  if (bovitesMod) {
+    modeLabel = ` | ×${CALC_SETTINGS.bovites_szorzo.value} bővítés szorzó (munkadíj nélkül)`;
+  } else if (mode === 'regi') {
     modeLabel = ` | ×${CALC_SETTINGS.haszonkulcs.value} haszonkulcs`;
   } else {
     modeLabel = ` | ${tenylegNap} nap × ${fmt(CALC_SETTINGS.napi_munkadij.value)}${CALC_SETTINGS.munkadij_pct.value > 0 ? ' +' + CALC_SETTINGS.munkadij_pct.value + '%' : ''}`;
   }
-  document.getElementById('res-breakdown').innerHTML = 
-    `Napelem: ${fmt(panelCost)}` +
+  document.getElementById('res-breakdown').innerHTML =
+    (panelCost ? `Napelem: ${fmt(panelCost)}` : '') +
     (tartCost ? ` | Tartó: ${fmt(tartCost)}` : '') +
     (invCost ? ` | Inverter: ${fmt(invCost)}` : '') +
     (optiCost ? ` | Opti: ${fmt(optiCost)}` : '') +
     (egyebCost ? ` | Egyéb: ${fmt(egyebCost)}` : '') +
-    ` | Munkadíj: ${fmt(munkadij)}` + modeLabel;
- 
+    (bovitesMod ? '' : ` | Munkadíj: ${fmt(munkadij)}`) + modeLabel;
+
   document.getElementById('rbar-empty').style.display = 'none';
   document.getElementById('rbar-full').style.display = 'block';
 }
@@ -2376,9 +2512,11 @@ function setCalcMode(mode) {
   if (ujBtn) ujBtn.style.cssText = mode === 'uj'
     ? 'padding:0.2rem 0.7rem;border:none;cursor:pointer;font-size:0.75rem;background:var(--sun);color:#000;font-weight:700'
     : 'padding:0.2rem 0.7rem;border:none;cursor:pointer;font-size:0.75rem;background:transparent;color:var(--text-muted)';
-  if (ujBar) ujBar.style.display = mode === 'uj' ? 'flex' : 'none';
+  // Bővítés kalkuláció módban sosem mutatjuk a "Javasolt napok" sávot (nincs munkadíj-számítás)
+  if (ujBar) ujBar.style.display = (mode === 'uj' && !isBovitesKalkulacio()) ? 'flex' : 'none';
   if (manualNap) manualNap.value = '';
   calculate();
+  updateStickyOffsets();
 }
  
 function updateMunkadijPct(val) {
@@ -2389,6 +2527,15 @@ function updateMunkadijPct(val) {
 function initModeUI() {
   const mode = getActiveMode();
   setCalcMode(mode);
+  const bovitesChk = document.getElementById('bovites-kalk-checkbox');
+  const checked = isBovitesKalkulacio();
+  if (bovitesChk) bovitesChk.checked = checked;
+  const ujModSor = document.getElementById('mode-toggle');
+  if (ujModSor) ujModSor.style.opacity = checked ? '0.4' : '1';
+  if (checked) {
+    const ujBar = document.getElementById('uj-nap-bar');
+    if (ujBar) ujBar.style.display = 'none';
+  }
 }
  
 function renderCalcSettings() {
@@ -2477,11 +2624,16 @@ function updateCalcPreview() {
   const md_uj = nap * napi * (1 + felár_pct/100);
   const netto_uj = anyag + md_uj;
   const brutto_uj = netto_uj * (1 + afa/100);
- 
+
+  // BŐVÍTÉS KALKULÁCIÓ
+  const bov_szorzo = s.bovites_szorzo.value;
+  const netto_bov = anyag * bov_szorzo;
+  const brutto_bov = netto_bov * (1 + afa/100);
+
   preview.style.display = 'block';
   preview.innerHTML = `
     <div style="font-size:0.8rem;font-weight:700;margin-bottom:0.75rem;color:var(--sun)">📊 Számítás előnézet – példa: 20 × 450W (${kw} kW), anyag: 1 500 000 Ft</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;font-size:0.78rem">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;font-size:0.78rem">
       <div style="background:var(--surface2);border-radius:0.5rem;padding:0.75rem">
         <div style="font-weight:700;margin-bottom:0.5rem;color:var(--text-muted)">📐 RÉGI MÓD</div>
         <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">Anyag:</span><span>${fmt(anyag)}</span></div>
@@ -2499,6 +2651,15 @@ function updateCalcPreview() {
         <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">ÁFA (${afa}%):</span><span>${fmt(netto_uj * afa/100)}</span></div>
         <div style="border-top:1px solid var(--border);margin:0.4rem 0"></div>
         <div style="display:flex;justify-content:space-between;font-weight:700;color:var(--sun)"><span>Bruttó:</span><span>${fmt(brutto_uj)}</span></div>
+      </div>
+      <div style="background:var(--surface2);border-radius:0.5rem;padding:0.75rem;border:1px solid var(--sun)">
+        <div style="font-weight:700;margin-bottom:0.5rem;color:var(--text-muted)">📦 BŐVÍTÉS KALKULÁCIÓ</div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">Anyag:</span><span>${fmt(anyag)}</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">Munkadíj:</span><span>${fmt(0)} (nincs)</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">× ${bov_szorzo} bővítés szorzó:</span><span>${fmt(netto_bov)}</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">ÁFA (${afa}%):</span><span>${fmt(netto_bov * afa/100)}</span></div>
+        <div style="border-top:1px solid var(--border);margin:0.4rem 0"></div>
+        <div style="display:flex;justify-content:space-between;font-weight:700;color:var(--sun)"><span>Bruttó:</span><span>${fmt(brutto_bov)}</span></div>
       </div>
     </div>`;
 }
@@ -2637,7 +2798,38 @@ function switchMainTab(tab) {
     // Átveszi az árazó értékeit
     mt_importFromArazo();
   }
+  updateStickyOffsets();
 }
+
+// ============================================================
+// RÖGZÍTETT (STICKY) FEJLÉCEK – offset szinkronizálás
+// ============================================================
+// A topbar + main-nav + (Árazó esetén calc-tabs/sync-bar/uj-nap-bar, Megtérülés esetén
+// mt-sticky-header) egymás alatt "ragadnak" görgetéskor. Mivel a magasságuk változhat
+// (pl. sok "Kalkulátor" gomb miatt több sorba törik a calc-tabs, vagy uj-nap-bar
+// meg-/eltűnik módváltáskor), a "top" értéket futásidőben számoljuk ki, nem fixen CSS-ben.
+function updateStickyOffsets() {
+  const topbar   = document.querySelector('.topbar');
+  const mainNav  = document.getElementById('main-nav');
+  const calcTabs = document.getElementById('calc-tabs');
+  const syncBar  = document.getElementById('sync-bar');
+  const ujNapBar = document.getElementById('uj-nap-bar');
+  const mtHeader = document.getElementById('mt-sticky-header');
+
+  let offset = topbar ? topbar.offsetHeight : 0;
+  if (mainNav)  { mainNav.style.top  = offset + 'px'; offset += mainNav.offsetHeight; }
+
+  // A Megtérülés sticky fejléc közvetlenül a topbar+main-nav alatt kezdődik
+  if (mtHeader) mtHeader.style.top = offset + 'px';
+
+  // Az Árazó saját fejléc-sávjai (csak akkor adnak hozzá magasságot, ha látszanak –
+  // egy display:none elem offsetHeight-je automatikusan 0)
+  if (calcTabs) { calcTabs.style.top = offset + 'px'; offset += calcTabs.offsetHeight; }
+  if (syncBar)  { syncBar.style.top  = offset + 'px'; offset += syncBar.offsetHeight; }
+  if (ujNapBar) { ujNapBar.style.top = offset + 'px'; offset += ujNapBar.offsetHeight; }
+}
+window.addEventListener('resize', updateStickyOffsets);
+window.addEventListener('load', updateStickyOffsets);
  
 // ============================================================
 // MEGTÉRÜLÉS KALKULÁTOR
@@ -4487,9 +4679,8 @@ function handleSessionExpired() {
  
 async function autoSaveOnWarning() {
   const statusEl = document.getElementById('autosave-status');
-  const panelSel = searchState.panel ? searchState.panel.selected : null;
- 
-  if (!panelSel) {
+
+  if (!hasAnyProductSelected()) {
     if (statusEl) statusEl.textContent = 'ℹ️ Nincs aktív kalkuláció – automatikus mentés kihagyva.';
     return;
   }
