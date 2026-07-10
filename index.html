@@ -5,6 +5,13 @@
   Verzió: ld. APP_VERSION állandó a JS elején (egyetlen hely, ahol a verziószámot módosítani kell)
   Utolsó módosítás: 2026-07-10 (Budapest)
 
+  Változások v2.49-ben:
+  - Fogyasztás vs. termelés infósáv: mindkét módban (új rendszer / bővítés) megmutatja az
+    ügyfél éves fogyasztását és a (meglévő vagy új) rendszer várható éves termelését +
+    lefedettség %; bővítés módban figyelmeztet, ha a meglévő rendszer már közel/teljesen
+    lefedi a fogyasztást, mert ilyenkor a szaldó-elszámolás miatt a bővítés megtérülése
+    nagyon gyengének tűnik (ez nem hiba, hanem a valós elszámolási logika következménye)
+
   Változások v2.48-ban:
   - Rögzített (sticky) fejlécek: Árazó tab (main-nav, calc-tabs, sync-bar, uj-nap-bar) és
     Megtérülés tab (új mt-sticky-header gyorsgomb-sáv) is a topbar alatt marad görgetéskor
@@ -469,7 +476,7 @@
   <div class="topbar">
     <div class="topbar-left">
       <span class="topbar-logo">☀️ Solar Future</span>
-      <span id="ver-badge" title="Verziótörténet a JS elején (APP_VERSION_HISTORY)" style="font-size:0.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:0.4rem;padding:0.1rem 0.4rem;background:var(--bg);cursor:help"></span>
+      <span id="ver-badge" title="Verziótörténet a JS elején (_HISTORY)" style="font-size:0.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:0.4rem;padding:0.1rem 0.4rem;background:var(--bg);cursor:help"></span>
       <span class="user-badge" id="topbar-user">—</span>
     </div>
     <div class="topbar-right">
@@ -960,9 +967,8 @@
         </button>
       </div>
 
-      <!-- Bővítés-mód infósáv -->
-      <div id="mt-bovites-infobar" style="display:none;background:rgba(247,166,0,0.08);border:1px solid var(--sun);border-radius:0.75rem;padding:0.6rem 1rem;margin-bottom:1rem;font-size:0.8rem;color:var(--sun)">
-        🔧 Bővítés-mód: az árazóban beállított tételek a <strong>meglévő rendszer bővítését</strong> jelentik. A lenti KPI-k a teljes (jelenlegi+bővítés) rendszert mutatják, zárójelben/alattuk a bővítés önmagában hozott többletével.
+      <!-- Fogyasztás vs. termelés infósáv (mindkét módban megjelenik, tartalma mt_renderInfoBar()-ból) -->
+      <div id="mt-bovites-infobar" style="display:none;background:rgba(247,166,0,0.08);border:1px solid var(--sun);border-radius:0.75rem;padding:0.6rem 1rem;margin-bottom:1rem;font-size:0.8rem;color:var(--sun);line-height:1.6">
       </div>
 
       <!-- KPI kártyák -->
@@ -1214,7 +1220,7 @@ const SHEETS_API = 'https://script.google.com/macros/s/AKfycbwcELD2MLNn3-9Odjsc8
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.48 – 2026-07-10';
+const APP_VERSION = 'v2.49 – 2026-07-10';
 const APP_VERSION_HISTORY = [
   'v2.1 (2026-05-29): Megtérülés kalkulátor, PVGIS integráció',
   'v2.3 (2026-05-29): Sávos áramár, cashflow táblázat, grafikonok',
@@ -1227,6 +1233,7 @@ const APP_VERSION_HISTORY = [
   'v2.46 (2026-07-03): Bővítés = Árazó tétel (nem külön katalógus); jelenlegi vs. bővítéssel összehasonlítás',
   'v2.47 (2026-07-03): Bővítés-összehasonlítás a PDF riportba is beépítve; verziószám egyetlen helyre konszolidálva',
   'v2.48 (2026-07-10): Rögzített (sticky) fejlécek Árazó+Megtérülés tabon; Megtérülés gyorsgomb-sáv; "Bővítés kalkuláció" checkbox (anyagköltség × admin szorzó, munkadíj nélkül); hibajavítás – napelem nélkül (csak inverter/akku/egyéb) is elindul a kalkuláció',
+  'v2.49 (2026-07-10): Fogyasztás vs. termelés infósáv mindkét módban (új rendszer és bővítés is) + figyelmeztetés, ha a meglévő rendszer már közel lefedi a fogyasztást (szaldó-modell miatt gyenge bővítés-megtérülés magyarázata)',
 ];
 
 // Verzió kiírása minden előforduláshoz
@@ -3163,10 +3170,31 @@ if (icon) icon.textContent = '⚠️';
 function mt_updateLabels(isBovites) {
   const kwpLabel = document.getElementById('mt-kwp-label');
   const arLabel  = document.getElementById('mt-rendszer-ar-label');
-  const infobar  = document.getElementById('mt-bovites-infobar');
   if (kwpLabel) kwpLabel.textContent = isBovites ? 'Bővítés kapacitása (kWp)' : 'Telepített kapacitás (kWp)';
   if (arLabel)  arLabel.textContent  = isBovites ? 'Bővítés bruttó ára (Ft)' : 'Rendszer bruttó ára (Ft)';
-  if (infobar)  infobar.style.display = isBovites ? 'flex' : 'none';
+}
+
+// Fogyasztás vs. termelés infósáv – mindkét módban (új rendszer / bővítés) hasznos kontextus.
+// Bővítés módban azt is jelzi, ha a meglévő rendszer már közel lefedi a fogyasztást
+// (ez esetben a bővítés megtérülése a szaldó-modell miatt gyengének fog tűnni – nem hiba).
+function mt_renderInfoBar(evesKwh, sajatTermeles, isBovites) {
+  const infobar = document.getElementById('mt-bovites-infobar');
+  if (!infobar) return;
+  const fmtN = n => Math.round(n).toLocaleString('hu-HU');
+  const lefedettseg = evesKwh > 0 ? Math.round((sajatTermeles / evesKwh) * 100) : 0;
+
+  let html = '';
+  if (isBovites) {
+    html += `🔧 <strong>Bővítés-mód:</strong> az árazóban beállított tételek a meglévő rendszer bővítését jelentik. A lenti KPI-k a teljes (jelenlegi+bővítés) rendszert mutatják, a bővítés önmagában hozott többletével együtt.<br>`;
+    html += `📊 Ügyfél éves fogyasztása: <strong>${fmtN(evesKwh)} kWh</strong> &nbsp;|&nbsp; Meglévő rendszer várható idei termelése: <strong>${fmtN(sajatTermeles)} kWh</strong> &nbsp;|&nbsp; Lefedettség: <strong>${lefedettseg}%</strong>`;
+    if (lefedettseg >= 85) {
+      html += `<br>⚠️ A meglévő rendszer már közel (vagy teljesen) lefedi az éves fogyasztást – a fogyasztáson felüli többlettermelésért a jelenlegi elszámolási modell (éves szaldó) szerint nincs jóváírás, ezért a bővítés megtérülése ilyenkor jellemzően nagyon gyenge, hacsak nem nő a fogyasztás is (pl. hőszivattyú, elektromos autó beszerzése esetén).`;
+    }
+  } else {
+    html += `📊 Ügyfél éves fogyasztása: <strong>${fmtN(evesKwh)} kWh</strong> &nbsp;|&nbsp; Új rendszer várható éves termelése: <strong>${fmtN(sajatTermeles)} kWh</strong> &nbsp;|&nbsp; Lefedettség: <strong>${lefedettseg}%</strong>`;
+  }
+  infobar.innerHTML = html;
+  infobar.style.display = 'block';
 }
 
 function mt_recalculate() {
@@ -3184,6 +3212,7 @@ function mt_recalculate() {
   if (!kwp || !rendszerAr || !evesKwh) {
     document.getElementById('mt-results').style.display = 'none';
     document.getElementById('mt-empty').style.display   = 'block';
+    document.getElementById('mt-bovites-infobar').style.display = 'none';
     mt_updateArInfo(evesKwh);
     return;
   }
@@ -3282,6 +3311,8 @@ function mt_recalculate() {
       investment: rendszerAr,
       comparison: null
     });
+
+    mt_renderInfoBar(evesKwh, evesTermeles, false);
 
   } else {
     // ============================================================
@@ -3403,6 +3434,8 @@ function mt_recalculate() {
         ujData:   cashflow.map(r => Math.round(r.ujTermeles))
       }
     });
+
+    mt_renderInfoBar(evesKwh, cashflow[0].regiTermeles, true);
   }
 }
 
