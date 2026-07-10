@@ -5,6 +5,19 @@
   Verzió: ld. APP_VERSION állandó a JS elején (egyetlen hely, ahol a verziószámot módosítani kell)
   Utolsó módosítás: 2026-07-10 (Budapest)
 
+  Változások v2.52-ben (KRITIKUS JAVÍTÁS):
+  - Az admin beállítások (haszonkulcs, munkadíj-paraméterek, kalkulátor módok, "Bővítés
+    kalkuláció" checkbox, ár-láthatóság, kalkulátor-nevek) eddig localStorage-ban / JS
+    memóriában éltek → gépenként/böngészőnként eltérhettek egymástól, és egy részük
+    (CALC_SETTINGS numerikus értékei) frissítéskor teljesen el is veszett.
+  - Mostantól a Google Sheets "Beallitasok" munkalapján tárolódnak, az Apps Script
+    kód type:"settings" mentés/olvasással bővítve (ld. sofar-cloud-worker mellett a
+    Google Apps Script fájlt is – doGet 'settings' mező, doPost 'type:settings' ág).
+  - A localStorage csak gyors helyi cache / offline fallback marad, ha épp nem
+    elérhető a Sheets.
+  - FONTOS: az Apps Script kódot is frissíteni kell (ld. külön fájl), különben a
+    kliens "settings" mentése nem fog eljutni sehova!
+
   Változások v2.51-ben:
   - Pontosítás a v2.50-hez képest: a 3 szintű árazás (Bekerülési/Minimum/Ajánlott) KIZÁRÓLAG
     Új módban aktív. Régi mód visszaállítva az eredeti, egyetlen áras logikára:
@@ -1223,11 +1236,56 @@
 // ADATOK
 // ============================================================
 const SHEETS_API = 'https://script.google.com/macros/s/AKfycbwcELD2MLNn3-9Odjsc8ullBmI7zHJtZmmrcqb19HjDcFc4YNnr7BnLJ6c3hjBf3SPj/exec';
+
+// ============================================================
+// MEGOSZTOTT (SHEETS-ALAPÚ) BEÁLLÍTÁSOK
+// ============================================================
+// Az admin beállítások (haszonkulcs, kalkulátor módok, "Bővítés kalkuláció"
+// checkbox, ár-láthatóság, kalkulátor-nevek) korábban csak localStorage-ban
+// éltek – ez azt jelentette, hogy egy másik gépen/böngészőben megnyitva az
+// alkalmazást MÁS beállításokat látott mindenki. Mostantól ezek a Google
+// Sheets "Beallitasok" munkalapjáról töltődnek be (loadFromSheets()-en
+// keresztül), és a localStorage csak gyors helyi cache / offline fallback.
+let SHARED_SETTINGS = null; // null amíg nem érkezett meg a Sheets-ből
+
+// Beállítás mentése a megosztott (Sheets) tárolóba – "tűz és felejts" POST,
+// ugyanúgy mint a saveAjanlat()-nál, csak type:'settings' jelöléssel.
+async function saveSettingToSheets(key, value) {
+  try {
+    await fetch(SHEETS_API, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'settings', key, value })
+    });
+  } catch (err) {
+    console.warn('Settings mentési hiba (' + key + '):', err);
+  }
+}
+
+// A Sheets-ből betöltött settings objektum alkalmazása a futó alkalmazásra.
+// A loadFromSheets() hívja meg, amint megérkezik a data.settings.
+function applySharedSettings() {
+  if (!SHARED_SETTINGS) return;
+  if (SHARED_SETTINGS.calc_settings) {
+    Object.entries(SHARED_SETTINGS.calc_settings).forEach(([k, v]) => {
+      if (CALC_SETTINGS[k] && typeof v === 'number') CALC_SETTINGS[k].value = v;
+    });
+  }
+  // Frissítjük a látható UI-t is, ha épp fut a kalkulátor / admin panel
+  if (typeof calculate === 'function') calculate();
+  if (typeof refreshDetail === 'function') refreshDetail();
+  if (typeof initModeUI === 'function') initModeUI();
+  const adminPanel = document.getElementById('admin-panel');
+  if (adminPanel && adminPanel.style.display !== 'none' && typeof renderCalcSettings === 'function') {
+    renderCalcSettings();
+  }
+}
 // ============================================================
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.51 – 2026-07-10';
+const APP_VERSION = 'v2.52 – 2026-07-10';
 const APP_VERSION_HISTORY = [
   'v2.1 (2026-05-29): Megtérülés kalkulátor, PVGIS integráció',
   'v2.3 (2026-05-29): Sávos áramár, cashflow táblázat, grafikonok',
@@ -1243,6 +1301,7 @@ const APP_VERSION_HISTORY = [
   'v2.49 (2026-07-10): Fogyasztás vs. termelés infósáv mindkét módban (új rendszer és bővítés is) + figyelmeztetés, ha a meglévő rendszer már közel lefedi a fogyasztást (szaldó-modell miatt gyenge bővítés-megtérülés magyarázata)',
   'v2.50 (2026-07-10): 3 szintű árazás az Árazó tabon (Bekerülési anyagköltség / Minimum ár / Ajánlott ár) – a működési költséget (munkadíj) a Régi/Új/Bővítés mód adja, ezt szorozzuk admin-állítható szorzókkal (min_ar_szorzo alap 1.0, ajanlott_ar_szorzo alap 1.2); kalkulátoronként (1-6) admin-beállítható, melyik ár(ak) látszanak; eredménysáv és részletező is a látható árakat mutatja; Sheets mentés mindhárom árat rögzíti',
   'v2.51 (2026-07-10): Pontosítás – a 3 szintű árazás KIZÁRÓLAG Új módban aktív. Régi mód visszaállítva az eredeti, egyetlen áras logikára: (anyag+munkadíj) × haszonkulcs (alap 1.38), a félreértések elkerülése végett. Bővítés kalkuláció változatlanul saját, egyetlen áras logikájú.',
+  'v2.52 (2026-07-10): KRITIKUS JAVÍTÁS – az admin beállítások (haszonkulcs, munkadíj-paraméterek, kalkulátor módok, "Bővítés kalkuláció" checkbox, ár-láthatóság, kalkulátor-nevek) eddig csak localStorage-ban/JS memóriában éltek, azaz gépenként/böngészőnként eltérhettek, és frissítéskor el is veszhettek. Mostantól a Google Sheets "Beallitasok" munkalapján tárolódnak (Apps Script bővítve type:"settings" mentés/olvasással) – minden gép, minden böngésző ugyanazt a központi beállítást látja. A localStorage csak gyors helyi cache/offline fallback marad. Első admin-bejelentkezéskor a helyi értékek automatikusan feltöltődnek a még üres Sheets-be.',
 ];
 
 // Verzió kiírása minden előforduláshoz
@@ -1337,9 +1396,17 @@ const DEFAULT_CALC_NAMES = {
 const DEFAULT_CALC_MODES = { 1:'regi', 2:'regi', 3:'regi', 4:'regi', 5:'regi', 6:'regi' };
  
 function getCalcModes() {
+  if (SHARED_SETTINGS && SHARED_SETTINGS.calc_modes) {
+    return { ...DEFAULT_CALC_MODES, ...SHARED_SETTINGS.calc_modes };
+  }
   try { return JSON.parse(localStorage.getItem('sf_calc_modes') || 'null') || {...DEFAULT_CALC_MODES}; } catch { return {...DEFAULT_CALC_MODES}; }
 }
-function saveCalcModes(m) { localStorage.setItem('sf_calc_modes', JSON.stringify(m)); }
+function saveCalcModes(m) {
+  localStorage.setItem('sf_calc_modes', JSON.stringify(m)); // gyors helyi cache
+  if (!SHARED_SETTINGS) SHARED_SETTINGS = {};
+  SHARED_SETTINGS.calc_modes = m;
+  saveSettingToSheets('calc_modes', m); // megosztott mentés – minden gép ezt fogja látni
+}
  
 function getActiveMode() {
   const modes = getCalcModes();
@@ -1352,9 +1419,17 @@ function getActiveMode() {
 const DEFAULT_CALC_BOVITES = { 1:false, 2:false, 3:false, 4:false, 5:false, 6:false };
 
 function getCalcBovites() {
+  if (SHARED_SETTINGS && SHARED_SETTINGS.calc_bovites) {
+    return { ...DEFAULT_CALC_BOVITES, ...SHARED_SETTINGS.calc_bovites };
+  }
   try { return JSON.parse(localStorage.getItem('sf_calc_bovites') || 'null') || {...DEFAULT_CALC_BOVITES}; } catch { return {...DEFAULT_CALC_BOVITES}; }
 }
-function saveCalcBovitesData(b) { localStorage.setItem('sf_calc_bovites', JSON.stringify(b)); }
+function saveCalcBovitesData(b) {
+  localStorage.setItem('sf_calc_bovites', JSON.stringify(b)); // gyors helyi cache
+  if (!SHARED_SETTINGS) SHARED_SETTINGS = {};
+  SHARED_SETTINGS.calc_bovites = b;
+  saveSettingToSheets('calc_bovites', b); // megosztott mentés
+}
 
 function isBovitesKalkulacio() {
   const b = getCalcBovites();
@@ -1410,6 +1485,11 @@ const AR_TIER_DEFS = [
 const DEFAULT_CALC_AR_VIS = { 1:{ar1:true,ar2:true,ar3:true}, 2:{ar1:true,ar2:true,ar3:true}, 3:{ar1:true,ar2:true,ar3:true}, 4:{ar1:true,ar2:true,ar3:true}, 5:{ar1:true,ar2:true,ar3:true}, 6:{ar1:true,ar2:true,ar3:true} };
 
 function getCalcArVis() {
+  if (SHARED_SETTINGS && SHARED_SETTINGS.calc_ar_vis) {
+    const stored = SHARED_SETTINGS.calc_ar_vis;
+    [1,2,3,4,5,6].forEach(c => { if (!stored[c]) stored[c] = { ar1:true, ar2:true, ar3:true }; });
+    return stored;
+  }
   try {
     const stored = JSON.parse(localStorage.getItem('sf_calc_ar_vis') || 'null');
     if (!stored) return JSON.parse(JSON.stringify(DEFAULT_CALC_AR_VIS));
@@ -1418,7 +1498,12 @@ function getCalcArVis() {
     return stored;
   } catch { return JSON.parse(JSON.stringify(DEFAULT_CALC_AR_VIS)); }
 }
-function saveCalcArVis(v) { localStorage.setItem('sf_calc_ar_vis', JSON.stringify(v)); }
+function saveCalcArVis(v) {
+  localStorage.setItem('sf_calc_ar_vis', JSON.stringify(v)); // gyors helyi cache
+  if (!SHARED_SETTINGS) SHARED_SETTINGS = {};
+  SHARED_SETTINGS.calc_ar_vis = v;
+  saveSettingToSheets('calc_ar_vis', v); // megosztott mentés
+}
 
 function getActiveArVis() {
   const v = getCalcArVis();
@@ -1454,9 +1539,17 @@ function computeAr3Tier(anyagok, munkadij, discount, afaKulcs, rendszerKw) {
 }
  
 function getCalcNames() {
+  if (SHARED_SETTINGS && SHARED_SETTINGS.calc_names) {
+    return { ...DEFAULT_CALC_NAMES, ...SHARED_SETTINGS.calc_names };
+  }
   try { return JSON.parse(localStorage.getItem('sf_calc_names') || 'null') || {...DEFAULT_CALC_NAMES}; } catch { return {...DEFAULT_CALC_NAMES}; }
 }
-function saveCalcNamesData(n) { localStorage.setItem('sf_calc_names', JSON.stringify(n)); }
+function saveCalcNamesData(n) {
+  localStorage.setItem('sf_calc_names', JSON.stringify(n)); // gyors helyi cache
+  if (!SHARED_SETTINGS) SHARED_SETTINGS = {};
+  SHARED_SETTINGS.calc_names = n;
+  saveSettingToSheets('calc_names', n); // megosztott mentés
+}
  
 // Felhasználók a Google Sheets-ből töltődnek be
 let SHEETS_USERS = [];
@@ -2871,6 +2964,18 @@ function setAdminCalcMode(calcNum, mode) {
 function updateCalcSetting(key, val) {
   CALC_SETTINGS[key].value = parseFloat(val) || CALC_SETTINGS[key].value;
   updateCalcPreview();
+
+  // Megosztott mentés – enélkül ez a beállítás korábban csak a JS memóriában élt,
+  // és minden oldalfrissítéskor / más gépen elveszett volna.
+  const valuesOnly = {};
+  Object.keys(CALC_SETTINGS).forEach(k => { valuesOnly[k] = CALC_SETTINGS[k].value; });
+  if (!SHARED_SETTINGS) SHARED_SETTINGS = {};
+  SHARED_SETTINGS.calc_settings = valuesOnly;
+  saveSettingToSheets('calc_settings', valuesOnly);
+
+  // Az élő kalkulátor is frissüljön, ha épp az van megnyitva (pl. haszonkulcs változott)
+  if (typeof calculate === 'function') calculate();
+  if (typeof refreshDetail === 'function') refreshDetail();
 }
  
 function updateCalcPreview() {
@@ -3006,6 +3111,27 @@ async function loadFromSheets() {
     // Felhasználók betöltése Sheets-ből
     if (data.users && data.users.length > 0) {
       SHEETS_USERS = data.users;
+    }
+
+    // Megosztott beállítások (admin: haszonkulcs, kalkulátor módok, bővítés
+    // checkbox, ár-láthatóság, kalkulátor-nevek) – minden gép ugyanezt látja mostantól
+    if (data.settings && data.settings.calc_settings) {
+      SHARED_SETTINGS = data.settings;
+      applySharedSettings();
+    } else if (currentUser && currentUser.isAdmin) {
+      // Első bekapcsolás: a Sheets "Beallitasok" munkalapja még üres – az admin
+      // gépén épp beállított (localStorage-os) értékek lesznek a kiinduló, közös alap,
+      // hogy ne kelljen mindent kézzel újra beírni. Ez csak egyszer fut le (amíg a
+      // Sheets-ben nincs calc_settings kulcs), utána a Sheets lesz az egyetlen forrás.
+      SHARED_SETTINGS = data.settings || {};
+      const valuesOnly = {};
+      Object.keys(CALC_SETTINGS).forEach(k => { valuesOnly[k] = CALC_SETTINGS[k].value; });
+      saveSettingToSheets('calc_settings', valuesOnly);
+      saveSettingToSheets('calc_modes', getCalcModes());
+      saveSettingToSheets('calc_bovites', getCalcBovites());
+      saveSettingToSheets('calc_ar_vis', getCalcArVis());
+      saveSettingToSheets('calc_names', getCalcNames());
+      console.info('Beállítások első feltöltése a Sheets-be (Beallitasok munkalap létrehozva).');
     }
     
     // Update search lists (filter invalid codes)
