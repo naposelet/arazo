@@ -2,7 +2,7 @@
 <!--
   ============================================================
   Solar Future – Árazó
-  Verzió: v2.47 – 2026-07-10 9:10
+  Verzió: ld. APP_VERSION állandó a JS elején (egyetlen hely, ahol a verziószámot módosítani kell)
   Utolsó módosítás: 2026-07-03 10:16 (Budapest)
   Változások v2.4-ban:
   - sofarcloud API lekérdezés beletétele
@@ -449,7 +449,7 @@
   <div class="topbar">
     <div class="topbar-left">
       <span class="topbar-logo">☀️ Solar Future</span>
-      <span id="ver-badge" title="v2.3: Megtérülés kalkulátor&#10;v2.47: Excel import, geocoding, riport" style="font-size:0.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:0.4rem;padding:0.1rem 0.4rem;background:var(--bg);cursor:help">v2.47 – 2026-07-03</span>
+      <span id="ver-badge" title="Verziótörténet a JS elején (APP_VERSION_HISTORY)" style="font-size:0.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:0.4rem;padding:0.1rem 0.4rem;background:var(--bg);cursor:help"></span>
       <span class="user-badge" id="topbar-user">—</span>
     </div>
     <div class="topbar-right">
@@ -1169,11 +1169,32 @@
 // ADATOK
 // ============================================================
 const SHEETS_API = 'https://script.google.com/macros/s/AKfycbwcELD2MLNn3-9Odjsc8ullBmI7zHJtZmmrcqb19HjDcFc4YNnr7BnLJ6c3hjBf3SPj/exec';
-const APP_VERSION = 'v2.47 – 2026-07-10';
+// ============================================================
+// VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
+// (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
+// ============================================================
+const APP_VERSION = 'v2.47 – 2026-07-03';
+const APP_VERSION_HISTORY = [
+  'v2.1 (2026-05-29): Megtérülés kalkulátor, PVGIS integráció',
+  'v2.3 (2026-05-29): Sávos áramár, cashflow táblázat, grafikonok',
+  'v2.4 (2026-06-05): Excel import, geocoding, PVGIS manuális gomb, riport PDF',
+  'v2.41 (2026-07-03): SofarCloud API integráció (Worker proxy)',
+  'v2.42 (2026-07-03): Station lista fix (row vs rows), kWp auto',
+  'v2.43 (2026-07-03): dateTime parsing fix, mezők auto-kitöltés, riport összehasonlítás fix',
+  'v2.44 (2026-07-03): SofarCloud eszközlista (inverterek), "Jelenlegi rendszer" kártya',
+  'v2.45 (2026-07-03): Rendszerbővítés tervező kártya (később törölve, ld. v2.46)',
+  'v2.46 (2026-07-03): Bővítés = Árazó tétel (nem külön katalógus); jelenlegi vs. bővítéssel összehasonlítás',
+  'v2.47 (2026-07-03): Bővítés-összehasonlítás a PDF riportba is beépítve; verziószám egyetlen helyre konszolidálva',
+];
 
-// Verzió kiírása a login oldalra
+// Verzió kiírása minden előforduláshoz
 const loginVer = document.getElementById('login-ver');
 if (loginVer) loginVer.textContent = APP_VERSION;
+const verBadge = document.getElementById('ver-badge');
+if (verBadge) {
+  verBadge.textContent = APP_VERSION;
+  verBadge.title = APP_VERSION_HISTORY.slice(-6).join('\n');
+}
  
 // Számítási paraméterek - admin felületen módosíthatók
 const CALC_SETTINGS = {
@@ -3718,31 +3739,76 @@ function mt_generateReport() {
   const evesTermeles = mt_pvgisData ? mt_pvgisData.yearly : kwp * 1000;
   const atlagAr     = mt_getAtlagosKwhAr(evesKwh);
 
+  // Bővítés-mód: van SofarCloud tényadat a meglévő rendszerről (kwp/rendszerAr ekkor a BŐVÍTÉS adatai)
+  const isBovites = !!(mt_sofarKwp && mt_sofarKwp > 0 && Object.keys(mt_sofarMonthly).length > 0);
+  const fajlagosMert = isBovites ? sofar_getFajlagosHozam() : null;
+  const specificYield = isBovites ? (fajlagosMert || (mt_pvgisData ? mt_pvgisData.yearly / kwp : 1000)) : null;
+
+  // Címkék, amik bővítés-módban máshogy szólnak
+  const kapacitasLabel   = isBovites ? 'Bővítés kapacitása'                       : 'Telepített kapacitás';
+  const arLabel          = isBovites ? 'Bővítés bruttó ára'                       : 'Rendszer ára (bruttó)';
+  const megterulesLabel  = isBovites ? 'Bővítés megtérülési ideje'                : 'Becsült megtérülési idő';
+  const varhatoTermLabel = isBovites ? 'Bővítés várható éves termelése – PVGIS (kWh/év)' : 'Várható éves termelés – PVGIS (kWh/év)';
+
   // Dátum
   const now = new Date();
   const datumStr = now.toLocaleDateString('hu-HU');
   const currentYear = now.getFullYear();
 
-  // Cashflow újraszámítás riporthoz
-  let kumMegtak = 0;
+  // Cashflow újraszámítás riporthoz (a mt_recalculate()-tel megegyező logika)
+  let kumMegtak = 0;         // kumulált TELJES (bővítés módban: kombinált) megtakarítás
+  let kumTobbletMegtak = 0;  // bővítés módban a bővítés hatása; új rendszer módban megegyezik kumMegtak-kal
   let megterulesEv = null;
   const cashflow = [];
+  const rSofarYears = Object.keys(mt_sofarMonthly).map(k => parseInt(k.split('-')[0]));
+  const rFirstYear = rSofarYears.length > 0 ? Math.min(...rSofarYears) : null;
+
   for (let ev = 1; ev <= elettartam; ev++) {
-    const degradFactor = Math.pow(1 - degradacio / 100, ev - 1);
-    const rSofarYears = Object.keys(mt_sofarMonthly).map(k => parseInt(k.split('-')[0]));
-    const rFirstYear = rSofarYears.length > 0 ? Math.min(...rSofarYears) : null;
-    const rDataYear = rFirstYear ? rFirstYear + (ev - 1) : null;
-    const sofarYearKwh = rDataYear ? Object.entries(mt_sofarMonthly)
-      .filter(([k]) => k.startsWith(rDataYear + '-'))
-      .reduce((s,[,v]) => s + v, 0) : 0;
-    const sofarMonthCount = rDataYear ? Object.keys(mt_sofarMonthly)
-      .filter(k => k.startsWith(rDataYear + '-')).length : 0;
-    const termeles = (sofarYearKwh > 0 && sofarMonthCount >= 10)
-      ? sofarYearKwh : evesTermeles * degradFactor;
-    const megtak = mt_getEvesMegtakaritas(termeles, evesKwh);
-    kumMegtak += megtak;
-    if (!megterulesEv && kumMegtak >= rendszerAr) megterulesEv = ev;
-    cashflow.push({ ev, termeles, megtak, kumMegtak });
+    if (!isBovites) {
+      const degradFactor = Math.pow(1 - degradacio / 100, ev - 1);
+      const rDataYear = rFirstYear ? rFirstYear + (ev - 1) : null;
+      const sofarYearKwh = rDataYear ? Object.entries(mt_sofarMonthly)
+        .filter(([k]) => k.startsWith(rDataYear + '-'))
+        .reduce((s,[,v]) => s + v, 0) : 0;
+      const sofarMonthCount = rDataYear ? Object.keys(mt_sofarMonthly)
+        .filter(k => k.startsWith(rDataYear + '-')).length : 0;
+      const termeles = (sofarYearKwh > 0 && sofarMonthCount >= 10)
+        ? sofarYearKwh : evesTermeles * degradFactor;
+      const megtak = mt_getEvesMegtakaritas(termeles, evesKwh);
+      kumMegtak += megtak;
+      kumTobbletMegtak = kumMegtak;
+      if (!megterulesEv && kumTobbletMegtak >= rendszerAr) megterulesEv = ev;
+      cashflow.push({ ev, calendarYear: currentYear + ev - 1, termeles, megtak, kumMegtak, tobbletMegtak: megtak, kumTobbletMegtak });
+    } else {
+      const calendarYear = currentYear + (ev - 1);
+      let regiTermeles;
+      if (rFirstYear) {
+        const oldEv = calendarYear - rFirstYear + 1;
+        const oldDegrad = Math.pow(1 - degradacio / 100, Math.max(oldEv, 1) - 1);
+        const dataYear  = rFirstYear + (Math.max(oldEv, 1) - 1);
+        const sofarKeys = Object.keys(mt_sofarMonthly).filter(k => k.startsWith(dataYear + '-'));
+        const sofarYearKwh = sofarKeys.reduce((s, k) => s + mt_sofarMonthly[k], 0);
+        regiTermeles = (sofarYearKwh > 0 && sofarKeys.length >= 10)
+          ? sofarYearKwh
+          : mt_sofarKwp * specificYield * oldDegrad;
+      } else {
+        regiTermeles = mt_sofarKwp * specificYield * Math.pow(1 - degradacio / 100, ev - 1);
+      }
+      const ujDegrad   = Math.pow(1 - degradacio / 100, ev - 1);
+      const ujTermeles = kwp * specificYield * ujDegrad;
+      const kombinaltTermeles = regiTermeles + ujTermeles;
+      const regiMegtak      = mt_getEvesMegtakaritas(regiTermeles, evesKwh);
+      const kombinaltMegtak = mt_getEvesMegtakaritas(kombinaltTermeles, evesKwh);
+      const tobbletMegtak   = kombinaltMegtak - regiMegtak;
+      kumMegtak        += kombinaltMegtak;
+      kumTobbletMegtak += tobbletMegtak;
+      if (!megterulesEv && kumTobbletMegtak >= rendszerAr) megterulesEv = ev;
+      cashflow.push({
+        ev, calendarYear, regiTermeles, ujTermeles, kombinaltTermeles,
+        termeles: kombinaltTermeles, megtak: kombinaltMegtak,
+        regiMegtak, kombinaltMegtak, tobbletMegtak, kumMegtak, kumTobbletMegtak
+      });
+    }
   }
 
   // Havi tényleges adatok összegyűjtése
@@ -3815,21 +3881,23 @@ const vanElozmenyadat = Object.keys(mt_sofarMonthly).length > 0;
   const osszPct = pvgisOsszesEv > 0 ? Math.round((osszesTenyleges/pvgisOsszesEv)*100) : null;
 
   // Cashflow táblázat sorok
-  let cashflowSorok = cashflow.map(r => `<tr style="${r.kumMegtak >= rendszerAr && cashflow[cashflow.indexOf(r)-1]?.kumMegtak < rendszerAr ? 'background:#16a34a15;font-weight:700' : ''}">
-    <td>${r.ev}. év (${currentYear + r.ev - 1})</td>
+  let cashflowSorok = cashflow.map(r => `<tr style="${r.ev === megterulesEv ? 'background:#16a34a15;font-weight:700' : ''}">
+    <td>${r.ev}. év (${r.calendarYear})</td>
     <td style="text-align:right">${Math.round(r.termeles).toLocaleString('hu-HU')} kWh</td>
     <td style="text-align:right">${fmtFt(r.megtak)}</td>
     <td style="text-align:right;font-weight:600;color:#1a3a5c">${fmtFt(r.kumMegtak)}</td>
-    <td style="text-align:center">${r.kumMegtak >= rendszerAr && (!cashflow[cashflow.indexOf(r)-1] || cashflow[cashflow.indexOf(r)-1].kumMegtak < rendszerAr) ? '<span style="background:#16a34a;color:#fff;padding:2px 8px;border-radius:12px;font-size:0.75rem">✅ MEGTÉRÜLT</span>' : Math.round((r.kumMegtak/rendszerAr)*100)+'%'}</td>
+    <td style="text-align:center">${r.ev === megterulesEv ? '<span style="background:#16a34a;color:#fff;padding:2px 8px;border-radius:12px;font-size:0.75rem">✅ MEGTÉRÜLT</span>' : Math.round((r.kumTobbletMegtak/rendszerAr)*100)+'%'}</td>
   </tr>`).join('');
 
   // Chart.js adatok JSON-ként
   const chartHaviLabels = JSON.stringify(honapRovid);
   const chartHaviTenyleges = JSON.stringify(haviTenylegesAtlag.map(v => Math.round(v)));
   const chartHaviPvgis = JSON.stringify(pvgisHavi.map(v => Math.round(v)));
-  const chartEvesLabels = JSON.stringify(cashflow.map(r => currentYear + r.ev - 1));
+  const chartEvesLabels = JSON.stringify(cashflow.map(r => r.calendarYear));
   const chartEvesMegtak = JSON.stringify(cashflow.map(r => Math.round(r.megtak)));
-  const chartEvesKum = JSON.stringify(cashflow.map(r => Math.round(r.kumMegtak)));
+  const chartEvesKum = JSON.stringify(cashflow.map(r => Math.round(r.kumTobbletMegtak)));
+  const chartBovitesRegi = isBovites ? JSON.stringify(cashflow.map(r => Math.round(r.regiTermeles))) : null;
+  const chartBovitesUj   = isBovites ? JSON.stringify(cashflow.map(r => Math.round(r.ujTermeles)))   : null;
 
 // Negyedéves kártyák – évenkénti bontásban (csak ha van előzmény)
   let qKartyak = '';
@@ -3921,7 +3989,7 @@ const vanElozmenyadat = Object.keys(mt_sofarMonthly).length > 0;
       <div style="font-size:1rem;opacity:0.9;margin-bottom:0.5rem">📍 ${helyszin}</div>
       <div style="display:flex;gap:1rem;flex-wrap:wrap;font-size:0.85rem;opacity:0.8">
         <span>📅 Dokumentáció: ${datumStr}</span>
-        <span>⚡ ${kwp} kWp telepített kapacitás</span>
+        <span>⚡ ${kwp} kWp ${isBovites ? 'bővítés (kapacitás)' : 'telepített kapacitás'}</span>
         ${lat !== '—' ? `<span>🌍 ${lat}°N, ${lon}°E</span>` : ''}
       </div>
     </div>
@@ -3941,7 +4009,7 @@ const vanElozmenyadat = Object.keys(mt_sofarMonthly).length > 0;
   <div class="kpi-grid">
     <div class="kpi">
       <div class="kpi-val">${kwp}</div>
-      <div class="kpi-label">Telepített PV kapacitás (kWp)</div>
+      <div class="kpi-label">${kapacitasLabel} (kWp)</div>
     </div>
     <div class="kpi">
       <div class="kpi-val">${osszesTenyleges > 0 ? Math.round(osszesTenyleges).toLocaleString('hu-HU') : '—'}</div>
@@ -3954,11 +4022,11 @@ const vanElozmenyadat = Object.keys(mt_sofarMonthly).length > 0;
     </div>` : ''}
     <div class="kpi">
       <div class="kpi-val">${mt_pvgisData ? Math.round(mt_pvgisData.yearly).toLocaleString('hu-HU') : '—'}</div>
-      <div class="kpi-label">Várható éves termelés – PVGIS (kWh/év)</div>
+      <div class="kpi-label">${varhatoTermLabel}</div>
     </div>
     <div class="kpi">
       <div class="kpi-val">${megterulesEv ? megterulesEv+' év' : '>'+elettartam+' év'}</div>
-      <div class="kpi-label">Becsült megtérülési idő</div>
+      <div class="kpi-label">${megterulesLabel}</div>
     </div>
     <div class="kpi">
       <div class="kpi-val">${Math.round(elsoEvMegtak/1000*10)/10} eFt</div>
@@ -3978,10 +4046,10 @@ const vanElozmenyadat = Object.keys(mt_sofarMonthly).length > 0;
     <div class="info-card"><div class="info-label">Ügyfél neve</div><div class="info-val">${ugyfelNev}</div></div>
     <div class="info-card"><div class="info-label">Helyszín / Cím</div><div class="info-val">${helyszin}</div></div>
     <div class="info-card"><div class="info-label">GPS koordináták</div><div class="info-val">${lat !== '—' ? lat+'°N, '+lon+'°E' : '—'}</div></div>
-    <div class="info-card"><div class="info-label">Telepített kapacitás</div><div class="info-val">${kwp} kWp</div></div>
+    <div class="info-card"><div class="info-label">${kapacitasLabel}</div><div class="info-val">${kwp} kWp</div></div>
     <div class="info-card"><div class="info-label">Tető dőlésszög</div><div class="info-val">${tilt}°</div></div>
     <div class="info-card"><div class="info-label">Tájolás / Azimut</div><div class="info-val">${azimut}° ${azimut==0?'(Dél)':azimut<0?'(Kelet felé)':'(Nyugat felé)'}</div></div>
-    <div class="info-card"><div class="info-label">Rendszer ára (bruttó)</div><div class="info-val">${rendszerAr > 0 ? Math.round(rendszerAr).toLocaleString('hu-HU')+' Ft' : '—'}</div></div>
+    <div class="info-card"><div class="info-label">${arLabel}</div><div class="info-val">${rendszerAr > 0 ? Math.round(rendszerAr).toLocaleString('hu-HU')+' Ft' : '—'}</div></div>
     <div class="info-card"><div class="info-label">Fajlagos ár</div><div class="info-val">${rendszerAr > 0 && kwp > 0 ? Math.round(rendszerAr/kwp).toLocaleString('hu-HU')+' Ft/kWp' : '—'}</div></div>
     <div class="info-card"><div class="info-label">Éves degradáció</div><div class="info-val">${degradacio}%/év</div></div>
     <div class="info-card"><div class="info-label">PVGIS fajlagos termelés</div><div class="info-val">${mt_pvgisData ? Math.round(mt_pvgisData.yearly/kwp)+' kWh/kWp/év' : '—'}</div></div>
@@ -3989,7 +4057,17 @@ const vanElozmenyadat = Object.keys(mt_sofarMonthly).length > 0;
     <div class="info-card"><div class="info-label">Dokumentáció dátuma</div><div class="info-val">${datumStr}</div></div>
   </div>
   ${mt_sofarName ? `<div style="margin-top:1rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:1rem">
-    <strong>📊 SofarCloud azonosítás:</strong> ${mt_sofarName} &nbsp;|&nbsp; ${mt_sofarKwp ? mt_sofarKwp+' kWp telepített' : ''} &nbsp;|&nbsp; ${Object.keys(mt_sofarMonthly).length} hónap adat betöltve
+    <strong>📊 SofarCloud azonosítás (meglévő rendszer):</strong> ${mt_sofarName} &nbsp;|&nbsp; ${mt_sofarKwp ? mt_sofarKwp+' kWp telepített' : ''} &nbsp;|&nbsp; ${Object.keys(mt_sofarMonthly).length} hónap adat betöltve
+    ${(() => {
+      const invGroups = {};
+      (sofar_apiDevices || []).forEach(d => {
+        const key = d.deviceModelName || d.deviceModel || 'Ismeretlen inverter';
+        invGroups[key] = (invGroups[key] || 0) + 1;
+      });
+      const invHtml = Object.entries(invGroups).map(([name, cnt]) => `${cnt}× ${name}`).join(', ');
+      return invHtml ? `&nbsp;|&nbsp; Inverter(ek): ${invHtml}` : '';
+    })()}
+    ${isBovites ? `<br><span style="color:#1d4ed8;font-weight:600">🔧 Ez a dokumentum egy meglévő rendszer BŐVÍTÉSÉT elemzi – a fenti "${kapacitasLabel.toLowerCase()}" és "${arLabel.toLowerCase()}" kizárólag a bővítésre vonatkozik.</span>` : ''}
   </div>` : ''}
 </div>
 
@@ -4060,8 +4138,52 @@ ${rendszerAr > 0 ? `<div class="section">
 
 <!-- CASHFLOW GRAFIKON -->
 ${rendszerAr > 0 ? `<div class="section">
-  <div class="section-title">Kumulált Megtakarítás vs. Beruházás</div>
+  <div class="section-title">${isBovites ? 'Kumulált Többlet-megtakarítás vs. Bővítés Ára' : 'Kumulált Megtakarítás vs. Beruházás'}</div>
   <div class="chart-wrap"><canvas id="chart-cashflow"></canvas></div>
+</div>` : ''}
+
+<!-- RENDSZERBŐVÍTÉS – JELENLEGI VS. BŐVÍTÉSSEL -->
+${isBovites ? `<div class="section">
+  <div class="section-title">Rendszerbővítés – Jelenlegi vs. Bővítéssel</div>
+  <div class="kpi-grid" style="margin-bottom:1.25rem">
+    <div class="kpi"><div class="kpi-val">${mt_sofarKwp}</div><div class="kpi-label">Meglévő rendszer kapacitása (kWp)</div></div>
+    <div class="kpi"><div class="kpi-val">${kwp}</div><div class="kpi-label">Bővítés kapacitása (kWp)</div></div>
+    <div class="kpi"><div class="kpi-val">${Math.round(rendszerAr/1000).toLocaleString('hu-HU')} eFt</div><div class="kpi-label">Bővítés bruttó ára</div></div>
+    <div class="kpi"><div class="kpi-val">${fmt(cashflow[0].ujTermeles)}</div><div class="kpi-label">Várható többlettermelés (1. év, kWh)</div></div>
+    <div class="kpi"><div class="kpi-val">${Math.round(cashflow[0].tobbletMegtak/1000*10)/10} eFt</div><div class="kpi-label">Várható többletmegtakarítás (1. év)</div></div>
+    <div class="kpi"><div class="kpi-val">${megterulesEv ? megterulesEv+' év' : '>'+elettartam+' év'}</div><div class="kpi-label">Bővítés megtérülési ideje</div></div>
+  </div>
+  <div class="chart-wrap" style="margin-bottom:1.25rem"><canvas id="chart-bovites-termeles"></canvas></div>
+  <div style="overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>Év</th>
+        <th style="text-align:right">Jelenlegi (kWh)</th>
+        <th style="text-align:right">Bővítéssel (kWh)</th>
+        <th style="text-align:right">Éves többletmegtak.</th>
+        <th style="text-align:right">Kum. többletmegtak.</th>
+        <th style="text-align:center">Státusz</th>
+      </tr></thead>
+      <tbody>${cashflow.map(r => `<tr style="${r.ev === megterulesEv ? 'background:#16a34a15;font-weight:700' : ''}">
+        <td>${r.calendarYear}</td>
+        <td style="text-align:right">${fmt(r.regiTermeles)} kWh</td>
+        <td style="text-align:right">${fmt(r.kombinaltTermeles)} kWh</td>
+        <td style="text-align:right">${fmtFt(r.tobbletMegtak)}</td>
+        <td style="text-align:right;font-weight:600;color:#1a3a5c">${fmtFt(r.kumTobbletMegtak)}</td>
+        <td style="text-align:center">${r.ev === megterulesEv ? '<span style="background:#16a34a;color:#fff;padding:2px 8px;border-radius:12px;font-size:0.75rem">✅ MEGTÉRÜLT</span>' : Math.round((r.kumTobbletMegtak/rendszerAr)*100)+'%'}</td>
+      </tr>`).join('')}
+      <tr class="total-row">
+        <td>ÖSSZESEN (${elettartam} év)</td><td></td><td></td>
+        <td style="text-align:right">${fmtFt(kumTobbletMegtak)}</td><td></td>
+        <td style="text-align:center">${megterulesEv ? '✅ '+megterulesEv+'. évben megtérül' : '⚠️'}</td>
+      </tr>
+    </table>
+  </div>
+  <div style="margin-top:1rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:1rem;font-size:0.85rem">
+    <strong>📝 Módszertan:</strong> A meglévő rendszer termelése a SofarCloud tényleges mért adatain alapul (${betoltottEvek} betöltött év), a bővítés várható termelését a mért fajlagos hozam
+    (${specificYield ? Math.round(specificYield).toLocaleString('hu-HU') : '—'} kWh/kWp/év) és a ${degradacio}%/év degradáció alapján becsültük. A többlet-megtakarítás a kombinált (jelenlegi+bővítés)
+    és a jelenlegi rendszer megtakarításának különbsége, így helyesen figyelembe veszi, ha a fogyasztást a meglévő rendszer már részben vagy teljesen lefedte.
+  </div>
 </div>` : ''}
 
 <!-- PVGIS ELEMZÉS -->
@@ -4124,7 +4246,7 @@ ${mt_pvgisData ? `<div class="section">
 
 <!-- FOOTER -->
 <div style="text-align:center;color:#666;font-size:0.78rem;padding:1.5rem;border-top:1px solid #e5e7eb;margin-top:1rem">
-  Dokumentáció készítette: Solar Future – SofarCloud monitoring alapján &nbsp;|&nbsp; Dátum: ${datumStr} &nbsp;|&nbsp; PVGIS 5.3 – European Commission JRC
+  Dokumentáció készítette: Solar Future – SofarCloud monitoring alapján &nbsp;|&nbsp; Dátum: ${datumStr} &nbsp;|&nbsp; Kalkulátor verzió: ${APP_VERSION} &nbsp;|&nbsp; PVGIS 5.3 – European Commission JRC
 </div>
 
 </div><!-- /page -->
@@ -4151,11 +4273,25 @@ new Chart(document.getElementById('chart-cashflow'), {
   data: {
     labels: ${chartEvesLabels},
     datasets: [
-      { label: 'Kumulált megtakarítás', data: ${chartEvesKum}, borderColor:'#16a34a', backgroundColor:'rgba(22,163,74,0.1)', fill:true, tension:0.3 },
-      { label: 'Beruházás (${rendszerAr > 0 ? Math.round(rendszerAr).toLocaleString('hu-HU') : 0} Ft)', data: Array(${elettartam}).fill(${Math.round(rendszerAr)}), borderColor:'#dc2626', borderDash:[6,4], borderWidth:2, pointRadius:0, fill:false }
+      { label: '${isBovites ? 'Kumulált többlet-megtakarítás' : 'Kumulált megtakarítás'}', data: ${chartEvesKum}, borderColor:'#16a34a', backgroundColor:'rgba(22,163,74,0.1)', fill:true, tension:0.3 },
+      { label: '${isBovites ? 'Bővítés ára' : 'Beruházás'} (${rendszerAr > 0 ? Math.round(rendszerAr).toLocaleString('hu-HU') : 0} Ft)', data: Array(${elettartam}).fill(${Math.round(rendszerAr)}), borderColor:'#dc2626', borderDash:[6,4], borderWidth:2, pointRadius:0, fill:false }
     ]
   },
   options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ font:{size:12} } } }, scales:{ y:{ ticks:{ callback: v => Math.round(v/1000).toLocaleString('hu-HU')+' eFt' } } } }
+});` : ''}
+
+${isBovites ? `
+// Jelenlegi vs bővítéssel éves termelés grafikon
+new Chart(document.getElementById('chart-bovites-termeles'), {
+  type: 'bar',
+  data: {
+    labels: ${chartEvesLabels},
+    datasets: [
+      { label: 'Jelenlegi rendszer (kWh)', data: ${chartBovitesRegi}, backgroundColor: 'rgba(148,163,184,0.6)', borderColor:'#94A3B8', borderWidth:1, borderRadius:4, stack:'termeles' },
+      { label: 'Bővítés többlete (kWh)', data: ${chartBovitesUj}, backgroundColor: 'rgba(247,166,0,0.75)', borderColor:'#F7A600', borderWidth:1, borderRadius:4, stack:'termeles' }
+    ]
+  },
+  options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ font:{size:12} } } }, scales:{ x:{ stacked:true }, y:{ stacked:true, ticks:{ callback: v => Math.round(v).toLocaleString('hu-HU')+' kWh' } } } }
 });` : ''}
 
 ${mt_pvgisData ? `
