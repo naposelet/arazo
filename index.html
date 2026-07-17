@@ -5,6 +5,23 @@
   Verzió: ld. APP_VERSION állandó a JS elején (egyetlen hely, ahol a verziószámot módosítani kell)
   Utolsó módosítás: 2026-07-10 (Budapest)
 
+  Változások v2.56-ban (ÚJ FUNKCIÓ):
+  - "Mi vs. a piac" 18 éves összehasonlítás a Megtérülés kalkulátorban (csak Új
+    rendszer módban, Bővítésnél nem releváns): saját (12 év szervízgaranciás)
+    rendszerünk vs. egy admin-állítható %-kal olcsóbb versenytárs-rendszer
+    kumulált nettó haszna. A versenytárs rendszerén az 5. évtől (állítható)
+    2-3 évente váltakozva megjelenik egy karbantartási költség (állítható
+    összeg), a saját rendszerünkön ez csak a garanciális időszak (alapból 12
+    év, állítható) UTÁN jelenik meg, onnantól ugyanarra az ütemezésre
+    csatlakozva. Új admin beállítások: verseny_kedvezmeny_pct,
+    verseny_karbantartas_kezdes, verseny_karbantartas_koltseg,
+    verseny_sajat_garancia_ev. A Megtérülés tabon is látszik + módosítható
+    egy adott ajánlathoz, alapból az admin-értékekkel feltöltve.
+  - A PDF riportba bekerült egy marketing-szekció (12 év szervízgarancia a
+    piaci átlag 3-5 év helyett; teljes körű ügyintézés meghibásodás esetén,
+    beleértve a gyártói garanciális ügyeket is) + egy nagyobb, részletesebb
+    verziója a "Mi vs. a piac" grafikonnak.
+
   Változások v2.55-ben (MÉG EGY KRITIKUS JAVÍTÁS):
   - A setCalcMode() eddig MINDIG mentett is, akkor is, ha csak UI-szinkronizálás
     miatt hívódott meg (belépéskor, mielőtt a Sheets adat megérkezett volna) –
@@ -1094,6 +1111,54 @@
           </table>
         </div>
       </div>
+
+      <!-- Mi vs. a piac – csak Új rendszer módban -->
+      <div class="mt-card" id="verseny-card" style="display:none;border:1px solid var(--sun)">
+        <h3>🆚 Mi vs. a piac – 18 éves összehasonlítás</h3>
+        <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.75rem">
+          Bemutatja, hogy egy nálunk olcsóbb, idegen cég által telepített rendszerhez képest hosszú távon miért éri meg a Solar Future 12 éves szervízgaranciás rendszerét választani. Az alábbi értékek az admin felületen beállított alapértékek – itt, egy adott ajánlathoz igazíthatod is őket.
+        </div>
+        <div class="mt-grid-3" style="margin-bottom:0.75rem">
+          <div class="mt-field">
+            <label>Versenytárs ára ennyivel olcsóbb (%)</label>
+            <input type="number" id="verseny-kedvezmeny" min="0" max="60" step="1" oninput="mt_recalculate()">
+          </div>
+          <div class="mt-field">
+            <label>Karbantartás kezdete (év)</label>
+            <input type="number" id="verseny-karb-kezdes" min="1" max="15" step="1" oninput="mt_recalculate()">
+          </div>
+          <div class="mt-field">
+            <label>Karbantartási költség (Ft/alkalom)</label>
+            <input type="number" id="verseny-karb-koltseg" min="0" step="10000" oninput="mt_recalculate()">
+          </div>
+        </div>
+        <div class="mt-grid-3" style="margin-bottom:1rem">
+          <div class="mt-field">
+            <label>Saját szervízgarancia hossza (év)</label>
+            <input type="number" id="verseny-garancia" min="1" max="20" step="1" oninput="mt_recalculate()">
+          </div>
+        </div>
+
+        <div class="mt-result-grid" style="margin-bottom:1rem">
+          <div class="mt-kpi highlight">
+            <div class="mt-kpi-label">Előnyünk 18 év alatt</div>
+            <div class="mt-kpi-value" id="verseny-elony">—</div>
+            <div class="mt-kpi-sub">összes nettó haszon különbsége</div>
+          </div>
+          <div class="mt-kpi">
+            <div class="mt-kpi-label">Saját rendszer ára</div>
+            <div class="mt-kpi-value white" id="verseny-sajat-ar">—</div>
+          </div>
+          <div class="mt-kpi">
+            <div class="mt-kpi-label">Versenytárs ára</div>
+            <div class="mt-kpi-value white" id="verseny-piaci-ar">—</div>
+          </div>
+        </div>
+
+        <div class="mt-chart-wrap">
+          <canvas id="mt-chart-verseny"></canvas>
+        </div>
+      </div>
  
     </div><!-- /mt-results -->
  
@@ -1310,7 +1375,7 @@ function applySharedSettings() {
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.55 – 2026-07-10';
+const APP_VERSION = 'v2.56 – 2026-07-10';
 const APP_VERSION_HISTORY = [
   'v2.1 (2026-05-29): Megtérülés kalkulátor, PVGIS integráció',
   'v2.3 (2026-05-29): Sávos áramár, cashflow táblázat, grafikonok',
@@ -1330,6 +1395,7 @@ const APP_VERSION_HISTORY = [
   'v2.53 (2026-07-10): Hibajavítás – ha a Megtérülés tabon állva kattintott valaki az Admin gombra, a showAdmin() nem rejtette el a Megtérülés nézetet, ezért az admin panel a hosszú Megtérülés-tartalom ALATT jelent meg (úgy tűnt, mintha semmi nem történne kattintáskor). Emellett admin nézetből az "Árazó" fülre kattintva korábban nem záródott be az admin panel (hibás feltétel). Mindkettő javítva.',
   'v2.54 (2026-07-10): KRITIKUS JAVÍTÁS – versenyhelyzet (race condition) a megosztott beállítások "bootstrap" (első feltöltés) logikájában: ha a Sheets "Beallitasok" lapján még nem volt calc_settings kulcs, a bootstrap MINDEN oldalbetöltéskor újrafutott, ami néha felülírta (visszaállította) egy admin frissen mentett kalkulátor-mód / ár-láthatóság / egyéb beállítását a régi, helyi értékre. Mostantól a bootstrap egy tartós (localStorage) jelzővel csak EGYETLEN egyszer fut le böngészőnként, örökre. Emellett az admin "Kalkulátorok módja" gombjaihoz visszajelző toast üzenet került, hogy látszódjon, tényleg elindult a mentés.',
   'v2.55 (2026-07-10): MÉG EGY KRITIKUS JAVÍTÁS – a setCalcMode() eddig MINDIG mentett is (localStorage + Sheets), akkor is, ha csak a felület szinkronizálása miatt hívódott meg (pl. belépéskor, mielőtt a Sheets-ből megérkezett volna a valós kalkulátor-mód). Emiatt a beépített "regi" alapérték minden bejelentkezéskor visszaíródott a Sheets-be, felülírva a ténylegesen beállított "uj" módot. Mostantól setCalcMode(mode, persist) kap egy persist paramétert – csak explicit admin-módosításkor ment, sima UI-szinkronizáláskor (initModeUI) nem. JSONP timeout 10s→20s (a Beallitasok lap olvasása miatt lassabb lehet a válasz, ami időnként hamis "Offline mód" üzenetet okozott).',
+  'v2.56 (2026-07-10): ÚJ FUNKCIÓ – "Mi vs. a piac" 18 éves összehasonlító elemzés a Megtérülés kalkulátorban (csak Új rendszer módban): saját (12 év szervízgaranciás) rendszerünk és egy admin-állítható %-kal olcsóbb versenytárs-rendszer kumulált nettó hasznát veti össze, figyelembe véve a versenytárs időszakos (2-3 évente váltakozó) karbantartási költségét, amivel a saját rendszerünk a garanciális időszak (alapból 12 év) alatt nem terhelődik – utána mindkét rendszer ugyanarra az ütemezésre csatlakozik. Admin beállítások: verseny_kedvezmeny_pct, verseny_karbantartas_kezdes, verseny_karbantartas_koltseg, verseny_sajat_garancia_ev. A PDF riportba egy marketingszöveg (12 év szervízgarancia, teljes körű – gyártói garanciát is intéző – ügyintézés) és egy nagyobb, részletesebb verziója a grafikonnak kerül be.',
 ];
 
 // Verzió kiírása minden előforduláshoz
@@ -1361,6 +1427,26 @@ const CALC_SETTINGS = {
   nap_hatar_3:      { label: '3 nap kW határ – Új', value: 60.1, min: 15, max: 150, step: 0.1, desc: '60,1 kW-ig 3 nap.', mode: 'uj' },
   nap_hatar_4:      { label: '4 nap kW határ – Új', value: 80.1, min: 20, max: 200, step: 0.1, desc: '80,1 kW-ig 4 nap.', mode: 'uj' },
   nap_hatar_5:      { label: '5 nap kW határ – Új', value: 100.1, min: 25, max: 250, step: 0.1, desc: '100,1 kW-ig 5 nap.', mode: 'uj' },
+  // PIACI ÖSSZEHASONLÍTÁS (Megtérülés riport – csak Új rendszer módban)
+  verseny_kedvezmeny_pct: { label: 'Versenytárs ára – ennyivel olcsóbb (%)', value: 20, min: 0, max: 60, step: 1, desc: 'A "piaci összehasonlítás" grafikonon az idegen cég rendszere ennyi %-kal olcsóbbnak van feltüntetve a saját árunknál.', mode: 'verseny' },
+  verseny_karbantartas_kezdes: { label: 'Karbantartási költség kezdete (év)', value: 5, min: 1, max: 15, step: 1, desc: 'Az idegen cég rendszerén ettől az évtől jelenik meg időszakos karbantartási költség (2-3 évente váltakozva).', mode: 'verseny' },
+  verseny_karbantartas_koltseg: { label: 'Karbantartási költség (Ft/alkalom)', value: 250000, min: 50000, max: 1000000, step: 10000, desc: 'Egy-egy karbantartási alkalom becsült költsége.', mode: 'verseny' },
+  verseny_sajat_garancia_ev: { label: 'Saját szervízgarancia hossza (év)', value: 12, min: 1, max: 20, step: 1, desc: 'Eddig az évig a saját rendszerünkön nincs karbantartási költség (díjmentes szervízgarancia). Utána a saját rendszer is ugyanarra a karbantartási ütemezésre csatlakozik, mint az idegen cégé.', mode: 'verseny' },
+};
+
+// ============================================================
+// VERSENY-ÖSSZEHASONLÍTÁS (Megtérülés riport – "saját vs. idegen kivitelezés")
+// Csak Új rendszer módban aktív. A Megtérülés tabon és a PDF riportban egyaránt
+// megjelenik: a saját (12 éves garanciás) rendszerünket veti össze egy feltételezett,
+// olcsóbb, de karbantartás-igényesebb idegen kivitelezésű rendszerrel.
+// ============================================================
+const MT_COMPARE_SETTINGS = {
+  verseny_kedvezmeny_pct: { label: 'Idegen kivitelező ár-kedvezménye (%)', value: 20, min: 0, max: 50, step: 1, desc: 'Az idegen (versenytárs) cég ára ennyivel olcsóbb, mint a miénk, a saját rendszerünk áraiból számolva.' },
+  karbantartas_kezdes_ev: { label: 'Karbantartási költség kezdő éve (idegen rendszernél)', value: 5, min: 1, max: 18, step: 1, desc: 'Ettől az évtől kezdve jelenik meg karbantartási költség az idegen kivitelezésű rendszernél.' },
+  karbantartas_koz_1:     { label: 'Karbantartási időköz A (év)', value: 2, min: 1, max: 10, step: 1, desc: 'Váltakozó ütemezés első időköze (pl. 2 év) – A és B felváltva ismétlődik (2,3,2,3…).' },
+  karbantartas_koz_2:     { label: 'Karbantartási időköz B (év)', value: 3, min: 1, max: 10, step: 1, desc: 'Váltakozó ütemezés második időköze (pl. 3 év).' },
+  karbantartas_koltseg:   { label: 'Karbantartási költség (Ft/alkalom)', value: 250000, min: 0, max: 2000000, step: 10000, desc: 'Egy-egy karbantartási esemény becsült költsége.' },
+  sajat_garancia_ev:      { label: 'Saját rendszer díjmentes szervizgarancia (év)', value: 12, min: 1, max: 20, step: 1, desc: 'Eddig az évig a mi rendszerünknél nincs karbantartási költség. Utána ugyanarra az ütemezésre áll rá, mint az idegen rendszer.' },
 };
  
 // Napok számítása az Új módban
@@ -2976,6 +3062,7 @@ function renderCalcSettings() {
   let regiHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">📐 Régi számítás paraméterei</div><div style="display:grid;gap:0.5rem">';
   let ujHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">🆕 Új számítás paraméterei</div><div style="display:grid;gap:0.5rem">';
   let bothHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">⚙️ Közös paraméterek</div><div style="display:grid;gap:0.5rem">';
+  let versenyHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">🆚 Piaci összehasonlítás (Megtérülés riport, csak Új rendszer módban)</div><div style="display:grid;gap:0.5rem">';
 
   Object.entries(CALC_SETTINGS).forEach(([key, s]) => {
     const row = `<div style="background:var(--bg);border:1px solid var(--border);border-radius:0.75rem;padding:0.75rem">
@@ -2989,14 +3076,16 @@ function renderCalcSettings() {
     </div>`;
     if (s.mode === 'both') bothHtml += row;
     else if (s.mode === 'regi') regiHtml += row;
-    else ujHtml += row;
+    else if (s.mode === 'uj') ujHtml += row;
+    else if (s.mode === 'verseny') versenyHtml += row;
   });
 
   regiHtml += '</div></div>';
   ujHtml += '</div></div>';
   bothHtml += '</div></div>';
+  versenyHtml += '</div></div>';
 
-  grid.innerHTML = modeHtml + arVisHtml + bothHtml + regiHtml + ujHtml;
+  grid.innerHTML = modeHtml + arVisHtml + bothHtml + regiHtml + ujHtml + versenyHtml;
   updateCalcPreview();
 }
  
@@ -3648,6 +3737,139 @@ function mt_renderInfoBar(evesKwh, sajatTermeles, isBovites) {
   infobar.style.display = 'block';
 }
 
+// ============================================================
+// MI VS. A PIAC – VERSENYTÁRS-ÖSSZEHASONLÍTÁS (csak Új rendszer módban)
+// ============================================================
+// Karbantartási évek generálása: kezdesEv-től, 2-3-2-3... váltakozó gyakorisággal,
+// a ciklusEv-ig (pl. kezdesEv=5 → 5,7,10,12,15,17...)
+function mt_computeVersenyKarbantartasEvek(kezdesEv, ciklusEv) {
+  const evek = new Set();
+  let y = kezdesEv;
+  if (y >= 1 && y <= ciklusEv) evek.add(y);
+  const gaps = [2, 3];
+  let gi = 0;
+  while (y < ciklusEv) {
+    y += gaps[gi % 2];
+    if (y <= ciklusEv) evek.add(y);
+    gi++;
+  }
+  return evek;
+}
+
+let mt_chartVerseny = null;
+let mt_versenyData = null; // a riport (PDF) is ezt olvassa ki
+
+function mt_recalcVerseny() {
+  const card = document.getElementById('verseny-card');
+  if (!card) return;
+
+  const isBovites = !!(mt_sofarKwp && mt_sofarKwp > 0 && Object.keys(mt_sofarMonthly).length > 0);
+  if (isBovites) { card.style.display = 'none'; mt_versenyData = null; return; }
+
+  const kwp        = parseFloat(document.getElementById('mt-kwp').value) || 0;
+  const rendszerAr = parseFloat(document.getElementById('mt-rendszer-ar').value) || 0;
+  const evesKwh    = mt_getEvesKwhFogyasztas();
+  const degradacio = parseFloat(document.getElementById('mt-degradacio').value) || 0.5;
+
+  if (!kwp || !rendszerAr || !evesKwh) { card.style.display = 'none'; mt_versenyData = null; return; }
+
+  card.style.display = 'block';
+
+  // Input mezők – ha még üresek, admin alapértékkel töltjük fel (egyszeri inicializálás)
+  const kedvEl     = document.getElementById('verseny-kedvezmeny');
+  const kezdesEl   = document.getElementById('verseny-karb-kezdes');
+  const koltsegEl  = document.getElementById('verseny-karb-koltseg');
+  const garanciaEl = document.getElementById('verseny-garancia');
+  if (kedvEl.value === '')     kedvEl.value     = CALC_SETTINGS.verseny_kedvezmeny_pct.value;
+  if (kezdesEl.value === '')   kezdesEl.value   = CALC_SETTINGS.verseny_karbantartas_kezdes.value;
+  if (koltsegEl.value === '')  koltsegEl.value  = CALC_SETTINGS.verseny_karbantartas_koltseg.value;
+  if (garanciaEl.value === '') garanciaEl.value = CALC_SETTINGS.verseny_sajat_garancia_ev.value;
+
+  const kedvezmenyPct = parseFloat(kedvEl.value) || 0;
+  const karbKezdes    = parseInt(kezdesEl.value) || 5;
+  const karbKoltseg   = parseFloat(koltsegEl.value) || 0;
+  const garanciaEv    = parseInt(garanciaEl.value) || 12;
+
+  const CIKLUS = 18; // fix 18 éves vizsgálati ciklus ehhez az elemzéshez
+  const evesTermeles = mt_pvgisData ? mt_pvgisData.yearly : (kwp * 1000);
+  const versenyAr = rendszerAr * (1 - kedvezmenyPct / 100);
+
+  const karbEvek = mt_computeVersenyKarbantartasEvek(karbKezdes, CIKLUS);
+
+  let cumSajat   = -rendszerAr;
+  let cumVerseny = -versenyAr;
+  const labels = [], sajatSor = [], versenySor = [], sajatKarbSor = [], versenyKarbSor = [];
+
+  for (let ev = 1; ev <= CIKLUS; ev++) {
+    const degradFactor = Math.pow(1 - degradacio / 100, ev - 1);
+    const termeles = evesTermeles * degradFactor;
+    const megtak = mt_getEvesMegtakaritas(termeles, evesKwh);
+
+    const karbEbbenAzEvben = karbEvek.has(ev);
+    const versenyKarb = karbEbbenAzEvben ? karbKoltseg : 0;
+    // 12 (garanciaEv) év után a saját rendszer is ugyanarra az ütemezésre csatlakozik
+    const sajatKarb = (karbEbbenAzEvben && ev > garanciaEv) ? karbKoltseg : 0;
+
+    cumSajat   += megtak - sajatKarb;
+    cumVerseny += megtak - versenyKarb;
+
+    labels.push(ev);
+    sajatSor.push(Math.round(cumSajat));
+    versenySor.push(Math.round(cumVerseny));
+    sajatKarbSor.push(sajatKarb);
+    versenyKarbSor.push(versenyKarb);
+  }
+
+  const fmt = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
+  document.getElementById('verseny-sajat-ar').textContent = fmt(rendszerAr);
+  document.getElementById('verseny-piaci-ar').textContent = fmt(versenyAr);
+  const elony = sajatSor[sajatSor.length - 1] - versenySor[versenySor.length - 1];
+  const elonyEl = document.getElementById('verseny-elony');
+  elonyEl.textContent = (elony >= 0 ? '+' : '') + fmt(elony);
+  elonyEl.style.color = elony >= 0 ? 'var(--green)' : 'var(--red)';
+
+  mt_drawVersenyChart(labels, sajatSor, versenySor);
+
+  // A PDF riport is ezt olvassa ki
+  mt_versenyData = {
+    labels, sajatSor, versenySor, sajatKarbSor, versenyKarbSor,
+    rendszerAr, versenyAr, karbKoltseg, karbKezdes, garanciaEv, kedvezmenyPct, elony, ciklus: CIKLUS
+  };
+}
+
+function mt_drawVersenyChart(labels, sajatSor, versenySor) {
+  if (mt_chartVerseny) mt_chartVerseny.destroy();
+  const ctx = document.getElementById('mt-chart-verseny');
+  if (!ctx) return;
+  mt_chartVerseny = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels.map(y => y + '. év'),
+      datasets: [
+        {
+          label: 'Solar Future rendszerünk (12 év szervízgaranciával)',
+          data: sajatSor, borderColor: '#F7A600', backgroundColor: 'rgba(247,166,0,0.12)',
+          fill: true, tension: 0.3, pointRadius: 2, borderWidth: 3,
+        },
+        {
+          label: 'Idegen cég rendszere (olcsóbb, karbantartási költséggel)',
+          data: versenySor, borderColor: '#94A3B8', backgroundColor: 'rgba(148,163,184,0.08)',
+          fill: true, tension: 0.3, pointRadius: 2, borderWidth: 2, borderDash: [5, 3],
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#94A3B8', font: { size: 11 } } } },
+      scales: {
+        x: { ticks: { color: '#94A3B8', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+        y: { ticks: { color: '#94A3B8', font: { size: 10 }, callback: v => Math.round(v/1000).toLocaleString('hu-HU') + ' eFt' },
+             grid: { color: 'rgba(255,255,255,0.05)' } }
+      }
+    }
+  });
+}
+
 function mt_recalculate() {
   const kwp         = parseFloat(document.getElementById('mt-kwp').value) || 0;
   const rendszerAr  = parseFloat(document.getElementById('mt-rendszer-ar').value) || 0;
@@ -3664,6 +3886,9 @@ function mt_recalculate() {
     document.getElementById('mt-results').style.display = 'none';
     document.getElementById('mt-empty').style.display   = 'block';
     document.getElementById('mt-bovites-infobar').style.display = 'none';
+    const versenyCardEl0 = document.getElementById('verseny-card');
+    if (versenyCardEl0) versenyCardEl0.style.display = 'none';
+    mt_versenyData = null;
     mt_updateArInfo(evesKwh);
     return;
   }
@@ -3764,6 +3989,7 @@ function mt_recalculate() {
     });
 
     mt_renderInfoBar(evesKwh, evesTermeles, false);
+    mt_recalcVerseny();
 
   } else {
     // ============================================================
@@ -3887,6 +4113,9 @@ function mt_recalculate() {
     });
 
     mt_renderInfoBar(evesKwh, cashflow[0].regiTermeles, true);
+    const versenyCardEl = document.getElementById('verseny-card');
+    if (versenyCardEl) versenyCardEl.style.display = 'none';
+    mt_versenyData = null;
   }
 }
 
@@ -4679,6 +4908,59 @@ const vanElozmenyadat = Object.keys(mt_sofarMonthly).length > 0;
 
 <div class="page">
 
+<!-- MARKETING / DIFFERENCIÁLÁS -->
+<div class="section" style="background:linear-gradient(135deg,#fff7ed,#fef3c7);border:2px solid #f7a600">
+  <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem">
+    <span style="font-size:2rem">🛡️</span>
+    <div>
+      <div style="font-size:1.2rem;font-weight:800;color:#92400e">12 év szervízgarancia – nem ér véget a kapcsolatunk a telepítéssel</div>
+      <div style="font-size:0.8rem;color:#a16207">Solar Future – megbízhatóság, ami hosszú távon is kifizetődik</div>
+    </div>
+  </div>
+  <p style="font-size:0.92rem;line-height:1.7;color:#451a03;margin-bottom:1rem">
+    A piacon megszokott kivitelezői garancia jellemzően <strong>3–5 év</strong> – utána az ügyfél a legtöbb helyen magára marad a rendszerével. A Solar Future ennél sokkal tovább, <strong>12 éven át</strong> szoros figyelemmel kíséri az Ön rendszerének állapotát és teljesítményét. Ugyanazokkal a kiváló minőségű napelemekkel és alkatrészekkel dolgozunk, mint bárki más a piacon – a különbség abban van, hogy mi <strong>12 éven át melletted maradunk</strong>.
+  </p>
+  <p style="font-size:0.92rem;line-height:1.7;color:#451a03;margin-bottom:0.5rem">
+    Ha bármi rendellenességet észlelünk – legyen szó akár egy meghibásodott panelről, akár egy inverter-problémáról –, a <strong>gyártói garanciális ügyintézést is mi visszük végig</strong>: Önnek nem kell utánajárnia semmilyen papírmunkának. Ez a fajta kiszámíthatóság és nyugalom az, ami hosszú távon mindig megéri.
+  </p>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0.75rem;margin-top:1.25rem">
+    <div style="background:#fff;border-radius:10px;padding:0.85rem;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.06)">
+      <div style="font-size:1.5rem">🛡️</div>
+      <div style="font-weight:700;color:#92400e;font-size:0.95rem;margin-top:0.3rem">12 év szervízgarancia</div>
+      <div style="font-size:0.72rem;color:#666;margin-top:0.2rem">a piaci átlag 3–5 év helyett</div>
+    </div>
+    <div style="background:#fff;border-radius:10px;padding:0.85rem;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.06)">
+      <div style="font-size:1.5rem">🔧</div>
+      <div style="font-weight:700;color:#92400e;font-size:0.95rem;margin-top:0.3rem">Teljes körű ügyintézés</div>
+      <div style="font-size:0.72rem;color:#666;margin-top:0.2rem">gyártói garanciát is mi intézzük</div>
+    </div>
+    <div style="background:#fff;border-radius:10px;padding:0.85rem;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.06)">
+      <div style="font-size:1.5rem">📈</div>
+      <div style="font-weight:700;color:#92400e;font-size:0.95rem;margin-top:0.3rem">Folyamatos figyelés</div>
+      <div style="font-size:0.72rem;color:#666;margin-top:0.2rem">a rendszer állapota és teljesítménye</div>
+    </div>
+    <div style="background:#fff;border-radius:10px;padding:0.85rem;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.06)">
+      <div style="font-size:1.5rem">🤝</div>
+      <div style="font-weight:700;color:#92400e;font-size:0.95rem;margin-top:0.3rem">Ugyanaz a csapat</div>
+      <div style="font-size:0.72rem;color:#666;margin-top:0.2rem">a telepítéstől 12 éven át melletted</div>
+    </div>
+  </div>
+</div>
+
+<!-- MI VS. A PIAC -->
+${(!isBovites && mt_versenyData) ? `<div class="section">
+  <div class="section-title">Mi vs. a piac – ${mt_versenyData.ciklus} éves összehasonlítás</div>
+  <p style="font-size:0.88rem;color:#444;margin-bottom:1rem;line-height:1.6">
+    Egy versenytárs rendszere induláskor kb. ${mt_versenyData.kedvezmenyPct}%-kal olcsóbb lehet, ám a legtöbb piaci szereplőnél már a(z) ${mt_versenyData.karbKezdes}. évtől megjelennek az időszakos karbantartási költségek (kb. ${Math.round(mt_versenyData.karbKoltseg).toLocaleString('hu-HU')} Ft alkalmanként, 2-3 évente). A Solar Future rendszerén ezzel szemben ${mt_versenyData.garanciaEv} évig nincs ilyen jellegű költség – az alábbi grafikon mutatja, hogyan alakul emiatt a két rendszer kumulált nettó haszna a teljes ${mt_versenyData.ciklus} éves ciklus alatt.
+  </p>
+  <div class="chart-wrap" style="height:380px"><canvas id="chart-verseny-riport"></canvas></div>
+  <div style="margin-top:1rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0.75rem">
+    <div class="info-card"><div class="info-label">Saját rendszer ára</div><div class="info-val">${Math.round(mt_versenyData.rendszerAr).toLocaleString('hu-HU')} Ft</div></div>
+    <div class="info-card"><div class="info-label">Versenytárs ára (becsült)</div><div class="info-val">${Math.round(mt_versenyData.versenyAr).toLocaleString('hu-HU')} Ft</div></div>
+    <div class="info-card" style="border-left-color:#16a34a"><div class="info-label">Előnyünk ${mt_versenyData.ciklus} év alatt</div><div class="info-val" style="color:#16a34a">${mt_versenyData.elony >= 0 ? '+' : ''}${Math.round(mt_versenyData.elony).toLocaleString('hu-HU')} Ft</div></div>
+  </div>
+</div>` : ''}
+
 <!-- KPI KÁRTYÁK -->
 <div class="section">
   <div class="section-title">Kulcsmutatók</div>
@@ -4979,6 +5261,20 @@ new Chart(document.getElementById('chart-pvgis'), {
     datasets: [{ label: 'PVGIS várható havi termelés (kWh)', data: ${chartHaviPvgis}, borderColor:'#f7a600', backgroundColor:'rgba(247,166,0,0.2)', fill:true, tension:0.4, borderWidth:2 }]
   },
   options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ font:{size:12} } } }, scales:{ y:{ ticks:{ callback: v => v+' kWh' } } } }
+});` : ''}
+
+${(!isBovites && mt_versenyData) ? `
+// Mi vs. a piac grafikon
+new Chart(document.getElementById('chart-verseny-riport'), {
+  type: 'line',
+  data: {
+    labels: ${JSON.stringify(mt_versenyData.labels.map(y => y + '. év'))},
+    datasets: [
+      { label: 'Solar Future rendszerünk (12 év szervízgaranciával)', data: ${JSON.stringify(mt_versenyData.sajatSor)}, borderColor:'#f7a600', backgroundColor:'rgba(247,166,0,0.15)', fill:true, tension:0.3, borderWidth:3, pointRadius:2 },
+      { label: 'Idegen cég rendszere (olcsóbb, karbantartási költséggel)', data: ${JSON.stringify(mt_versenyData.versenySor)}, borderColor:'#94a3b8', backgroundColor:'rgba(148,163,184,0.08)', fill:true, tension:0.3, borderWidth:2, borderDash:[6,4], pointRadius:2 }
+    ]
+  },
+  options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ font:{size:13} } } }, scales:{ y:{ ticks:{ callback: v => Math.round(v/1000).toLocaleString('hu-HU')+' eFt' } } } }
 });` : ''}
 <\/script>
 </body>
