@@ -5,6 +5,13 @@
   Verzió: ld. APP_VERSION állandó a JS elején (egyetlen hely, ahol a verziószámot módosítani kell)
   Utolsó módosítás: 2026-07-10 (Budapest)
 
+  Változások v2.53-ban:
+  - Hibajavítás: Megtérülés tabról Admin gombra kattintva a showAdmin() korábban
+    nem rejtette el a #megterules-view-t, ezért az admin panel a hosszú Megtérülés-
+    tartalom ALATT jelent meg (kattintásra vizuálisan "nem történt semmi").
+  - Hibajavítás: admin nézetből az "Árazó" fülre kattintva korábban egy hibás
+    feltétel miatt nem záródott be az admin panel automatikusan.
+
   Változások v2.52-ben (KRITIKUS JAVÍTÁS):
   - Az admin beállítások (haszonkulcs, munkadíj-paraméterek, kalkulátor módok, "Bővítés
     kalkuláció" checkbox, ár-láthatóság, kalkulátor-nevek) eddig localStorage-ban / JS
@@ -1285,7 +1292,7 @@ function applySharedSettings() {
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.52 – 2026-07-10';
+const APP_VERSION = 'v2.53 – 2026-07-10';
 const APP_VERSION_HISTORY = [
   'v2.1 (2026-05-29): Megtérülés kalkulátor, PVGIS integráció',
   'v2.3 (2026-05-29): Sávos áramár, cashflow táblázat, grafikonok',
@@ -1302,6 +1309,7 @@ const APP_VERSION_HISTORY = [
   'v2.50 (2026-07-10): 3 szintű árazás az Árazó tabon (Bekerülési anyagköltség / Minimum ár / Ajánlott ár) – a működési költséget (munkadíj) a Régi/Új/Bővítés mód adja, ezt szorozzuk admin-állítható szorzókkal (min_ar_szorzo alap 1.0, ajanlott_ar_szorzo alap 1.2); kalkulátoronként (1-6) admin-beállítható, melyik ár(ak) látszanak; eredménysáv és részletező is a látható árakat mutatja; Sheets mentés mindhárom árat rögzíti',
   'v2.51 (2026-07-10): Pontosítás – a 3 szintű árazás KIZÁRÓLAG Új módban aktív. Régi mód visszaállítva az eredeti, egyetlen áras logikára: (anyag+munkadíj) × haszonkulcs (alap 1.38), a félreértések elkerülése végett. Bővítés kalkuláció változatlanul saját, egyetlen áras logikájú.',
   'v2.52 (2026-07-10): KRITIKUS JAVÍTÁS – az admin beállítások (haszonkulcs, munkadíj-paraméterek, kalkulátor módok, "Bővítés kalkuláció" checkbox, ár-láthatóság, kalkulátor-nevek) eddig csak localStorage-ban/JS memóriában éltek, azaz gépenként/böngészőnként eltérhettek, és frissítéskor el is veszhettek. Mostantól a Google Sheets "Beallitasok" munkalapján tárolódnak (Apps Script bővítve type:"settings" mentés/olvasással) – minden gép, minden böngésző ugyanazt a központi beállítást látja. A localStorage csak gyors helyi cache/offline fallback marad. Első admin-bejelentkezéskor a helyi értékek automatikusan feltöltődnek a még üres Sheets-be.',
+  'v2.53 (2026-07-10): Hibajavítás – ha a Megtérülés tabon állva kattintott valaki az Admin gombra, a showAdmin() nem rejtette el a Megtérülés nézetet, ezért az admin panel a hosszú Megtérülés-tartalom ALATT jelent meg (úgy tűnt, mintha semmi nem történne kattintáskor). Emellett admin nézetből az "Árazó" fülre kattintva korábban nem záródott be az admin panel (hibás feltétel). Mindkettő javítva.',
 ];
 
 // Verzió kiírása minden előforduláshoz
@@ -1681,12 +1689,25 @@ function showCalc() {
  
 function showAdmin() {
   document.getElementById('calc-view').style.display = 'none';
+  // JAVÍTVA: korábban a Megtérülés nézet nem lett elrejtve, ezért ha valaki
+  // a Megtérülés tabon állva kattintott az Adminra, a panel ténylegesen megjelent,
+  // csak a hosszú Megtérülés-tartalom ALATT – úgy tűnt, mintha semmi nem történne.
+  const megView = document.getElementById('megterules-view');
+  if (megView) megView.style.display = 'none';
+  const calcTabsEl = document.getElementById('calc-tabs');
+  const syncBarEl  = document.getElementById('sync-bar');
+  const ujNapBarEl = document.getElementById('uj-nap-bar');
+  if (calcTabsEl) calcTabsEl.style.display = 'none';
+  if (syncBarEl)  syncBarEl.style.display  = 'none';
+  if (ujNapBarEl) ujNapBarEl.style.display = 'none';
   document.getElementById('admin-panel').style.display = 'block';
   document.getElementById('result-bar').classList.remove('visible');
   switchAdminTab('users');
   renderUserTable();
   renderCalcNamesForm();
   renderCalcSettings();
+  updateStickyOffsets();
+  window.scrollTo({ top: 0, behavior: 'instant' });
 }
  
 function switchAdminTab(tab) {
@@ -3184,7 +3205,12 @@ function switchMainTab(tab) {
   if (tab === 'arazas') {
     if (calcTabs)   calcTabs.style.display   = '';
     if (syncBar)    syncBar.style.display     = '';
-    if (calcView && adminPanel.style.display === 'none') calcView.style.display = 'block';
+    // JAVÍTVA: korábban az admin panel csak akkor záródott be automatikusan, ha
+    // már eleve zárva volt (értelmetlen feltétel) – emiatt admin nézetből az
+    // "Árazó" fülre kattintva az admin panel nyitva maradt, a calc-view pedig
+    // nem jelent meg alatta/mögötte.
+    if (adminPanel) adminPanel.style.display = 'none';
+    if (calcView)   calcView.style.display   = 'block';
     if (megView)    megView.style.display     = 'none';
     if (resultBar)  resultBar.classList.add('visible');
   } else {
