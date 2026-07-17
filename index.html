@@ -5,6 +5,15 @@
   Verzió: ld. APP_VERSION állandó a JS elején (egyetlen hely, ahol a verziószámot módosítani kell)
   Utolsó módosítás: 2026-07-10 (Budapest)
 
+  Változások v2.54-ben (KRITIKUS JAVÍTÁS):
+  - Versenyhelyzet (race condition) a megosztott beállítások bootstrap logikájában:
+    ha a Sheets "Beallitasok" lapján még hiányzott a calc_settings kulcs, a bootstrap
+    minden oldalbetöltéskor újra lefutott, és néha felülírta egy admin frissen mentett
+    beállítását (pl. kalkulátor Régi/Új módja) a régi, helyi (localStorage) értékkel.
+  - Javítás: a bootstrap mostantól egy tartós localStorage-jelzővel (sf_settings_
+    bootstrapped) csak EGYETLEN egyszer fut le böngészőnként, örökre.
+  - Admin "Kalkulátorok módja" gombjaihoz visszajelző toast üzenet került.
+
   Változások v2.53-ban:
   - Hibajavítás: Megtérülés tabról Admin gombra kattintva a showAdmin() korábban
     nem rejtette el a #megterules-view-t, ezért az admin panel a hosszú Megtérülés-
@@ -1292,7 +1301,7 @@ function applySharedSettings() {
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.53 – 2026-07-10';
+const APP_VERSION = 'v2.54 – 2026-07-10';
 const APP_VERSION_HISTORY = [
   'v2.1 (2026-05-29): Megtérülés kalkulátor, PVGIS integráció',
   'v2.3 (2026-05-29): Sávos áramár, cashflow táblázat, grafikonok',
@@ -1310,6 +1319,7 @@ const APP_VERSION_HISTORY = [
   'v2.51 (2026-07-10): Pontosítás – a 3 szintű árazás KIZÁRÓLAG Új módban aktív. Régi mód visszaállítva az eredeti, egyetlen áras logikára: (anyag+munkadíj) × haszonkulcs (alap 1.38), a félreértések elkerülése végett. Bővítés kalkuláció változatlanul saját, egyetlen áras logikájú.',
   'v2.52 (2026-07-10): KRITIKUS JAVÍTÁS – az admin beállítások (haszonkulcs, munkadíj-paraméterek, kalkulátor módok, "Bővítés kalkuláció" checkbox, ár-láthatóság, kalkulátor-nevek) eddig csak localStorage-ban/JS memóriában éltek, azaz gépenként/böngészőnként eltérhettek, és frissítéskor el is veszhettek. Mostantól a Google Sheets "Beallitasok" munkalapján tárolódnak (Apps Script bővítve type:"settings" mentés/olvasással) – minden gép, minden böngésző ugyanazt a központi beállítást látja. A localStorage csak gyors helyi cache/offline fallback marad. Első admin-bejelentkezéskor a helyi értékek automatikusan feltöltődnek a még üres Sheets-be.',
   'v2.53 (2026-07-10): Hibajavítás – ha a Megtérülés tabon állva kattintott valaki az Admin gombra, a showAdmin() nem rejtette el a Megtérülés nézetet, ezért az admin panel a hosszú Megtérülés-tartalom ALATT jelent meg (úgy tűnt, mintha semmi nem történne kattintáskor). Emellett admin nézetből az "Árazó" fülre kattintva korábban nem záródott be az admin panel (hibás feltétel). Mindkettő javítva.',
+  'v2.54 (2026-07-10): KRITIKUS JAVÍTÁS – versenyhelyzet (race condition) a megosztott beállítások "bootstrap" (első feltöltés) logikájában: ha a Sheets "Beallitasok" lapján még nem volt calc_settings kulcs, a bootstrap MINDEN oldalbetöltéskor újrafutott, ami néha felülírta (visszaállította) egy admin frissen mentett kalkulátor-mód / ár-láthatóság / egyéb beállítását a régi, helyi értékre. Mostantól a bootstrap egy tartós (localStorage) jelzővel csak EGYETLEN egyszer fut le böngészőnként, örökre. Emellett az admin "Kalkulátorok módja" gombjaihoz visszajelző toast üzenet került, hogy látszódjon, tényleg elindult a mentés.',
 ];
 
 // Verzió kiírása minden előforduláshoz
@@ -2980,6 +2990,7 @@ function setAdminCalcMode(calcNum, mode) {
   renderCalcSettings();
   // If currently viewing that calc, update the toggle
   if (calcNum === activeCalc) setCalcMode(mode);
+  showToast(`☁️ Kalkulátor ${calcNum} módja mentve (${mode === 'regi' ? 'Régi' : 'Új'}) – megosztott beállítás`);
 }
  
 function updateCalcSetting(key, val) {
@@ -3136,15 +3147,19 @@ async function loadFromSheets() {
 
     // Megosztott beállítások (admin: haszonkulcs, kalkulátor módok, bővítés
     // checkbox, ár-láthatóság, kalkulátor-nevek) – minden gép ugyanezt látja mostantól
-    if (data.settings && data.settings.calc_settings) {
-      SHARED_SETTINGS = data.settings;
-      applySharedSettings();
-    } else if (currentUser && currentUser.isAdmin) {
-      // Első bekapcsolás: a Sheets "Beallitasok" munkalapja még üres – az admin
-      // gépén épp beállított (localStorage-os) értékek lesznek a kiinduló, közös alap,
-      // hogy ne kelljen mindent kézzel újra beírni. Ez csak egyszer fut le (amíg a
-      // Sheets-ben nincs calc_settings kulcs), utána a Sheets lesz az egyetlen forrás.
-      SHARED_SETTINGS = data.settings || {};
+    SHARED_SETTINGS = data.settings || {};
+    applySharedSettings();
+
+    // Első feltöltés ("bootstrap"): csak akkor fut le, ha a Sheets "Beallitasok"
+    // munkalapján még nincs calc_settings kulcs ÉS ezen a böngészőn még soha nem
+    // futott le korábban. A localStorage-flag (sf_settings_bootstrapped) nélkül ez
+    // MINDEN oldalbetöltéskor újrafutott volna, amíg a calc_settings mentése bármi
+    // okból nem sikerült – ez versenyhelyzetet okozott: ha a bootstrap egy admin-
+    // módosítás UTÁN, de a módosítás szerverre érkezése ELŐTT futott le (pl. egy 🔄
+    // frissítés miatt), a régi (helyi) állapotot írta vissza, felülírva a friss
+    // admin-módosítást a Sheets-ben.
+    if (!data.settings?.calc_settings && currentUser && currentUser.isAdmin && !localStorage.getItem('sf_settings_bootstrapped')) {
+      localStorage.setItem('sf_settings_bootstrapped', '1'); // azonnal jelöljük, hogy ne futhasson le kétszer
       const valuesOnly = {};
       Object.keys(CALC_SETTINGS).forEach(k => { valuesOnly[k] = CALC_SETTINGS[k].value; });
       saveSettingToSheets('calc_settings', valuesOnly);
@@ -3152,7 +3167,7 @@ async function loadFromSheets() {
       saveSettingToSheets('calc_bovites', getCalcBovites());
       saveSettingToSheets('calc_ar_vis', getCalcArVis());
       saveSettingToSheets('calc_names', getCalcNames());
-      console.info('Beállítások első feltöltése a Sheets-be (Beallitasok munkalap létrehozva).');
+      console.info('Beállítások első feltöltése a Sheets-be (Beallitasok munkalap létrehozva/kiegészítve).');
     }
     
     // Update search lists (filter invalid codes)
