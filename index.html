@@ -5,6 +5,15 @@
   Verzió: ld. APP_VERSION állandó a JS elején (egyetlen hely, ahol a verziószámot módosítani kell)
   Utolsó módosítás: 2026-07-10 (Budapest)
 
+  Változások v2.55-ben (MÉG EGY KRITIKUS JAVÍTÁS):
+  - A setCalcMode() eddig MINDIG mentett is, akkor is, ha csak UI-szinkronizálás
+    miatt hívódott meg (belépéskor, mielőtt a Sheets adat megérkezett volna) –
+    emiatt a "regi" alapérték minden belépéskor felülírta a Sheets-ben tárolt
+    valós módot. Javítva: setCalcMode(mode, persist=true) – initModeUI() mostantól
+    persist=false-szal hívja, csak explicit admin-módosítás ment.
+  - JSONP timeout 10s → 20s (a Beallitasok lap olvasása miatt lassabb válaszidő
+    időnként hamis "Offline mód" üzenetet okozott).
+
   Változások v2.54-ben (KRITIKUS JAVÍTÁS):
   - Versenyhelyzet (race condition) a megosztott beállítások bootstrap logikájában:
     ha a Sheets "Beallitasok" lapján még hiányzott a calc_settings kulcs, a bootstrap
@@ -1301,7 +1310,7 @@ function applySharedSettings() {
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.54 – 2026-07-10';
+const APP_VERSION = 'v2.55 – 2026-07-10';
 const APP_VERSION_HISTORY = [
   'v2.1 (2026-05-29): Megtérülés kalkulátor, PVGIS integráció',
   'v2.3 (2026-05-29): Sávos áramár, cashflow táblázat, grafikonok',
@@ -1320,6 +1329,7 @@ const APP_VERSION_HISTORY = [
   'v2.52 (2026-07-10): KRITIKUS JAVÍTÁS – az admin beállítások (haszonkulcs, munkadíj-paraméterek, kalkulátor módok, "Bővítés kalkuláció" checkbox, ár-láthatóság, kalkulátor-nevek) eddig csak localStorage-ban/JS memóriában éltek, azaz gépenként/böngészőnként eltérhettek, és frissítéskor el is veszhettek. Mostantól a Google Sheets "Beallitasok" munkalapján tárolódnak (Apps Script bővítve type:"settings" mentés/olvasással) – minden gép, minden böngésző ugyanazt a központi beállítást látja. A localStorage csak gyors helyi cache/offline fallback marad. Első admin-bejelentkezéskor a helyi értékek automatikusan feltöltődnek a még üres Sheets-be.',
   'v2.53 (2026-07-10): Hibajavítás – ha a Megtérülés tabon állva kattintott valaki az Admin gombra, a showAdmin() nem rejtette el a Megtérülés nézetet, ezért az admin panel a hosszú Megtérülés-tartalom ALATT jelent meg (úgy tűnt, mintha semmi nem történne kattintáskor). Emellett admin nézetből az "Árazó" fülre kattintva korábban nem záródott be az admin panel (hibás feltétel). Mindkettő javítva.',
   'v2.54 (2026-07-10): KRITIKUS JAVÍTÁS – versenyhelyzet (race condition) a megosztott beállítások "bootstrap" (első feltöltés) logikájában: ha a Sheets "Beallitasok" lapján még nem volt calc_settings kulcs, a bootstrap MINDEN oldalbetöltéskor újrafutott, ami néha felülírta (visszaállította) egy admin frissen mentett kalkulátor-mód / ár-láthatóság / egyéb beállítását a régi, helyi értékre. Mostantól a bootstrap egy tartós (localStorage) jelzővel csak EGYETLEN egyszer fut le böngészőnként, örökre. Emellett az admin "Kalkulátorok módja" gombjaihoz visszajelző toast üzenet került, hogy látszódjon, tényleg elindult a mentés.',
+  'v2.55 (2026-07-10): MÉG EGY KRITIKUS JAVÍTÁS – a setCalcMode() eddig MINDIG mentett is (localStorage + Sheets), akkor is, ha csak a felület szinkronizálása miatt hívódott meg (pl. belépéskor, mielőtt a Sheets-ből megérkezett volna a valós kalkulátor-mód). Emiatt a beépített "regi" alapérték minden bejelentkezéskor visszaíródott a Sheets-be, felülírva a ténylegesen beállított "uj" módot. Mostantól setCalcMode(mode, persist) kap egy persist paramétert – csak explicit admin-módosításkor ment, sima UI-szinkronizáláskor (initModeUI) nem. JSONP timeout 10s→20s (a Beallitasok lap olvasása miatt lassabb lehet a válasz, ami időnként hamis "Offline mód" üzenetet okozott).',
 ];
 
 // Verzió kiírása minden előforduláshoz
@@ -1742,7 +1752,7 @@ async function loadAjanlatok() {
     const data = await new Promise((resolve, reject) => {
       const cbName = 'sfaj_' + Date.now();
       const script = document.createElement('script');
-      const timeout = setTimeout(() => { delete window[cbName]; script.remove(); reject(new Error('timeout')); }, 10000);
+      const timeout = setTimeout(() => { delete window[cbName]; script.remove(); reject(new Error('timeout')); }, 20000);
       window[cbName] = d => { clearTimeout(timeout); delete window[cbName]; script.remove(); resolve(d); };
       script.src = SHEETS_API + '?type=ajanlatok&callback=' + cbName + '&t=' + Date.now();
       script.onerror = () => { clearTimeout(timeout); reject(new Error('error')); };
@@ -2870,10 +2880,17 @@ function changeOtherPassword() {
   showToast(`✅ ${users[idx].name || users[idx].email} jelszava megváltoztatva!`);
 }
  
-function setCalcMode(mode) {
-  const modes = getCalcModes();
-  modes[activeCalc] = mode;
-  saveCalcModes(modes);
+function setCalcMode(mode, persist = true) {
+  // JAVÍTVA: korábban a persist paraméter nem létezett, így ez a függvény MINDIG
+  // mentett is (localStorage + Sheets), akkor is, ha csak a UI-t szinkronizáltuk
+  // (pl. belépéskor initModeUI()-ból, mielőtt a Sheets-ből megérkezett volna a
+  // valós érték). Emiatt a beépített "regi" alapérték visszaíródott a Sheets-be
+  // minden bejelentkezéskor, felülírva a ténylegesen beállított módot.
+  if (persist) {
+    const modes = getCalcModes();
+    modes[activeCalc] = mode;
+    saveCalcModes(modes);
+  }
   // Update button styles
   const regiBtn = document.getElementById('mode-regi-btn');
   const ujBtn = document.getElementById('mode-uj-btn');
@@ -2899,7 +2916,7 @@ function updateMunkadijPct(val) {
  
 function initModeUI() {
   const mode = getActiveMode();
-  setCalcMode(mode);
+  setCalcMode(mode, false); // csak megjelenítés – NE mentsen semmit Sheets-be/localStorage-ba
   const bovitesChk = document.getElementById('bovites-kalk-checkbox');
   const checked = isBovitesKalkulacio();
   if (bovitesChk) bovitesChk.checked = checked;
@@ -2988,8 +3005,8 @@ function setAdminCalcMode(calcNum, mode) {
   modes[calcNum] = mode;
   saveCalcModes(modes);
   renderCalcSettings();
-  // If currently viewing that calc, update the toggle
-  if (calcNum === activeCalc) setCalcMode(mode);
+  // If currently viewing that calc, update the toggle (a mentés már megtörtént fentebb, itt csak UI)
+  if (calcNum === activeCalc) setCalcMode(mode, false);
   showToast(`☁️ Kalkulátor ${calcNum} módja mentve (${mode === 'regi' ? 'Régi' : 'Új'}) – megosztott beállítás`);
 }
  
@@ -3115,7 +3132,7 @@ async function loadFromSheets() {
         delete window[cbName];
         script.remove();
         reject(new Error('timeout'));
-      }, 10000);
+      }, 20000);
       window[cbName] = (d) => {
         clearTimeout(timeout);
         delete window[cbName];
@@ -5186,7 +5203,7 @@ document.getElementById('login-pass').addEventListener('keydown', e => { if (e.k
     const data = await new Promise((resolve, reject) => {
       const cbName = 'sfpre_' + Date.now();
       const script = document.createElement('script');
-      const timeout = setTimeout(() => { delete window[cbName]; script.remove(); reject(new Error('timeout')); }, 10000);
+      const timeout = setTimeout(() => { delete window[cbName]; script.remove(); reject(new Error('timeout')); }, 20000);
       window[cbName] = (d) => { clearTimeout(timeout); delete window[cbName]; script.remove(); resolve(d); };
       script.src = SHEETS_API + '?callback=' + cbName + '&t=' + Date.now();
       script.onerror = () => { clearTimeout(timeout); reject(new Error('error')); };
