@@ -5,6 +5,20 @@
   Verzió: ld. APP_VERSION állandó a JS elején (egyetlen hely, ahol a verziószámot módosítani kell)
   Utolsó módosítás: 2026-07-10 (Budapest)
 
+  Változások v2.57-ben (KRITIKUS JAVÍTÁS):
+  - A 3 szintű árazás bevezetésekor (v2.50) megszűnt a régi "res-brutto" DOM elem,
+    amiből a Megtérülés fül az árat importálta az Árazóból – emiatt az ártovábbítás
+    NÉMÁN mindig meghiúsult, a kWp/ár mezők üresen maradtak Megtérülés tab-váltáskor.
+    Javítva: calculate() egy LAST_CALC_BRUTTO globálisba írja a "fő" (kiemelt) bruttó
+    árat minden módban (bővítés/régi/3 szintű), ezt olvassa most a Megtérülés import.
+  - A Megtérülés tab-váltás (mt_importFromArazo force=false) korábban csak beírta az
+    értékeket a mezőkbe, de nem futtatta újra a kalkulációt – mostantól mindig
+    újraszámol, hogy a fül azonnal mutassa az eredményt.
+  - Új admin beállítás: a "Mi vs. a piac" karbantartási gyakorisága (eddig fixen
+    "2-3 évente" volt kódba égetve) mostantól két külön, admin-állítható számmal
+    (verseny_karb_gyakorisag_1/2, alapból 2 és 3) szabályozható, és a Megtérülés
+    tabon is módosítható egy adott ajánlathoz.
+
   Változások v2.56-ban (ÚJ FUNKCIÓ):
   - "Mi vs. a piac" 18 éves összehasonlítás a Megtérülés kalkulátorban (csak Új
     rendszer módban, Bővítésnél nem releváns): saját (12 év szervízgaranciás)
@@ -1137,6 +1151,14 @@
             <label>Saját szervízgarancia hossza (év)</label>
             <input type="number" id="verseny-garancia" min="1" max="20" step="1" oninput="mt_recalculate()">
           </div>
+          <div class="mt-field">
+            <label>Karbantartási gyakoriság – 1. szám (év)</label>
+            <input type="number" id="verseny-gyakorisag-1" min="1" max="10" step="1" oninput="mt_recalculate()">
+          </div>
+          <div class="mt-field">
+            <label>Karbantartási gyakoriság – 2. szám (év)</label>
+            <input type="number" id="verseny-gyakorisag-2" min="1" max="10" step="1" oninput="mt_recalculate()">
+          </div>
         </div>
 
         <div class="mt-result-grid" style="margin-bottom:1rem">
@@ -1375,7 +1397,7 @@ function applySharedSettings() {
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.56 – 2026-07-10';
+const APP_VERSION = 'v2.57 – 2026-07-10';
 const APP_VERSION_HISTORY = [
   'v2.1 (2026-05-29): Megtérülés kalkulátor, PVGIS integráció',
   'v2.3 (2026-05-29): Sávos áramár, cashflow táblázat, grafikonok',
@@ -1396,6 +1418,7 @@ const APP_VERSION_HISTORY = [
   'v2.54 (2026-07-10): KRITIKUS JAVÍTÁS – versenyhelyzet (race condition) a megosztott beállítások "bootstrap" (első feltöltés) logikájában: ha a Sheets "Beallitasok" lapján még nem volt calc_settings kulcs, a bootstrap MINDEN oldalbetöltéskor újrafutott, ami néha felülírta (visszaállította) egy admin frissen mentett kalkulátor-mód / ár-láthatóság / egyéb beállítását a régi, helyi értékre. Mostantól a bootstrap egy tartós (localStorage) jelzővel csak EGYETLEN egyszer fut le böngészőnként, örökre. Emellett az admin "Kalkulátorok módja" gombjaihoz visszajelző toast üzenet került, hogy látszódjon, tényleg elindult a mentés.',
   'v2.55 (2026-07-10): MÉG EGY KRITIKUS JAVÍTÁS – a setCalcMode() eddig MINDIG mentett is (localStorage + Sheets), akkor is, ha csak a felület szinkronizálása miatt hívódott meg (pl. belépéskor, mielőtt a Sheets-ből megérkezett volna a valós kalkulátor-mód). Emiatt a beépített "regi" alapérték minden bejelentkezéskor visszaíródott a Sheets-be, felülírva a ténylegesen beállított "uj" módot. Mostantól setCalcMode(mode, persist) kap egy persist paramétert – csak explicit admin-módosításkor ment, sima UI-szinkronizáláskor (initModeUI) nem. JSONP timeout 10s→20s (a Beallitasok lap olvasása miatt lassabb lehet a válasz, ami időnként hamis "Offline mód" üzenetet okozott).',
   'v2.56 (2026-07-10): ÚJ FUNKCIÓ – "Mi vs. a piac" 18 éves összehasonlító elemzés a Megtérülés kalkulátorban (csak Új rendszer módban): saját (12 év szervízgaranciás) rendszerünk és egy admin-állítható %-kal olcsóbb versenytárs-rendszer kumulált nettó hasznát veti össze, figyelembe véve a versenytárs időszakos (2-3 évente váltakozó) karbantartási költségét, amivel a saját rendszerünk a garanciális időszak (alapból 12 év) alatt nem terhelődik – utána mindkét rendszer ugyanarra az ütemezésre csatlakozik. Admin beállítások: verseny_kedvezmeny_pct, verseny_karbantartas_kezdes, verseny_karbantartas_koltseg, verseny_sajat_garancia_ev. A PDF riportba egy marketingszöveg (12 év szervízgarancia, teljes körű – gyártói garanciát is intéző – ügyintézés) és egy nagyobb, részletesebb verziója a grafikonnak kerül be.',
+  'v2.57 (2026-07-10): KRITIKUS JAVÍTÁS – a 3 szintű árazás bevezetésekor (v2.50) megszűnt a régi "res-brutto" DOM elem, amiből a Megtérülés fül az árat importálta az Árazóból – emiatt az ártovábbítás némán mindig meghiúsult, a kWp/ár mezők üresek maradtak tab-váltáskor. Javítva: a calculate() egy LAST_CALC_BRUTTO globálisba írja a "fő" (kiemelt) bruttó árat minden módban, ezt olvassa a Megtérülés import. Emellett a tab-váltás (mt_importFromArazo force=false) korábban csak beírta az értékeket, de nem futtatta újra a kalkulációt – mostantól mindig újraszámol. Új admin beállítás: a karbantartási gyakoriság (eddig fixen "2-3 évente" volt kódba égetve) két külön számmal (verseny_karb_gyakorisag_1/2, alapból 2 és 3) állíthatóvá vált, a Megtérülés tabon is módosítható per ajánlat.',
 ];
 
 // Verzió kiírása minden előforduláshoz
@@ -1432,6 +1455,8 @@ const CALC_SETTINGS = {
   verseny_karbantartas_kezdes: { label: 'Karbantartási költség kezdete (év)', value: 5, min: 1, max: 15, step: 1, desc: 'Az idegen cég rendszerén ettől az évtől jelenik meg időszakos karbantartási költség (2-3 évente váltakozva).', mode: 'verseny' },
   verseny_karbantartas_koltseg: { label: 'Karbantartási költség (Ft/alkalom)', value: 250000, min: 50000, max: 1000000, step: 10000, desc: 'Egy-egy karbantartási alkalom becsült költsége.', mode: 'verseny' },
   verseny_sajat_garancia_ev: { label: 'Saját szervízgarancia hossza (év)', value: 12, min: 1, max: 20, step: 1, desc: 'Eddig az évig a saját rendszerünkön nincs karbantartási költség (díjmentes szervízgarancia). Utána a saját rendszer is ugyanarra a karbantartási ütemezésre csatlakozik, mint az idegen cégé.', mode: 'verseny' },
+  verseny_karb_gyakorisag_1: { label: 'Karbantartási gyakoriság – 1. szám (év)', value: 2, min: 1, max: 10, step: 1, desc: 'A karbantartási évek váltakozva ezzel és a következő számmal adódnak a kezdő évhez (pl. 2 és 3 esetén: kezdés, +2, +3, +2, +3...).', mode: 'verseny' },
+  verseny_karb_gyakorisag_2: { label: 'Karbantartási gyakoriság – 2. szám (év)', value: 3, min: 1, max: 10, step: 1, desc: 'Lásd fent – a két szám váltakozva adja a karbantartási évek közötti távolságot.', mode: 'verseny' },
 };
 
 // ============================================================
@@ -1682,6 +1707,11 @@ function saveUsers(u) {
 // ============================================================
 let currentUser = null;
 let activeCalc = 1;
+// A jelenlegi kalkulátor "fő" (kiemelt) bruttó ára – a Megtérülés tab ebből importálja
+// az árat. A régi res-brutto DOM elem a 3 szintű árazással megszűnt, ezért ezt a globális
+// változót frissíti a calculate() minden ágban (bővítés / régi / 3 szintű – utóbbinál a
+// legmagasabb látható tier, jellemzően az Ajánlott ár).
+let LAST_CALC_BRUTTO = 0;
  
 function doLogin() {
   const email = document.getElementById('login-email').value.trim().toLowerCase();
@@ -2635,6 +2665,7 @@ function calculate() {
   if (!hasAnyProductSelected()) {
     document.getElementById('rbar-empty').style.display = 'block';
     document.getElementById('rbar-full').style.display = 'none';
+    LAST_CALC_BRUTTO = 0;
     return;
   }
 
@@ -2737,6 +2768,7 @@ function calculate() {
         <div class="rbar-val kw">${rendszerKw.toFixed(2)} kW</div>
       </div>`;
     document.getElementById('res-kw-sub').textContent = `${fmt(kwNetKedv)} nettó/kW | ${fmt(kwGrossKedv)} bruttó/kW`;
+    LAST_CALC_BRUTTO = bruttoKedv;
 
   } else if (mode === 'regi') {
     // ============================================================
@@ -2768,6 +2800,7 @@ function calculate() {
         <div class="rbar-val kw">${rendszerKw.toFixed(2)} kW</div>
       </div>`;
     document.getElementById('res-kw-sub').textContent = `${fmt(kwNetKedv)} nettó/kW | ${fmt(kwGrossKedv)} bruttó/kW`;
+    LAST_CALC_BRUTTO = bruttoKedv;
 
   } else {
     // ============================================================
@@ -2783,6 +2816,7 @@ function calculate() {
         <div class="rbar-val" style="font-size:0.85rem;color:var(--text-muted)">Kérd az adminisztrátort az ár-láthatóság beállításához</div>
       </div>`;
       document.getElementById('res-kw-sub').textContent = '';
+      LAST_CALC_BRUTTO = 0;
     } else {
       visible.forEach(t => {
         mainHtml += `
@@ -2794,6 +2828,7 @@ function calculate() {
       const t0 = visible[visible.length - 1]; // az utolsó (legmagasabb) látható tétel kW-ára a fő referencia
       document.getElementById('res-kw-sub').textContent =
         `${t0.label.replace(/^\d+\.\s*/, '')}: ${fmt(t0.kwNetKedv)} nettó/kW | ${fmt(t0.kwGrossKedv)} bruttó/kW`;
+      LAST_CALC_BRUTTO = t0.bruttoKedv;
     }
 
     mainHtml += `
@@ -3405,24 +3440,30 @@ function mt_importFromArazo(force = false) {
     }
   }
 
-  const bruttoEl = document.getElementById('res-brutto');
-  if (bruttoEl && bruttoEl.textContent !== '—') {
+  // JAVÍTVA: a régi "res-brutto" DOM elem a 3 szintű árazás bevezetésével megszűnt
+  // (helyette dinamikus rbar-main épül fel), ezért az ár importálása némán mindig
+  // meghiúsult. Mostantól a calculate() által frissített LAST_CALC_BRUTTO globálisból
+  // olvasunk (bővítés/régi módban az egyetlen ár, 3 szintű Új módban a legmagasabb
+  // látható tier – jellemzően az Ajánlott ár).
+  if (LAST_CALC_BRUTTO > 0) {
     const arEl = document.getElementById('mt-rendszer-ar');
     if (arEl && (force || !arEl.value)) {
-      const num = parseInt(bruttoEl.textContent.replace(/[^0-9]/g, ''));
-      if (num > 0) {
-        arEl.value = num;
-        imported.push(`${Math.round(num).toLocaleString('hu-HU')} Ft`);
-      }
+      const num = Math.round(LAST_CALC_BRUTTO);
+      arEl.value = num;
+      imported.push(`${num.toLocaleString('hu-HU')} Ft`);
     }
   }
 
+  // JAVÍTVA: korábban csak force=true esetén (explicit "Frissítés" gombra kattintva)
+  // futott újra a kalkuláció – sima tab-váltáskor (force=false) az értékek beíródtak
+  // a mezőkbe, de az eredmény nem jelent meg, amíg valaki kézzel nem módosított valamit.
+  // Mostantól mindig újraszámol, hogy a Megtérülés fül azonnal mutassa az adatokat.
   if (force && imported.length > 0) {
     showToast('✅ Árazóból frissítve: ' + imported.join(' · '));
-    mt_recalculate();
   } else if (force && imported.length === 0) {
     showToast('⚠️ Nincs mit átvenni – töltsd ki az árazót!');
   }
+  mt_recalculate();
 }
   
  
@@ -3740,13 +3781,13 @@ function mt_renderInfoBar(evesKwh, sajatTermeles, isBovites) {
 // ============================================================
 // MI VS. A PIAC – VERSENYTÁRS-ÖSSZEHASONLÍTÁS (csak Új rendszer módban)
 // ============================================================
-// Karbantartási évek generálása: kezdesEv-től, 2-3-2-3... váltakozó gyakorisággal,
-// a ciklusEv-ig (pl. kezdesEv=5 → 5,7,10,12,15,17...)
-function mt_computeVersenyKarbantartasEvek(kezdesEv, ciklusEv) {
+// Karbantartási évek generálása: kezdesEv-től, gap1-gap2-gap1-gap2... váltakozó
+// gyakorisággal, a ciklusEv-ig (pl. kezdesEv=5, gap1=2, gap2=3 → 5,7,10,12,15,17...)
+function mt_computeVersenyKarbantartasEvek(kezdesEv, ciklusEv, gap1, gap2) {
   const evek = new Set();
   let y = kezdesEv;
   if (y >= 1 && y <= ciklusEv) evek.add(y);
-  const gaps = [2, 3];
+  const gaps = [gap1 || 2, gap2 || 3];
   let gi = 0;
   while (y < ciklusEv) {
     y += gaps[gi % 2];
@@ -3780,21 +3821,27 @@ function mt_recalcVerseny() {
   const kezdesEl   = document.getElementById('verseny-karb-kezdes');
   const koltsegEl  = document.getElementById('verseny-karb-koltseg');
   const garanciaEl = document.getElementById('verseny-garancia');
+  const gap1El     = document.getElementById('verseny-gyakorisag-1');
+  const gap2El     = document.getElementById('verseny-gyakorisag-2');
   if (kedvEl.value === '')     kedvEl.value     = CALC_SETTINGS.verseny_kedvezmeny_pct.value;
   if (kezdesEl.value === '')   kezdesEl.value   = CALC_SETTINGS.verseny_karbantartas_kezdes.value;
   if (koltsegEl.value === '')  koltsegEl.value  = CALC_SETTINGS.verseny_karbantartas_koltseg.value;
   if (garanciaEl.value === '') garanciaEl.value = CALC_SETTINGS.verseny_sajat_garancia_ev.value;
+  if (gap1El.value === '')     gap1El.value     = CALC_SETTINGS.verseny_karb_gyakorisag_1.value;
+  if (gap2El.value === '')     gap2El.value     = CALC_SETTINGS.verseny_karb_gyakorisag_2.value;
 
   const kedvezmenyPct = parseFloat(kedvEl.value) || 0;
   const karbKezdes    = parseInt(kezdesEl.value) || 5;
   const karbKoltseg   = parseFloat(koltsegEl.value) || 0;
   const garanciaEv    = parseInt(garanciaEl.value) || 12;
+  const gap1          = parseInt(gap1El.value) || 2;
+  const gap2          = parseInt(gap2El.value) || 3;
 
   const CIKLUS = 18; // fix 18 éves vizsgálati ciklus ehhez az elemzéshez
   const evesTermeles = mt_pvgisData ? mt_pvgisData.yearly : (kwp * 1000);
   const versenyAr = rendszerAr * (1 - kedvezmenyPct / 100);
 
-  const karbEvek = mt_computeVersenyKarbantartasEvek(karbKezdes, CIKLUS);
+  const karbEvek = mt_computeVersenyKarbantartasEvek(karbKezdes, CIKLUS, gap1, gap2);
 
   let cumSajat   = -rendszerAr;
   let cumVerseny = -versenyAr;
@@ -3833,7 +3880,7 @@ function mt_recalcVerseny() {
   // A PDF riport is ezt olvassa ki
   mt_versenyData = {
     labels, sajatSor, versenySor, sajatKarbSor, versenyKarbSor,
-    rendszerAr, versenyAr, karbKoltseg, karbKezdes, garanciaEv, kedvezmenyPct, elony, ciklus: CIKLUS
+    rendszerAr, versenyAr, karbKoltseg, karbKezdes, garanciaEv, kedvezmenyPct, elony, ciklus: CIKLUS, gap1, gap2
   };
 }
 
@@ -4951,7 +4998,7 @@ const vanElozmenyadat = Object.keys(mt_sofarMonthly).length > 0;
 ${(!isBovites && mt_versenyData) ? `<div class="section">
   <div class="section-title">Mi vs. a piac – ${mt_versenyData.ciklus} éves összehasonlítás</div>
   <p style="font-size:0.88rem;color:#444;margin-bottom:1rem;line-height:1.6">
-    Egy versenytárs rendszere induláskor kb. ${mt_versenyData.kedvezmenyPct}%-kal olcsóbb lehet, ám a legtöbb piaci szereplőnél már a(z) ${mt_versenyData.karbKezdes}. évtől megjelennek az időszakos karbantartási költségek (kb. ${Math.round(mt_versenyData.karbKoltseg).toLocaleString('hu-HU')} Ft alkalmanként, 2-3 évente). A Solar Future rendszerén ezzel szemben ${mt_versenyData.garanciaEv} évig nincs ilyen jellegű költség – az alábbi grafikon mutatja, hogyan alakul emiatt a két rendszer kumulált nettó haszna a teljes ${mt_versenyData.ciklus} éves ciklus alatt.
+    Egy versenytárs rendszere induláskor kb. ${mt_versenyData.kedvezmenyPct}%-kal olcsóbb lehet, ám a legtöbb piaci szereplőnél már a(z) ${mt_versenyData.karbKezdes}. évtől megjelennek az időszakos karbantartási költségek (kb. ${Math.round(mt_versenyData.karbKoltseg).toLocaleString('hu-HU')} Ft alkalmanként, ${mt_versenyData.gap1}-${mt_versenyData.gap2} évente váltakozva). A Solar Future rendszerén ezzel szemben ${mt_versenyData.garanciaEv} évig nincs ilyen jellegű költség – az alábbi grafikon mutatja, hogyan alakul emiatt a két rendszer kumulált nettó haszna a teljes ${mt_versenyData.ciklus} éves ciklus alatt.
   </p>
   <div class="chart-wrap" style="height:380px"><canvas id="chart-verseny-riport"></canvas></div>
   <div style="margin-top:1rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0.75rem">
