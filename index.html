@@ -3,7 +3,47 @@
   ============================================================
   Solar Future – Árazó
   Verzió: ld. APP_VERSION állandó a JS elején (egyetlen hely, ahol a verziószámot módosítani kell)
-  Utolsó módosítás: 2026-07-10 (Budapest)
+  Utolsó módosítás: 2026-07-24 (Budapest)
+
+  Változások v2.60-ban (ÚJ FUNKCIÓ):
+  - A MiniCRM ajánlat-lekérdezés (v2.59) áthelyezve a Megtérülés tab TETEJÉRE –
+    mostantól nem csak a PDF-hez fűzhető össze, hanem a MEGTÉRÜLÉS SZÁMÍTÁS
+    adatforrása is lehet.
+  - A lekérdezett ajánlat tételeiből (a tétel nevében szereplő wattszám alapján,
+    pl. "...450W") automatikusan kiszámoljuk a kWp-t (több napelem-tétel esetén
+    összeadva), az ajánlat végösszege adja a rendszerárat, az ügyfél neve/címe is
+    átvételre kerül (ha az ajánlaton szerepel).
+  - Új adatforrás-választó ("🧮 Árazó adatai" / "🔗 MiniCRM ajánlat") dönti el,
+    melyik forrás tölti ki ténylegesen a kWp/rendszerár mezőket. Mindkét forrás
+    adatai külön tárolódnak (mt_arazoAdatok / mt_minicrmAdatok), a váltás
+    bármikor visszafordítható anélkül, hogy bármelyik adat elveszne.
+  - Alapértelmezésként (amíg nincs sikeres MiniCRM lekérdezés) mindig az
+    Árazó-adatokkal számol – a "MiniCRM ajánlat" forrásra váltás csak sikeres
+    lekérdezés UTÁN érhető el, egyébként figyelmeztetés jelenik meg.
+
+  Változások v2.59-ben (ÚJ FUNKCIÓ):
+  - MiniCRM ajánlat összefűzés a Megtérülés PDF riportba. A Megtérülés tabon
+    megadható egy MiniCRM ajánlatszám (pl. AJ2026-E/01543); a Google Apps Script
+    (biztonságosan, Script Properties-ben tárolt SystemId/ApiKey-jel – SOHA nem a
+    kliens kódban!) végzi a lekérdezést:
+      1) Project keresés CategoryId+Name alapján → ProjectId
+      2) Offer/List lapozása (max 30 oldal, mert a végpont nem szűrhető sem
+         ProjectId, sem Number alapján) a megfelelő OfferId megtalálásáig
+      3) a teljes tételes ajánlat lekérése (/Api/Offer/$OfferId)
+  - A találat (tételek, összegek, eredeti MiniCRM PDF link) egy új szekcióként
+    bekerül a generált riportba.
+  - FONTOS: csak MÁR KIÁLLÍTOTT (nem "Kiállítandó" státuszú) ajánlatoknál működik,
+    mert csak azokhoz jön létre tétel-szintű Offer-rekord a MiniCRM-ben.
+  - Az Apps Script kódot is frissíteni kell (ld. külön fájl), és be kell állítani
+    a Script Properties-ben: MINICRM_SYSTEM_ID, MINICRM_API_KEY,
+    MINICRM_OFFER_CATEGORY_ID (nálunk: 25).
+
+  Változások v2.58-ban:
+  - Marketing szöveg (12 év szervízgarancia PDF-szekció) admin felületen szerkeszthető
+    ("📝 Marketing szöveg" új admin tab), Sheets-ben megosztva; szöveg magázó formára javítva.
+  - "Összes mért termelés" KPI teljesen eltűnik (nem "—"), ha nincs tényleges adat.
+  - Duplikált "Várható Havi Termelés – PVGIS becslés" oszlopgrafikon eltávolítva új
+    rendszer esetén (a "PVGIS Helyszíni Elemzés" grafikonja marad).
 
   Változások v2.57-ben (KRITIKUS JAVÍTÁS):
   - A 3 szintű árazás bevezetésekor (v2.50) megszűnt a régi "res-brutto" DOM elem,
@@ -774,6 +814,36 @@
       </button>
     </div>
 
+<!-- MINICRM AJÁNLAT LEKÉRDEZÉSE + ADATFORRÁS VÁLASZTÓ -->
+    <div class="mt-card" style="border:1px solid #2e6da4">
+      <h3>🔗 MiniCRM ajánlat lekérdezése</h3>
+      <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.75rem">
+        Add meg a MiniCRM-ben kiállított ajánlat számát (pl. <code>AJ2026-E/01543</code>) – a kWp-t és a rendszer árát automatikusan a tételekből számoljuk, az ügyfél nevét/címét is átvesszük. Csak már <strong>ténylegesen kiállított</strong> (nem "Kiállítandó" státuszú) ajánlatoknál működik.
+      </div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
+        <input type="text" id="minicrm-ajanlatszam" placeholder="AJ2026-E/01543"
+          style="flex:1;min-width:200px;background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.6rem 0.75rem;color:var(--text);font-size:0.9rem;outline:none"
+          onkeydown="if(event.key==='Enter')mt_fetchMiniCrmOffer()">
+        <button onclick="mt_fetchMiniCrmOffer()"
+          style="background:#2e6da4;color:#fff;border:none;border-radius:0.6rem;padding:0.6rem 1.1rem;font-weight:700;font-size:0.85rem;cursor:pointer;white-space:nowrap">
+          🔍 Lekérdezés
+        </button>
+        <button onclick="mt_clearMiniCrmOffer()" id="minicrm-clear-btn" style="display:none;background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);border-radius:0.6rem;padding:0.6rem 1rem;font-size:0.85rem;cursor:pointer">
+          ✕ Törlés
+        </button>
+      </div>
+      <div id="minicrm-status" style="font-size:0.78rem;color:var(--text-muted);margin-top:0.5rem"></div>
+
+      <!-- Adatforrás választó: Árazó vagy MiniCRM adatai alapján számoljon -->
+      <div style="margin-top:0.85rem;padding-top:0.85rem;border-top:1px solid var(--border)">
+        <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:0.04em">Számítás adatforrása (kWp + rendszerár)</div>
+        <div class="mt-toggle" id="mt-adatforras-toggle">
+          <button class="active" id="mt-adatforras-arazo-btn" onclick="mt_setAdatforras('arazo')">🧮 Árazó adatai</button>
+          <button id="mt-adatforras-minicrm-btn" onclick="mt_setAdatforras('minicrm')">🔗 MiniCRM ajánlat</button>
+        </div>
+      </div>
+    </div>
+
 <!-- Tényleges termelési adatok – Excel import -->
     <div class="sofar-panel" id="sofar-panel">
       <h3>📂 Tényleges termelési adatok (SofarCloud export)</h3>
@@ -1202,6 +1272,7 @@
       <button class="admin-tab" onclick="switchAdminTab('calc')" id="atab-calc">🧮 Számítás</button>
       <button class="admin-tab" onclick="switchAdminTab('detail')" id="atab-detail">🔍 Részletező</button>
       <button class="admin-tab" onclick="switchAdminTab('names')" id="atab-names">📋 Nevek</button>
+      <button class="admin-tab" onclick="switchAdminTab('marketing')" id="atab-marketing">📝 Marketing szöveg</button>
     </div>
  
     <!-- TAB: FELHASZNÁLÓK -->
@@ -1307,6 +1378,38 @@
       </div>
     </div>
     </div><!-- /atab-content-names -->
+
+    <!-- TAB: MARKETING SZÖVEG -->
+    <div id="atab-content-marketing" style="display:none">
+    <div class="admin-card">
+      <h3>📝 Marketing szöveg (PDF riport – "12 év szervízgarancia" szekció)</h3>
+      <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem">
+        Ez a szöveg jelenik meg a generált PDF riport tetején, a Megtérülés kalkulátor "Riport generálása" gombjára kattintva (csak Új rendszer és Bővítés módban, nem a "Mi vs. a piac" grafikon adataira vonatkozik).
+      </p>
+      <div style="display:grid;gap:0.75rem">
+        <div>
+          <label style="display:block;font-size:0.75rem;color:var(--text-muted);margin-bottom:0.3rem;text-transform:uppercase;letter-spacing:0.04em">Cím</label>
+          <input type="text" id="marketing-cim" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.6rem 0.75rem;color:var(--text);font-size:0.9rem;outline:none">
+        </div>
+        <div>
+          <label style="display:block;font-size:0.75rem;color:var(--text-muted);margin-bottom:0.3rem;text-transform:uppercase;letter-spacing:0.04em">Alcím</label>
+          <input type="text" id="marketing-alcim" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.6rem 0.75rem;color:var(--text);font-size:0.9rem;outline:none">
+        </div>
+        <div>
+          <label style="display:block;font-size:0.75rem;color:var(--text-muted);margin-bottom:0.3rem;text-transform:uppercase;letter-spacing:0.04em">1. bekezdés</label>
+          <textarea id="marketing-bekezdes1" rows="4" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.6rem 0.75rem;color:var(--text);font-size:0.88rem;outline:none;resize:vertical;font-family:inherit"></textarea>
+        </div>
+        <div>
+          <label style="display:block;font-size:0.75rem;color:var(--text-muted);margin-bottom:0.3rem;text-transform:uppercase;letter-spacing:0.04em">2. bekezdés</label>
+          <textarea id="marketing-bekezdes2" rows="4" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.6rem 0.75rem;color:var(--text);font-size:0.88rem;outline:none;resize:vertical;font-family:inherit"></textarea>
+        </div>
+      </div>
+      <div class="btn-row" style="margin-top:1rem">
+        <button class="btn-secondary" onclick="renderMarketingForm(true)">Alaphelyzet visszaállítása</button>
+        <button class="btn-primary" onclick="saveMarketingForm()">Marketing szöveg mentése</button>
+      </div>
+    </div>
+    </div><!-- /atab-content-marketing -->
   </div><!-- /admin-panel -->
 </div>
  
@@ -1397,7 +1500,7 @@ function applySharedSettings() {
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.57 – 2026-07-10';
+const APP_VERSION = 'v2.60 – 2026-07-24';
 const APP_VERSION_HISTORY = [
   'v2.1 (2026-05-29): Megtérülés kalkulátor, PVGIS integráció',
   'v2.3 (2026-05-29): Sávos áramár, cashflow táblázat, grafikonok',
@@ -1419,6 +1522,9 @@ const APP_VERSION_HISTORY = [
   'v2.55 (2026-07-10): MÉG EGY KRITIKUS JAVÍTÁS – a setCalcMode() eddig MINDIG mentett is (localStorage + Sheets), akkor is, ha csak a felület szinkronizálása miatt hívódott meg (pl. belépéskor, mielőtt a Sheets-ből megérkezett volna a valós kalkulátor-mód). Emiatt a beépített "regi" alapérték minden bejelentkezéskor visszaíródott a Sheets-be, felülírva a ténylegesen beállított "uj" módot. Mostantól setCalcMode(mode, persist) kap egy persist paramétert – csak explicit admin-módosításkor ment, sima UI-szinkronizáláskor (initModeUI) nem. JSONP timeout 10s→20s (a Beallitasok lap olvasása miatt lassabb lehet a válasz, ami időnként hamis "Offline mód" üzenetet okozott).',
   'v2.56 (2026-07-10): ÚJ FUNKCIÓ – "Mi vs. a piac" 18 éves összehasonlító elemzés a Megtérülés kalkulátorban (csak Új rendszer módban): saját (12 év szervízgaranciás) rendszerünk és egy admin-állítható %-kal olcsóbb versenytárs-rendszer kumulált nettó hasznát veti össze, figyelembe véve a versenytárs időszakos (2-3 évente váltakozó) karbantartási költségét, amivel a saját rendszerünk a garanciális időszak (alapból 12 év) alatt nem terhelődik – utána mindkét rendszer ugyanarra az ütemezésre csatlakozik. Admin beállítások: verseny_kedvezmeny_pct, verseny_karbantartas_kezdes, verseny_karbantartas_koltseg, verseny_sajat_garancia_ev. A PDF riportba egy marketingszöveg (12 év szervízgarancia, teljes körű – gyártói garanciát is intéző – ügyintézés) és egy nagyobb, részletesebb verziója a grafikonnak kerül be.',
   'v2.57 (2026-07-10): KRITIKUS JAVÍTÁS – a 3 szintű árazás bevezetésekor (v2.50) megszűnt a régi "res-brutto" DOM elem, amiből a Megtérülés fül az árat importálta az Árazóból – emiatt az ártovábbítás némán mindig meghiúsult, a kWp/ár mezők üresek maradtak tab-váltáskor. Javítva: a calculate() egy LAST_CALC_BRUTTO globálisba írja a "fő" (kiemelt) bruttó árat minden módban, ezt olvassa a Megtérülés import. Emellett a tab-váltás (mt_importFromArazo force=false) korábban csak beírta az értékeket, de nem futtatta újra a kalkulációt – mostantól mindig újraszámol. Új admin beállítás: a karbantartási gyakoriság (eddig fixen "2-3 évente" volt kódba égetve) két külön számmal (verseny_karb_gyakorisag_1/2, alapból 2 és 3) állíthatóvá vált, a Megtérülés tabon is módosítható per ajánlat.',
+  'v2.58 (2026-07-10): PDF riport finomítás – (1) a marketingszöveg (12 év szervízgarancia szekció) mostantól admin felületen szerkeszthető ("📝 Marketing szöveg" új admin tab, Sheets-ben megosztva, mint a többi beállítás), a szöveg magázó formára javítva; (2) az "Összes mért termelés" KPI teljesen eltűnik (nem "—"-t mutat), ha nincs tényleges adat (új rendszer esetén); (3) a duplikált "Várható Havi Termelés – PVGIS becslés" oszlopgrafikon eltávolítva új rendszer esetén (a "PVGIS Helyszíni Elemzés" szekció grafikonja marad, a "Havi Termelési Grafikon (tényleges vs. PVGIS)" pedig csak akkor jelenik meg, ha van tényleges SofarCloud adat).',
+  'v2.59 (2026-07-17): ÚJ FUNKCIÓ – MiniCRM ajánlat összefűzés a Megtérülés PDF riportba. A Megtérülés tabon megadható egy MiniCRM ajánlatszám (pl. AJ2026-E/01543), amit a Google Apps Script (biztonságosan, Script Properties-ben tárolt SystemId/ApiKey-jel) keres meg: 1) Project keresés CategoryId+Name alapján → ProjectId, 2) Offer/List lapozása (max 30 oldal, mert nem szűrhető) a megfelelő OfferId megtalálásáig, 3) a teljes tételes ajánlat lekérése. A találat (tételek, összegek, eredeti PDF link) egy új szekcióként bekerül a generált riportba. Csak MÁR KIÁLLÍTOTT (nem Kiállítandó státuszú) ajánlatoknál működik, mert csak azokhoz jön létre tétel-szintű rekord.',
+  'v2.60 (2026-07-24): ÚJ FUNKCIÓ – a MiniCRM ajánlat-lekérdezés (v2.59) áthelyezve a Megtérülés tab tetejére, és mostantól nem csak a PDF-hez fűzhető össze, hanem a MEGTÉRÜLÉS SZÁMÍTÁS adatforrása is lehet: a lekérdezett ajánlat tételeiből (a tétel nevében szereplő wattszám alapján, pl. "...450W") automatikusan kiszámoljuk a kWp-t, az ajánlat végösszege adja a rendszerárat, az ügyfél neve/címe is átvételre kerül. Új adatforrás-választó (🧮 Árazó adatai / 🔗 MiniCRM ajánlat) dönti el, melyik forrás tölti ki ténylegesen a kWp/ár mezőket – alapból (amíg nincs sikeres MiniCRM lekérdezés) mindig az Árazó-adatokkal számol, a váltás bármikor visszafordítható, egyik forrás adatai sem vesznek el a másikra váltáskor.',
 ];
 
 // Verzió kiírása minden előforduláshoz
@@ -1532,6 +1638,32 @@ const DEFAULT_CALC_NAMES = {
   1: 'Kalkulátor 1', 2: 'Kalkulátor 2', 3: 'Kalkulátor 3',
   4: 'Kalkulátor 4', 5: 'Kalkulátor 5', 6: 'Kalkulátor 6'
 };
+
+// ============================================================
+// MARKETING SZÖVEG (PDF riport – "12 év szervízgarancia" szekció)
+// – admin felületen szerkeszthető, Sheets-en keresztül megosztva
+// ============================================================
+const DEFAULT_MARKETING_TEXT = {
+  cim: '12 év szervízgarancia – nem ér véget a kapcsolatunk a telepítéssel',
+  alcim: 'Solar Future – megbízhatóság, ami hosszú távon is kifizetődik',
+  bekezdes1: 'A piacon megszokott kivitelezői garancia jellemzően 3–5 év – utána az ügyfél a legtöbb helyen magára marad a rendszerével. A Solar Future ennél sokkal tovább, 12 éven át szoros figyelemmel kíséri az Ön rendszerének állapotát és teljesítményét. Ugyanazokkal a kiváló minőségű napelemekkel és alkatrészekkel dolgozunk, mint bárki más a piacon – a különbség abban van, hogy mi 12 éven át az Ön mellett állunk.',
+  bekezdes2: 'Ha bármi rendellenességet észlelünk – legyen szó akár egy meghibásodott panelről, akár egy inverter-problémáról –, a gyártói garanciális ügyintézést is mi visszük végig: Önnek nem kell utánajárnia semmilyen papírmunkának. Ez a fajta kiszámíthatóság és nyugalom az, ami hosszú távon mindig megéri.',
+};
+
+function getMarketingText() {
+  if (SHARED_SETTINGS && SHARED_SETTINGS.marketing_text) {
+    return { ...DEFAULT_MARKETING_TEXT, ...SHARED_SETTINGS.marketing_text };
+  }
+  try { return JSON.parse(localStorage.getItem('sf_marketing_text') || 'null') || {...DEFAULT_MARKETING_TEXT}; }
+  catch { return {...DEFAULT_MARKETING_TEXT}; }
+}
+function saveMarketingText(m) {
+  localStorage.setItem('sf_marketing_text', JSON.stringify(m)); // gyors helyi cache
+  if (!SHARED_SETTINGS) SHARED_SETTINGS = {};
+  SHARED_SETTINGS.marketing_text = m;
+  saveSettingToSheets('marketing_text', m); // megosztott mentés – minden gép ezt fogja látni
+}
+
 const DEFAULT_CALC_MODES = { 1:'regi', 2:'regi', 3:'regi', 4:'regi', 5:'regi', 6:'regi' };
  
 function getCalcModes() {
@@ -1847,7 +1979,7 @@ function showAdmin() {
 }
  
 function switchAdminTab(tab) {
-  ['users','ajanlatok','calc','detail','names'].forEach(t => {
+  ['users','ajanlatok','calc','detail','names','marketing'].forEach(t => {
     const el = document.getElementById('atab-content-' + t);
     const btn = document.getElementById('atab-' + t);
     if (el) el.style.display = t === tab ? 'block' : 'none';
@@ -1857,6 +1989,7 @@ function switchAdminTab(tab) {
   if (tab === 'calc') renderCalcSettings();
   if (tab === 'names') renderCalcNamesForm();
   if (tab === 'ajanlatok') loadAjanlatok();
+  if (tab === 'marketing') renderMarketingForm();
 }
  
 async function loadAjanlatok() {
@@ -3225,6 +3358,28 @@ function saveCalcNames() {
   buildCalcTabs();
   showToast('✅ Nevek mentve!');
 }
+
+// ============================================================
+// ADMIN: MARKETING SZÖVEG (PDF riport)
+// ============================================================
+function renderMarketingForm(resetToDefault = false) {
+  const m = resetToDefault ? DEFAULT_MARKETING_TEXT : getMarketingText();
+  document.getElementById('marketing-cim').value       = m.cim;
+  document.getElementById('marketing-alcim').value     = m.alcim;
+  document.getElementById('marketing-bekezdes1').value = m.bekezdes1;
+  document.getElementById('marketing-bekezdes2').value = m.bekezdes2;
+}
+
+function saveMarketingForm() {
+  const m = {
+    cim:       document.getElementById('marketing-cim').value.trim()       || DEFAULT_MARKETING_TEXT.cim,
+    alcim:     document.getElementById('marketing-alcim').value.trim()     || DEFAULT_MARKETING_TEXT.alcim,
+    bekezdes1: document.getElementById('marketing-bekezdes1').value.trim() || DEFAULT_MARKETING_TEXT.bekezdes1,
+    bekezdes2: document.getElementById('marketing-bekezdes2').value.trim() || DEFAULT_MARKETING_TEXT.bekezdes2,
+  };
+  saveMarketingText(m);
+  showToast('☁️ Marketing szöveg mentve – megosztott beállítás');
+}
  
 // ============================================================
 // TOAST
@@ -3426,31 +3581,184 @@ let mt_pvgisDebounceTimer = null;
  
 const SOFAR_PROXY = SHEETS_API; // Apps Script közvetítőn keresztül
 
+// ============================================================
+// MINICRM AJÁNLAT – ADATFORRÁS A MEGTÉRÜLÉS SZÁMÍTÁSHOZ + PDF ÖSSZEFŰZÉS
+// ============================================================
+// A tényleges MiniCRM SystemId/ApiKey SOSEM kerül ide a kliensbe – a Google Apps
+// Script (SHEETS_API) intézi a lekérdezést a Script Properties-ben tárolt, biztonságos
+// hitelesítő adatokkal (ld. handleMiniCrmOfferLookup az Apps Script kódban).
+let mt_miniCrmOfferData = null; // { minicrmOffer: {...} } vagy { minicrmError: "..." } – a PDF riport is ezt olvassa
+let mt_arazoAdatok   = { kwp: null, ar: null };                                  // az Árazóból importált értékek cache-je
+let mt_minicrmAdatok = { kwp: null, ar: null, ugyfelNev: null, helyszin: null }; // a MiniCRM-ből számolt/átvett értékek
+let mt_adatforras = 'arazo'; // 'arazo' vagy 'minicrm' – melyik adatforrás tölti ki ténylegesen a mt-kwp/mt-rendszer-ar mezőket
+
+// Napelem-tételek kWp-jének kiszámítása egy MiniCRM ajánlat tételei alapján:
+// a tétel nevéből kiolvassuk a wattszámot (pl. "...450W") és megszorozzuk a mennyiséggel.
+// Ha több különböző napelem-tétel is szerepel, mindet összeadjuk.
+function mt_parseKwpFromMiniCrmItems(items) {
+  let totalWatt = 0;
+  let panelCount = 0;
+  (items || []).forEach(it => {
+    const m = String(it.Name || '').match(/(\d{3,4})\s*W\b/i);
+    if (m) {
+      const watt = parseInt(m[1]);
+      const qty = parseFloat(it.Quantity) || 0;
+      totalWatt += watt * qty;
+      panelCount += qty;
+    }
+  });
+  return { kwp: totalWatt / 1000, panelCount };
+}
+
+async function mt_fetchMiniCrmOffer() {
+  const numberEl = document.getElementById('minicrm-ajanlatszam');
+  const statusEl = document.getElementById('minicrm-status');
+  const clearBtn = document.getElementById('minicrm-clear-btn');
+  const number = numberEl?.value?.trim();
+
+  if (!number) {
+    if (statusEl) { statusEl.textContent = '⚠️ Add meg az ajánlatszámot!'; statusEl.style.color = 'var(--red)'; }
+    return;
+  }
+
+  if (statusEl) { statusEl.textContent = '⏳ Lekérdezés a MiniCRM-ből... (régebbi ajánlatnál akár 20-30 másodperc is lehet)'; statusEl.style.color = 'var(--sun)'; }
+
+  try {
+    const data = await new Promise((resolve, reject) => {
+      const cbName = 'sfmc_' + Date.now();
+      const script = document.createElement('script');
+      const timeout = setTimeout(() => { delete window[cbName]; script.remove(); reject(new Error('timeout')); }, 45000);
+      window[cbName] = (d) => { clearTimeout(timeout); delete window[cbName]; script.remove(); resolve(d); };
+      script.src = SHEETS_API + '?action=minicrmOffer&number=' + encodeURIComponent(number) + '&callback=' + cbName + '&t=' + Date.now();
+      script.onerror = () => { clearTimeout(timeout); reject(new Error('script error')); };
+      document.head.appendChild(script);
+    });
+
+    if (data.minicrmError) {
+      mt_miniCrmOfferData = null;
+      if (statusEl) { statusEl.textContent = '❌ ' + data.minicrmError; statusEl.style.color = 'var(--red)'; }
+      if (clearBtn) clearBtn.style.display = 'none';
+      return;
+    }
+
+    mt_miniCrmOfferData = data;
+    const offer = data.minicrmOffer;
+    const itemCount = (offer.Items || []).length;
+    const { kwp, panelCount } = mt_parseKwpFromMiniCrmItems(offer.Items);
+
+    // Ügyfél cím összeállítása (ha van rá adat)
+    const cust = offer.Customer || {};
+    const helyszinReszek = [cust.PostalCode, cust.City, cust.Address].filter(x => x && x !== '.').join(', ');
+
+    mt_minicrmAdatok = {
+      kwp: kwp > 0 ? kwp : null,
+      ar: offer.Amount || null,
+      ugyfelNev: (cust.Name && cust.Name !== '.') ? cust.Name : null,
+      helyszin: helyszinReszek || null,
+    };
+
+    if (statusEl) {
+      const kwpInfo = kwp > 0 ? `${kwp.toFixed(2)} kWp (${panelCount} db napelem)` : 'kWp nem állapítható meg a tételekből';
+      statusEl.innerHTML = `✅ <strong>${offer.Number || number}</strong> betöltve – ${itemCount} tétel, ${Math.round(offer.Amount).toLocaleString('hu-HU')} Ft bruttó, ${kwpInfo}. A "Riport generálása" gombra kattintva a tételek is bekerülnek a PDF-be.`;
+      statusEl.style.color = 'var(--green)';
+    }
+    if (clearBtn) clearBtn.style.display = 'inline-block';
+
+    // Explicit lekérdezés történt – ezt szeretné használni, tehát automatikusan
+    // átváltunk a MiniCRM adatforrásra (a választó gombbal bármikor visszaválthat Árazóra)
+    mt_setAdatforras('minicrm');
+
+  } catch (err) {
+    mt_miniCrmOfferData = null;
+    if (statusEl) { statusEl.textContent = '❌ Lekérdezési hiba – ellenőrizd az ajánlatszámot, vagy próbáld újra.'; statusEl.style.color = 'var(--red)'; }
+    if (clearBtn) clearBtn.style.display = 'none';
+  }
+}
+
+function mt_clearMiniCrmOffer() {
+  mt_miniCrmOfferData = null;
+  mt_minicrmAdatok = { kwp: null, ar: null, ugyfelNev: null, helyszin: null };
+  const numberEl = document.getElementById('minicrm-ajanlatszam');
+  const statusEl = document.getElementById('minicrm-status');
+  const clearBtn = document.getElementById('minicrm-clear-btn');
+  if (numberEl) numberEl.value = '';
+  if (statusEl) statusEl.textContent = '';
+  if (clearBtn) clearBtn.style.display = 'none';
+  // Nincs több MiniCRM adat – visszaváltunk Árazó adatforrásra
+  mt_setAdatforras('arazo');
+}
+
+// Adatforrás váltása: 'arazo' vagy 'minicrm'. Ha a MiniCRM forrást választanák, de
+// még nincs sikeresen lekérdezett ajánlat, marad az Árazó adatforrásnál (nem enged
+// üres/hiányzó adatra váltani).
+function mt_setAdatforras(forras) {
+  const arazoBtn   = document.getElementById('mt-adatforras-arazo-btn');
+  const minicrmBtn = document.getElementById('mt-adatforras-minicrm-btn');
+
+  if (forras === 'minicrm' && (mt_minicrmAdatok.kwp == null || mt_minicrmAdatok.ar == null)) {
+    showToast('⚠️ Előbb kérdezd le a MiniCRM ajánlatot!');
+    forras = 'arazo';
+  }
+
+  mt_adatforras = forras;
+  if (arazoBtn)   arazoBtn.classList.toggle('active', forras === 'arazo');
+  if (minicrmBtn) minicrmBtn.classList.toggle('active', forras === 'minicrm');
+
+  const kwpEl = document.getElementById('mt-kwp');
+  const arEl  = document.getElementById('mt-rendszer-ar');
+  const nevEl = document.getElementById('mt-ugyfel-nev');
+  const helyEl = document.getElementById('mt-helyszin');
+
+  if (forras === 'minicrm') {
+    if (kwpEl && mt_minicrmAdatok.kwp != null) kwpEl.value = mt_minicrmAdatok.kwp.toFixed(2);
+    if (arEl && mt_minicrmAdatok.ar != null) arEl.value = Math.round(mt_minicrmAdatok.ar);
+    if (nevEl && mt_minicrmAdatok.ugyfelNev) nevEl.value = mt_minicrmAdatok.ugyfelNev;
+    if (helyEl && mt_minicrmAdatok.helyszin) helyEl.value = mt_minicrmAdatok.helyszin;
+  } else {
+    if (kwpEl && mt_arazoAdatok.kwp != null) kwpEl.value = mt_arazoAdatok.kwp.toFixed(2);
+    if (arEl && mt_arazoAdatok.ar != null) arEl.value = Math.round(mt_arazoAdatok.ar);
+    // Az ügyfél nevét/címét Árazó-módban nem írjuk felül – azt kézzel vagy MiniCRM-ből lehet tölteni
+  }
+
+  mt_recalculate();
+}
+
 function mt_importFromArazo(force = false) {
   const panelSel = searchState.panel ? searchState.panel.selected : null;
   const panelQty = parseInt(document.getElementById('panel-qty')?.value) || 0;
   let imported = [];
 
+  // Az Árazó-adatokat MINDIG frissítjük a cache-ben (mt_arazoAdatok), függetlenül attól,
+  // hogy épp ez-e az aktív adatforrás – így ha később visszaváltanak Árazóra, friss adat várja őket.
   if (panelSel && panelQty > 0) {
-    const kWp = panelSel.kw * panelQty;
-    const kwpEl = document.getElementById('mt-kwp');
-    if (kwpEl && (force || !kwpEl.value)) {
-      kwpEl.value = kWp.toFixed(2);
-      imported.push(`${kWp.toFixed(2)} kWp`);
-    }
+    mt_arazoAdatok.kwp = panelSel.kw * panelQty;
   }
-
   // JAVÍTVA: a régi "res-brutto" DOM elem a 3 szintű árazás bevezetésével megszűnt
   // (helyette dinamikus rbar-main épül fel), ezért az ár importálása némán mindig
   // meghiúsult. Mostantól a calculate() által frissített LAST_CALC_BRUTTO globálisból
   // olvasunk (bővítés/régi módban az egyetlen ár, 3 szintű Új módban a legmagasabb
   // látható tier – jellemzően az Ajánlott ár).
   if (LAST_CALC_BRUTTO > 0) {
-    const arEl = document.getElementById('mt-rendszer-ar');
-    if (arEl && (force || !arEl.value)) {
-      const num = Math.round(LAST_CALC_BRUTTO);
-      arEl.value = num;
-      imported.push(`${num.toLocaleString('hu-HU')} Ft`);
+    mt_arazoAdatok.ar = LAST_CALC_BRUTTO;
+  }
+
+  // A mezőket csak akkor írjuk át, ha az Árazó az aktív adatforrás – ha épp a MiniCRM
+  // ajánlat adatai vannak kiválasztva, azokat nem írjuk felül a háttérben frissülő Árazó-adatokkal.
+  if (mt_adatforras === 'arazo') {
+    if (mt_arazoAdatok.kwp != null) {
+      const kwpEl = document.getElementById('mt-kwp');
+      if (kwpEl && (force || !kwpEl.value)) {
+        kwpEl.value = mt_arazoAdatok.kwp.toFixed(2);
+        imported.push(`${mt_arazoAdatok.kwp.toFixed(2)} kWp`);
+      }
+    }
+    if (mt_arazoAdatok.ar != null) {
+      const arEl = document.getElementById('mt-rendszer-ar');
+      if (arEl && (force || !arEl.value)) {
+        const num = Math.round(mt_arazoAdatok.ar);
+        arEl.value = num;
+        imported.push(`${num.toLocaleString('hu-HU')} Ft`);
+      }
     }
   }
 
@@ -3458,7 +3766,9 @@ function mt_importFromArazo(force = false) {
   // futott újra a kalkuláció – sima tab-váltáskor (force=false) az értékek beíródtak
   // a mezőkbe, de az eredmény nem jelent meg, amíg valaki kézzel nem módosított valamit.
   // Mostantól mindig újraszámol, hogy a Megtérülés fül azonnal mutassa az adatokat.
-  if (force && imported.length > 0) {
+  if (force && mt_adatforras === 'minicrm') {
+    showToast('ℹ️ A MiniCRM adatforrás aktív – az árazói adatok háttérben frissültek, de a mezőket nem írtuk felül. Váltáshoz: "🧮 Árazó adatai" gomb.');
+  } else if (force && imported.length > 0) {
     showToast('✅ Árazóból frissítve: ' + imported.join(' · '));
   } else if (force && imported.length === 0) {
     showToast('⚠️ Nincs mit átvenni – töltsd ki az árazót!');
@@ -4707,6 +5017,9 @@ function mt_generateReport() {
   const datumStr = now.toLocaleDateString('hu-HU');
   const currentYear = now.getFullYear();
 
+  // Marketing szöveg (admin felületen szerkeszthető)
+  const marketing = getMarketingText();
+
   // Cashflow újraszámítás riporthoz (a mt_recalculate()-tel megegyező logika)
   let kumMegtak = 0;         // kumulált TELJES (bővítés módban: kombinált) megtakarítás
   let kumTobbletMegtak = 0;  // bővítés módban a bővítés hatása; új rendszer módban megegyezik kumMegtak-kal
@@ -4960,15 +5273,15 @@ const vanElozmenyadat = Object.keys(mt_sofarMonthly).length > 0;
   <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem">
     <span style="font-size:2rem">🛡️</span>
     <div>
-      <div style="font-size:1.2rem;font-weight:800;color:#92400e">12 év szervízgarancia – nem ér véget a kapcsolatunk a telepítéssel</div>
-      <div style="font-size:0.8rem;color:#a16207">Solar Future – megbízhatóság, ami hosszú távon is kifizetődik</div>
+      <div style="font-size:1.2rem;font-weight:800;color:#92400e">${marketing.cim}</div>
+      <div style="font-size:0.8rem;color:#a16207">${marketing.alcim}</div>
     </div>
   </div>
   <p style="font-size:0.92rem;line-height:1.7;color:#451a03;margin-bottom:1rem">
-    A piacon megszokott kivitelezői garancia jellemzően <strong>3–5 év</strong> – utána az ügyfél a legtöbb helyen magára marad a rendszerével. A Solar Future ennél sokkal tovább, <strong>12 éven át</strong> szoros figyelemmel kíséri az Ön rendszerének állapotát és teljesítményét. Ugyanazokkal a kiváló minőségű napelemekkel és alkatrészekkel dolgozunk, mint bárki más a piacon – a különbség abban van, hogy mi <strong>12 éven át melletted maradunk</strong>.
+    ${marketing.bekezdes1}
   </p>
   <p style="font-size:0.92rem;line-height:1.7;color:#451a03;margin-bottom:0.5rem">
-    Ha bármi rendellenességet észlelünk – legyen szó akár egy meghibásodott panelről, akár egy inverter-problémáról –, a <strong>gyártói garanciális ügyintézést is mi visszük végig</strong>: Önnek nem kell utánajárnia semmilyen papírmunkának. Ez a fajta kiszámíthatóság és nyugalom az, ami hosszú távon mindig megéri.
+    ${marketing.bekezdes2}
   </p>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0.75rem;margin-top:1.25rem">
     <div style="background:#fff;border-radius:10px;padding:0.85rem;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.06)">
@@ -4989,7 +5302,7 @@ const vanElozmenyadat = Object.keys(mt_sofarMonthly).length > 0;
     <div style="background:#fff;border-radius:10px;padding:0.85rem;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.06)">
       <div style="font-size:1.5rem">🤝</div>
       <div style="font-weight:700;color:#92400e;font-size:0.95rem;margin-top:0.3rem">Ugyanaz a csapat</div>
-      <div style="font-size:0.72rem;color:#666;margin-top:0.2rem">a telepítéstől 12 éven át melletted</div>
+      <div style="font-size:0.72rem;color:#666;margin-top:0.2rem">a telepítéstől 12 éven át az Ön mellett</div>
     </div>
   </div>
 </div>
@@ -5008,6 +5321,46 @@ ${(!isBovites && mt_versenyData) ? `<div class="section">
   </div>
 </div>` : ''}
 
+<!-- MINICRM AJÁNLAT TÉTELEI -->
+${(mt_miniCrmOfferData && mt_miniCrmOfferData.minicrmOffer) ? (() => {
+  const offer = mt_miniCrmOfferData.minicrmOffer;
+  const fmtHuf = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
+  const itemRows = (offer.Items || []).map(it => `<tr>
+    <td>${it.Name || ''}${it.Description ? `<div style="font-size:0.72rem;color:#888;margin-top:0.15rem">${it.Description}</div>` : ''}</td>
+    <td style="text-align:right">${it.Quantity ? Math.round(parseFloat(it.Quantity) * 100) / 100 : ''} ${it.Unit || ''}</td>
+    <td style="text-align:right">${it.PriceNet ? fmtHuf(parseFloat(it.PriceNet)) : ''}</td>
+    <td style="text-align:right">${it.VAT || ''}</td>
+    <td style="text-align:right;font-weight:600">${it.PriceTotal ? fmtHuf(parseFloat(it.PriceTotal)) : ''}</td>
+  </tr>`).join('');
+  return `<div class="section">
+  <div class="section-title">MiniCRM Ajánlat – ${offer.Number || ''}</div>
+  <div class="info-grid" style="margin-bottom:1rem">
+    <div class="info-card"><div class="info-label">Ügyfél</div><div class="info-val">${offer.Customer?.Name || '—'}</div></div>
+    <div class="info-card"><div class="info-label">Kiállítás dátuma</div><div class="info-val">${offer.Issued || '—'}</div></div>
+    <div class="info-card" style="border-left-color:#16a34a"><div class="info-label">Végösszeg (bruttó)</div><div class="info-val" style="color:#16a34a">${fmtHuf(offer.Amount)}</div></div>
+  </div>
+  <div style="overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th style="text-align:left">Tétel</th>
+        <th style="text-align:right">Mennyiség</th>
+        <th style="text-align:right">Nettó egységár</th>
+        <th style="text-align:right">ÁFA</th>
+        <th style="text-align:right">Bruttó összesen</th>
+      </tr></thead>
+      <tbody>
+        ${itemRows}
+        <tr class="total-row">
+          <td colspan="4">Nettó / ÁFA / Bruttó összesen</td>
+          <td style="text-align:right">${fmtHuf(offer.AmountNet)} / ${fmtHuf(offer.AmountVat)} / ${fmtHuf(offer.Amount)}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  ${offer.DocumentUrl ? `<div style="margin-top:0.75rem;font-size:0.82rem"><a href="${offer.DocumentUrl}" target="_blank" style="color:#2e6da4;font-weight:600">📄 Eredeti MiniCRM ajánlat PDF megnyitása</a></div>` : ''}
+</div>`;
+})() : ''}
+
 <!-- KPI KÁRTYÁK -->
 <div class="section">
   <div class="section-title">Kulcsmutatók</div>
@@ -5016,10 +5369,11 @@ ${(!isBovites && mt_versenyData) ? `<div class="section">
       <div class="kpi-val">${kwp}</div>
       <div class="kpi-label">${kapacitasLabel} (kWp)</div>
     </div>
+    ${osszesTenyleges > 0 ? `
     <div class="kpi">
-      <div class="kpi-val">${osszesTenyleges > 0 ? Math.round(osszesTenyleges).toLocaleString('hu-HU') : '—'}</div>
+      <div class="kpi-val">${Math.round(osszesTenyleges).toLocaleString('hu-HU')}</div>
       <div class="kpi-label">Összes mért termelés (kWh) – ${betoltottEvek} év</div>
-    </div>
+    </div>` : ''}
     ${vanElozmenyadat && betoltottEvek > 0 ? `
     <div class="kpi">
       <div class="kpi-val">${Math.round(osszesTenyleges/betoltottEvek).toLocaleString('hu-HU')}</div>
@@ -5105,11 +5459,11 @@ ${haviSorok ? `<div class="section">
   </div>
 </div>` : ''}
 
-<!-- HAVI GRAFIKON -->
-<div class="section">
-  <div class="section-title">${vanElozmenyadat ? 'Havi Termelési Grafikon (tényleges vs. PVGIS)' : 'Várható Havi Termelés – PVGIS becslés'}</div>
+<!-- HAVI GRAFIKON (csak akkor, ha van tényleges adat – új rendszernél ez megegyezne a lenti "PVGIS Helyszíni Elemzés" grafikonjával) -->
+${vanElozmenyadat ? `<div class="section">
+  <div class="section-title">Havi Termelési Grafikon (tényleges vs. PVGIS)</div>
   <div class="chart-wrap"><canvas id="chart-havi"></canvas></div>
-</div>
+</div>` : ''}
 
 ${vanElozmenyadat ? `
 <div class="section">
@@ -5257,19 +5611,19 @@ ${mt_pvgisData ? `<div class="section">
 </div><!-- /page -->
 
 <script>
-// Havi termelés grafikon
+${vanElozmenyadat ? `
+// Havi termelés grafikon (tényleges vs. PVGIS)
 new Chart(document.getElementById('chart-havi'), {
   type: 'bar',
   data: {
     labels: ${chartHaviLabels},
     datasets: [
-      ${vanElozmenyadat ? `{ label: 'Tényleges átlag (kWh)', data: ${chartHaviTenyleges}, backgroundColor: 'rgba(46,109,164,0.8)', borderRadius: 4 },` : ''}
+      { label: 'Tényleges átlag (kWh)', data: ${chartHaviTenyleges}, backgroundColor: 'rgba(46,109,164,0.8)', borderRadius: 4 },
       { label: 'PVGIS várható (kWh)', data: ${chartHaviPvgis}, backgroundColor: 'rgba(247,166,0,0.7)', borderRadius: 4 }
     ]
   },
-
   options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ font:{size:12} } } }, scales:{ y:{ ticks:{ callback: v => v+' kWh' } } } }
-});
+});` : ''}
 
 ${rendszerAr > 0 ? `
 // Cashflow grafikon
