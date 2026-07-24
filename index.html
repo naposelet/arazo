@@ -1505,7 +1505,7 @@ function applySharedSettings() {
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.62 – 2026-07-24';
+const APP_VERSION = 'v2.63 – 2026-07-24';
 const APP_VERSION_HISTORY = [
   'v2.1 (2026-05-29): Megtérülés kalkulátor, PVGIS integráció',
   'v2.3 (2026-05-29): Sávos áramár, cashflow táblázat, grafikonok',
@@ -1532,6 +1532,7 @@ const APP_VERSION_HISTORY = [
   'v2.60 (2026-07-24): ÚJ FUNKCIÓ – a MiniCRM ajánlat-lekérdezés (v2.59) áthelyezve a Megtérülés tab tetejére, és mostantól nem csak a PDF-hez fűzhető össze, hanem a MEGTÉRÜLÉS SZÁMÍTÁS adatforrása is lehet: a lekérdezett ajánlat tételeiből (a tétel nevében szereplő wattszám alapján, pl. "...450W") automatikusan kiszámoljuk a kWp-t, az ajánlat végösszege adja a rendszerárat, az ügyfél neve/címe is átvételre kerül. Új adatforrás-választó (🧮 Árazó adatai / 🔗 MiniCRM ajánlat) dönti el, melyik forrás tölti ki ténylegesen a kWp/ár mezőket – alapból (amíg nincs sikeres MiniCRM lekérdezés) mindig az Árazó-adatokkal számol, a váltás bármikor visszafordítható, egyik forrás adatai sem vesznek el a másikra váltáskor.',
   'v2.61 (2026-07-24): PDF riport ritkítás/átláthatóság – (1) az alacsony információtartalmú "Kumulált Megtakarítás vs. Beruházás" grafikon eltávolítva mindenhonnan (élő Megtérülés tabról és a PDF-ből is); (2) a riportban felcserélve a sorrend: előbb az Ajánlat tételes bontása (mit kap az ügyfél), utána a "Mi vs. a piac" összehasonlító grafikon; (3) "MiniCRM Ajánlat – ..." cím → "Ajánlat – ..."; (4) a tételes táblázat záró sora "Nettó: X | ÁFA: Y | Bruttó: Z" formára javítva (a felirat közvetlenül a szám elé kerül); (5) "Rendszer Műszaki Adatok" és "PVGIS Helyszíni Elemzés" szekciók tömör, sortördeléses felsorolásra cserélve a nagy kártyák helyett (kevesebb helyet foglalnak); (6) a záró "Mutató / Érték / Értékelés" táblázat eltávolítva (a fölötte lévő kiemelt dobozok elegendőek).',
   'v2.62 (2026-07-24): PDF riport – sortörés javítás. Az ajánlat-táblázat záró összesítő sora (Nettó/ÁFA/Bruttó) kiemelve a szűk táblázat-cellából egy teljes szélességű sorba, hogy ne törjön két sorba. A "Rendszer Műszaki Adatok" és "PVGIS Helyszíni Elemzés" szekciók grid helyett flexbox elrendezést kaptak, minden egyes adat (címke+érték) white-space:nowrap-pal, hogy egyben maradjon egy soron, ne törjön ketté (pl. "GPS koordináták: 47.28°N, 19.54°E" most már biztosan egy sorban van).',
+  'v2.63 (2026-07-24): PDF riport – elrendezés/oldaltördelés finomítás. A Kulcsmutatók kártyák kisebbre véve (kisebb betűméret/padding), hogy egy sorban férjenek ki. A "PVGIS Helyszíni Elemzés" és a "Rendszer Műszaki Adatok" szekciók sorrendje felcserélve, hogy a rövid, kompakt Rendszer Műszaki Adatok kerüljön közvetlenül a Teljesítmény Értékelés elé (nyomtatáskor így nagyobb eséllyel fér el ugyanazon az oldalon). A Teljesítmény Értékelés 3 doboza (Pozitívumok/Megjegyzések/Pénzügyi összefoglaló) most egymás mellett, 3 oszlopban jelenik meg egymás alatt sorakozás helyett, kisebb betűmérettel – jelentősen kevesebb függőleges helyet foglal.',
 ];
 
 // Verzió kiírása minden előforduláshoz
@@ -5164,10 +5165,10 @@ const vanElozmenyadat = Object.keys(mt_sofarMonthly).length > 0;
   .page { max-width:1100px; margin:0 auto; padding:2rem; }
   .section { background:#fff; border-radius:12px; padding:1.5rem; margin-bottom:1.5rem; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
   .section-title { font-size:1.1rem; font-weight:700; color:#1a3a5c; margin-bottom:1.25rem; padding-left:0.75rem; border-left:4px solid #f7a600; }
-  .kpi-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:1rem; }
-  .kpi { background:linear-gradient(135deg,#1a3a5c,#2e6da4); border-radius:12px; padding:1.25rem; color:#fff; text-align:center; }
-  .kpi-val { font-size:2rem; font-weight:800; color:#f7a600; }
-  .kpi-label { font-size:0.8rem; opacity:0.8; margin-top:0.25rem; }
+  .kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:0.6rem; }
+  .kpi { background:linear-gradient(135deg,#1a3a5c,#2e6da4); border-radius:10px; padding:0.7rem 0.5rem; color:#fff; text-align:center; }
+  .kpi-val { font-size:1.2rem; font-weight:800; color:#f7a600; }
+  .kpi-label { font-size:0.65rem; opacity:0.85; margin-top:0.2rem; line-height:1.25; }
   .info-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:0.75rem; }
   .info-card { background:#f8fafc; border-radius:8px; padding:0.85rem 1rem; border-left:4px solid #2e6da4; }
   .info-label { font-size:0.72rem; color:#666; text-transform:uppercase; letter-spacing:0.05em; }
@@ -5179,7 +5180,7 @@ const vanElozmenyadat = Object.keys(mt_sofarMonthly).length > 0;
   .total-row td { background:#f0f4f8; font-weight:700; border-top:2px solid #1a3a5c; }
   .chart-wrap { position:relative; height:300px; }
   .q-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:1rem; }
-  .highlight-box { border-radius:10px; padding:1rem 1.25rem; margin-bottom:0.75rem; }
+  .highlight-box { border-radius:10px; padding:0.7rem 0.85rem; margin-bottom:0; }
   .hb-blue  { background:#eff6ff; border:1px solid #bfdbfe; }
   .hb-orange { background:#fffbeb; border:1px solid #fed7aa; }
   .hb-green { background:#f0fdf4; border:1px solid #bbf7d0; }
@@ -5358,37 +5359,17 @@ ${(!isBovites && mt_versenyData) ? `<div class="section">
   </div>
 </div>
 
-<!-- RENDSZER ADATOK -->
-<div class="section">
-  <div class="section-title">Rendszer Műszaki Adatok</div>
-  <div style="display:flex;flex-wrap:wrap;gap:0.4rem 1.75rem;font-size:0.82rem;line-height:1.8">
-    <div style="white-space:nowrap"><span style="color:#888">Ügyfél neve:</span> <strong>${ugyfelNev}</strong></div>
-    <div style="white-space:nowrap"><span style="color:#888">Helyszín / Cím:</span> <strong>${helyszin}</strong></div>
-    <div style="white-space:nowrap"><span style="color:#888">GPS koordináták:</span> <strong>${lat !== '—' ? lat+'°N, '+lon+'°E' : '—'}</strong></div>
-    <div style="white-space:nowrap"><span style="color:#888">${kapacitasLabel}:</span> <strong>${kwp} kWp</strong></div>
-    <div style="white-space:nowrap"><span style="color:#888">Tető dőlésszög:</span> <strong>${tilt}°</strong></div>
-    <div style="white-space:nowrap"><span style="color:#888">Tájolás / Azimut:</span> <strong>${azimut}° ${azimut==0?'(Dél)':azimut<0?'(Kelet felé)':'(Nyugat felé)'}</strong></div>
-    <div style="white-space:nowrap"><span style="color:#888">${arLabel}:</span> <strong>${rendszerAr > 0 ? Math.round(rendszerAr).toLocaleString('hu-HU')+' Ft' : '—'}</strong></div>
-    <div style="white-space:nowrap"><span style="color:#888">Fajlagos ár:</span> <strong>${rendszerAr > 0 && kwp > 0 ? Math.round(rendszerAr/kwp).toLocaleString('hu-HU')+' Ft/kWp' : '—'}</strong></div>
-    <div style="white-space:nowrap"><span style="color:#888">Éves degradáció:</span> <strong>${degradacio}%/év</strong></div>
-    <div style="white-space:nowrap"><span style="color:#888">PVGIS fajlagos termelés:</span> <strong>${mt_pvgisData ? Math.round(mt_pvgisData.yearly/kwp)+' kWh/kWp/év' : '—'}</strong></div>
-    <div style="white-space:nowrap"><span style="color:#888">Átlagos áramár:</span> <strong>${Math.round(atlagAr)} Ft/kWh</strong></div>
-    <div style="white-space:nowrap"><span style="color:#888">Dokumentáció dátuma:</span> <strong>${datumStr}</strong></div>
+<!-- PVGIS ELEMZÉS -->
+${mt_pvgisData ? `<div class="section">
+  <div class="section-title">PVGIS Helyszíni Elemzés</div>
+  <div style="display:flex;flex-wrap:wrap;gap:0.5rem 1.5rem;font-size:0.82rem;margin-bottom:0.85rem;line-height:1.6">
+    <div style="white-space:nowrap"><span style="color:#888">Várható éves termelés:</span> <strong style="color:#f7a600">${Math.round(mt_pvgisData.yearly).toLocaleString('hu-HU')} kWh/év</strong></div>
+    <div style="white-space:nowrap"><span style="color:#888">Fajlagos termelés:</span> <strong>${Math.round(mt_pvgisData.yearly/kwp)} kWh/kWp/év</strong></div>
+    <div style="white-space:nowrap"><span style="color:#888">Helyszín (lat/lon):</span> <strong>${lat}°N, ${lon}°E</strong></div>
+    <div style="white-space:nowrap"><span style="color:#888">Dőlésszög / Azimut:</span> <strong>${tilt}° / ${azimut}°</strong></div>
   </div>
-  ${mt_sofarName ? `<div style="margin-top:1rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:1rem">
-    <strong>📊 SofarCloud azonosítás (meglévő rendszer):</strong> ${mt_sofarName} &nbsp;|&nbsp; ${mt_sofarKwp ? mt_sofarKwp+' kWp telepített' : ''} &nbsp;|&nbsp; ${Object.keys(mt_sofarMonthly).length} hónap adat betöltve
-    ${(() => {
-      const invGroups = {};
-      (sofar_apiDevices || []).forEach(d => {
-        const key = d.deviceModelName || d.deviceModel || 'Ismeretlen inverter';
-        invGroups[key] = (invGroups[key] || 0) + 1;
-      });
-      const invHtml = Object.entries(invGroups).map(([name, cnt]) => `${cnt}× ${name}`).join(', ');
-      return invHtml ? `&nbsp;|&nbsp; Inverter(ek): ${invHtml}` : '';
-    })()}
-    ${isBovites ? `<br><span style="color:#1d4ed8;font-weight:600">🔧 Ez a dokumentum egy meglévő rendszer BŐVÍTÉSÉT elemzi – a fenti "${kapacitasLabel.toLowerCase()}" és "${arLabel.toLowerCase()}" kizárólag a bővítésre vonatkozik.</span>` : ''}
-  </div>` : ''}
-</div>
+  <div class="chart-wrap"><canvas id="chart-pvgis"></canvas></div>
+</div>` : ''}
 
 <!-- HAVI TERMELÉSI ADATOK -->
 ${haviSorok ? `<div class="section">
@@ -5499,25 +5480,45 @@ ${isBovites ? `<div class="section">
   </div>
 </div>` : ''}
 
-<!-- PVGIS ELEMZÉS -->
-${mt_pvgisData ? `<div class="section">
-  <div class="section-title">PVGIS Helyszíni Elemzés</div>
-  <div style="display:flex;flex-wrap:wrap;gap:0.5rem 1.5rem;font-size:0.82rem;margin-bottom:0.85rem;line-height:1.6">
-    <div style="white-space:nowrap"><span style="color:#888">Várható éves termelés:</span> <strong style="color:#f7a600">${Math.round(mt_pvgisData.yearly).toLocaleString('hu-HU')} kWh/év</strong></div>
-    <div style="white-space:nowrap"><span style="color:#888">Fajlagos termelés:</span> <strong>${Math.round(mt_pvgisData.yearly/kwp)} kWh/kWp/év</strong></div>
-    <div style="white-space:nowrap"><span style="color:#888">Helyszín (lat/lon):</span> <strong>${lat}°N, ${lon}°E</strong></div>
-    <div style="white-space:nowrap"><span style="color:#888">Dőlésszög / Azimut:</span> <strong>${tilt}° / ${azimut}°</strong></div>
+<!-- RENDSZER ADATOK -->
+<div class="section">
+  <div class="section-title">Rendszer Műszaki Adatok</div>
+  <div style="display:flex;flex-wrap:wrap;gap:0.4rem 1.75rem;font-size:0.82rem;line-height:1.8">
+    <div style="white-space:nowrap"><span style="color:#888">Ügyfél neve:</span> <strong>${ugyfelNev}</strong></div>
+    <div style="white-space:nowrap"><span style="color:#888">Helyszín / Cím:</span> <strong>${helyszin}</strong></div>
+    <div style="white-space:nowrap"><span style="color:#888">GPS koordináták:</span> <strong>${lat !== '—' ? lat+'°N, '+lon+'°E' : '—'}</strong></div>
+    <div style="white-space:nowrap"><span style="color:#888">${kapacitasLabel}:</span> <strong>${kwp} kWp</strong></div>
+    <div style="white-space:nowrap"><span style="color:#888">Tető dőlésszög:</span> <strong>${tilt}°</strong></div>
+    <div style="white-space:nowrap"><span style="color:#888">Tájolás / Azimut:</span> <strong>${azimut}° ${azimut==0?'(Dél)':azimut<0?'(Kelet felé)':'(Nyugat felé)'}</strong></div>
+    <div style="white-space:nowrap"><span style="color:#888">${arLabel}:</span> <strong>${rendszerAr > 0 ? Math.round(rendszerAr).toLocaleString('hu-HU')+' Ft' : '—'}</strong></div>
+    <div style="white-space:nowrap"><span style="color:#888">Fajlagos ár:</span> <strong>${rendszerAr > 0 && kwp > 0 ? Math.round(rendszerAr/kwp).toLocaleString('hu-HU')+' Ft/kWp' : '—'}</strong></div>
+    <div style="white-space:nowrap"><span style="color:#888">Éves degradáció:</span> <strong>${degradacio}%/év</strong></div>
+    <div style="white-space:nowrap"><span style="color:#888">PVGIS fajlagos termelés:</span> <strong>${mt_pvgisData ? Math.round(mt_pvgisData.yearly/kwp)+' kWh/kWp/év' : '—'}</strong></div>
+    <div style="white-space:nowrap"><span style="color:#888">Átlagos áramár:</span> <strong>${Math.round(atlagAr)} Ft/kWh</strong></div>
+    <div style="white-space:nowrap"><span style="color:#888">Dokumentáció dátuma:</span> <strong>${datumStr}</strong></div>
   </div>
-  <div class="chart-wrap"><canvas id="chart-pvgis"></canvas></div>
-</div>` : ''}
+  ${mt_sofarName ? `<div style="margin-top:1rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:1rem">
+    <strong>📊 SofarCloud azonosítás (meglévő rendszer):</strong> ${mt_sofarName} &nbsp;|&nbsp; ${mt_sofarKwp ? mt_sofarKwp+' kWp telepített' : ''} &nbsp;|&nbsp; ${Object.keys(mt_sofarMonthly).length} hónap adat betöltve
+    ${(() => {
+      const invGroups = {};
+      (sofar_apiDevices || []).forEach(d => {
+        const key = d.deviceModelName || d.deviceModel || 'Ismeretlen inverter';
+        invGroups[key] = (invGroups[key] || 0) + 1;
+      });
+      const invHtml = Object.entries(invGroups).map(([name, cnt]) => `${cnt}× ${name}`).join(', ');
+      return invHtml ? `&nbsp;|&nbsp; Inverter(ek): ${invHtml}` : '';
+    })()}
+    ${isBovites ? `<br><span style="color:#1d4ed8;font-weight:600">🔧 Ez a dokumentum egy meglévő rendszer BŐVÍTÉSÉT elemzi – a fenti "${kapacitasLabel.toLowerCase()}" és "${arLabel.toLowerCase()}" kizárólag a bővítésre vonatkozik.</span>` : ''}
+  </div>` : ''}
+</div>
 
 <!-- TELJESÍTMÉNY ÉRTÉKELÉS -->
 <div class="section">
   <div class="section-title">Teljesítmény Értékelés</div>
-  <div style="display:grid;gap:0.75rem;margin-bottom:1.25rem">
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem">
     <div class="highlight-box hb-blue">
-      <div class="hb-title" style="color:#1d4ed8">✅ Pozitívumok</div>
-      <ul style="padding-left:1.25rem;font-size:0.875rem;line-height:1.8">
+      <div class="hb-title" style="color:#1d4ed8;font-size:0.85rem">✅ Pozitívumok</div>
+      <ul style="padding-left:1.1rem;font-size:0.78rem;line-height:1.5;margin-top:0.3rem">
         ${kwp > 0 ? `<li>Telepített kapacitás: <strong>${kwp} kWp</strong></li>` : ''}
         ${osszesTenyleges > 0 ? `<li>Összes mért termelés: <strong>${Math.round(osszesTenyleges).toLocaleString('hu-HU')} kWh</strong></li>` : ''}
         ${elsoEvMegtak > 0 ? `<li>Becsült éves megtakarítás: <strong>${fmtFt(elsoEvMegtak)}</strong></li>` : ''}
@@ -5526,8 +5527,8 @@ ${mt_pvgisData ? `<div class="section">
       </ul>
     </div>
     <div class="highlight-box hb-orange">
-      <div class="hb-title" style="color:#d97706">⚠️ Megjegyzések</div>
-      <ul style="padding-left:1.25rem;font-size:0.875rem;line-height:1.8">
+      <div class="hb-title" style="color:#d97706;font-size:0.85rem">⚠️ Megjegyzések</div>
+      <ul style="padding-left:1.1rem;font-size:0.78rem;line-height:1.5;margin-top:0.3rem">
         <li>Az éves degradáció ${degradacio}%/év értékkel kalkulálva</li>
         ${!mt_pvgisData ? '<li>PVGIS adatok nem elérhetők – koordináták megadása javasolt</li>' : ''}
         ${!vanElozmenyadat ? '<li>Ez egy új rendszer – tényleges termelési előzmény még nem áll rendelkezésre</li>' : ''}
@@ -5535,11 +5536,11 @@ ${mt_pvgisData ? `<div class="section">
       </ul>
     </div>
     <div class="highlight-box hb-green">
-      <div class="hb-title" style="color:#16a34a">💰 Pénzügyi összefoglaló</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.75rem;font-size:0.875rem">
+      <div class="hb-title" style="color:#16a34a;font-size:0.85rem">💰 Pénzügyi összefoglaló</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 0.6rem;font-size:0.76rem;margin-top:0.3rem">
         <div><span style="color:#666">Beruházás:</span><br><strong>${rendszerAr > 0 ? fmtFt(rendszerAr) : '—'}</strong></div>
-        <div><span style="color:#666">Éves megtakarítás (1. év):</span><br><strong>${fmtFt(elsoEvMegtak)}</strong></div>
-        <div><span style="color:#666">${elettartam} éves megtakarítás:</span><br><strong style="color:#16a34a">${fmtFt(osszesMegtak)}</strong></div>
+        <div><span style="color:#666">Éves megtak. (1. év):</span><br><strong>${fmtFt(elsoEvMegtak)}</strong></div>
+        <div><span style="color:#666">${elettartam} éves megtak.:</span><br><strong style="color:#16a34a">${fmtFt(osszesMegtak)}</strong></div>
         <div><span style="color:#666">Megtérülési idő:</span><br><strong>${megterulesEv ? megterulesEv+' év' : '>'+elettartam+' év'}</strong></div>
       </div>
     </div>
