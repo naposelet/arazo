@@ -812,20 +812,28 @@
   <div id="megterules-view">
 
     <!-- Rögzített (sticky) gyorsgombok – görgetéskor is mindig látszanak -->
-    <div id="mt-sticky-header" style="padding:0.6rem 1rem;display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">
-      <button onclick="mt_importFromArazo(true)"
-        style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.6rem;padding:0.45rem 0.9rem;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:0.4rem">
-        🔄 Ár frissítése az Árazóból
-      </button>
-      <button onclick="sofar_apiLoadStations()"
-        style="background:var(--sun);color:#000;border:none;border-radius:0.6rem;padding:0.45rem 0.9rem;font-weight:700;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:0.4rem">
-        📋 SofarCloud rendszerek betöltése
-      </button>
-      <button onclick="mt_pvgisManual()"
-        style="background:linear-gradient(135deg,#1a3a5c,#2e6da4);color:#fff;border:none;border-radius:0.6rem;padding:0.45rem 0.9rem;font-weight:700;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:0.4rem">
-        🛰️ PVGIS lekérése
-      </button>
-    </div>
+   <div id="mt-sticky-header" style="padding:0.6rem 1rem;display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">
+  <button onclick="mt_importFromArazo(true)"
+    style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.6rem;padding:0.45rem 0.9rem;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:0.4rem">
+    🔄 Ár frissítése az Árazóból
+  </button>
+  <button onclick="sofar_apiLoadStations()"
+    style="background:var(--sun);color:#000;border:none;border-radius:0.6rem;padding:0.45rem 0.9rem;font-weight:700;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:0.4rem">
+    📋 SofarCloud rendszerek betöltése
+  </button>
+  <button onclick="mt_pvgisManual()"
+    style="background:linear-gradient(135deg,#1a3a5c,#2e6da4);color:#fff;border:none;border-radius:0.6rem;padding:0.45rem 0.9rem;font-weight:700;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:0.4rem">
+    🛰️ PVGIS lekérése
+  </button>
+  <button onclick="mt_generateReport()"
+    style="background:linear-gradient(135deg,#166534,#16a34a);color:#fff;border:none;border-radius:0.6rem;padding:0.45rem 0.9rem;font-weight:700;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:0.4rem;margin-left:auto">
+    📄 Riport / PDF
+  </button>
+  <label style="display:flex;align-items:center;gap:0.35rem;font-size:0.75rem;color:var(--sun);cursor:pointer;background:var(--bg);border:1px solid var(--border);border-radius:0.5rem;padding:0.4rem 0.65rem;white-space:nowrap">
+    <input type="checkbox" id="verseny-pdf-include-top" checked onchange="mt_syncVersenyPdfToggle(this.checked, 'top')">
+    Mi vs. piac a PDF-ben
+  </label>
+</div>
 
 <!-- MINICRM AJÁNLAT LEKÉRDEZÉSE + ADATFORRÁS VÁLASZTÓ -->
     <div class="mt-card" style="border:1px solid #2e6da4">
@@ -4100,6 +4108,16 @@ function mt_renderInfoBar(evesKwh, sajatTermeles, isBovites) {
 }
 
 // ============================================================
+// "MI VS. A PIAC" PDF-KAPCSOLÓ SZINKRONIZÁLÁSA (fejléc <-> kártya)
+// ============================================================
+function mt_syncVersenyPdfToggle(checked, source) {
+  const top  = document.getElementById('verseny-pdf-include-top');
+  const card = document.getElementById('verseny-pdf-include-card');
+  if (top  && source !== 'top')  top.checked  = checked;
+  if (card && source !== 'card') card.checked = checked;
+}
+
+// ============================================================
 // MI VS. A PIAC – VERSENYTÁRS-ÖSSZEHASONLÍTÁS (csak Új rendszer módban)
 // ============================================================
 // Karbantartási évek generálása: kezdesEv-től, gap1-gap2-gap1-gap2... váltakozó
@@ -5313,7 +5331,7 @@ ${(mt_miniCrmOfferData && mt_miniCrmOfferData.minicrmOffer) ? (() => {
 })() : ''}
 
 <!-- MI VS. A PIAC -->
-${(!isBovites && mt_versenyData && document.getElementById('verseny-pdf-include')?.checked !== false) ? `<div class="section">
+${(!isBovites && mt_versenyData && document.getElementById('verseny-pdf-include-top')?.checked !== false) ? `<div class="section">
   <div class="section-title">Mi vs. a piac – ${mt_versenyData.ciklus} éves összehasonlítás</div>
   <p style="font-size:0.88rem;color:#444;margin-bottom:1rem;line-height:1.6">
     Egy versenytárs rendszere induláskor kb. ${mt_versenyData.kedvezmenyPct}%-kal olcsóbb lehet, ám a legtöbb piaci szereplőnél már a(z) ${mt_versenyData.karbKezdes}. évtől megjelennek az időszakos karbantartási költségek (kb. ${Math.round(mt_versenyData.karbKoltseg).toLocaleString('hu-HU')} Ft alkalmanként, ${mt_versenyData.gap1}-${mt_versenyData.gap2} évente váltakozva). A Solar Future rendszerén ezzel szemben ${mt_versenyData.garanciaEv} évig nincs ilyen jellegű költség – az alábbi grafikon mutatja, hogyan alakul emiatt a két rendszer kumulált nettó haszna a teljes ${mt_versenyData.ciklus} éves ciklus alatt.
