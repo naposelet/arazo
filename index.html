@@ -5001,6 +5001,33 @@ function mt_generateReport() {
   const evesTermeles = mt_pvgisData ? mt_pvgisData.yearly : kwp * 1000;
   const atlagAr     = mt_getAtlagosKwhAr(evesKwh);
 
+  // ============================================================
+  // KÖRNYEZETI HATÁS – CO2-megtakarítás és szemléltető összehasonlítások
+  // Tájékoztató jellegű becslés, közismert referenciaértékek alapján:
+  //  - hazai hálózati áram CO2-intenzitása: ~0,3 kg CO2/kWh
+  //  - egy fa éves CO2-megkötése: ~22 kg/év
+  //  - átlagos benzines személyautó: 6 l/100km, 1 liter benzin ~2,31 kg CO2
+  //  - átlagos családi ház gázfűtése: ~1200 m³/év, 1 m³ földgáz ~1,88 kg CO2
+  //  - vasúti közlekedés: ~41 g CO2/utaskilométer
+  // ============================================================
+  const CO2_PER_KWH = 0.3;
+  const CO2_PER_TREE_YEAR = 22;
+  const CO2_PER_CAR_KM = 0.1386;
+  const CO2_PER_GAS_M3 = 1.88;
+  const AVG_HOUSE_GAS_M3_YEAR = 1200;
+  const CO2_PER_TRAIN_KM = 0.041;
+  const EARTH_CIRCUMFERENCE_KM = 40075;
+
+  const evesCo2Kg = evesTermeles * CO2_PER_KWH;
+  const evesCo2Tonna = evesCo2Kg / 1000;
+  const faSzam = Math.round(evesCo2Kg / CO2_PER_TREE_YEAR);
+  const autoKm = Math.round(evesCo2Kg / CO2_PER_CAR_KM);
+  const gazHaviEgesz = Math.max(1, Math.round(evesCo2Kg / ((AVG_HOUSE_GAS_M3_YEAR * CO2_PER_GAS_M3) / 12)));
+  const gazEv = Math.floor(gazHaviEgesz / 12);
+  const gazHo = gazHaviEgesz % 12;
+  const vonatKm = Math.round(evesCo2Kg / CO2_PER_TRAIN_KM);
+  const foldKorul = vonatKm / EARTH_CIRCUMFERENCE_KM;
+  
   // Bővítés-mód: van SofarCloud tényadat a meglévő rendszerről (kwp/rendszerAr ekkor a BŐVÍTÉS adatai)
   const isBovites = !!(mt_sofarKwp && mt_sofarKwp > 0 && Object.keys(mt_sofarMonthly).length > 0);
   const fajlagosMert = isBovites ? sofar_getFajlagosHozam() : null;
@@ -5420,6 +5447,37 @@ ${(!isBovites && mt_versenyData && document.getElementById('verseny-pdf-include-
       <div class="kpi-val">${Math.round(osszesMegtak/1000000*10)/10} MFt</div>
       <div class="kpi-label">Összes megtakarítás (${elettartam} év)</div>
     </div>
+  </div>
+<!-- KÖRNYEZETI HATÁS / CO2 -->
+<div class="section" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #16a34a">
+  <div class="section-title" style="border-left-color:#16a34a">🌍 Környezeti hatás – ennyi CO₂-t takarít meg évente</div>
+  <div style="font-size:0.85rem;color:#166534;margin-bottom:1.25rem">
+    A rendszer várható éves termelése alapján becsülve: <strong>${Math.round(evesCo2Kg).toLocaleString('hu-HU')} kg</strong> (${evesCo2Tonna.toFixed(1)} tonna) CO₂-kibocsátás marad el évente.
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0.85rem">
+    <div style="background:#fff;border-radius:12px;padding:1.1rem;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+      <div style="font-size:2rem">🌳</div>
+      <div style="font-size:1.5rem;font-weight:800;color:#16a34a;margin-top:0.3rem">${faSzam.toLocaleString('hu-HU')} db</div>
+      <div style="font-size:0.78rem;color:#666;margin-top:0.2rem">ennyi fa évi CO₂-megkötésével egyenértékű</div>
+    </div>
+    <div style="background:#fff;border-radius:12px;padding:1.1rem;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+      <div style="font-size:2rem">🚗</div>
+      <div style="font-size:1.5rem;font-weight:800;color:#16a34a;margin-top:0.3rem">${autoKm.toLocaleString('hu-HU')} km</div>
+      <div style="font-size:0.78rem;color:#666;margin-top:0.2rem">ennyi autóút CO₂-kibocsátásának felel meg (6 l/100km fogyasztással)</div>
+    </div>
+    <div style="background:#fff;border-radius:12px;padding:1.1rem;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+      <div style="font-size:2rem">🔥</div>
+      <div style="font-size:1.5rem;font-weight:800;color:#16a34a;margin-top:0.3rem">${gazEv > 0 ? gazEv + ' év ' : ''}${gazHo} hónap</div>
+      <div style="font-size:0.78rem;color:#666;margin-top:0.2rem">egy átlagos családi ház földgázfűtésének kiváltásával egyenértékű</div>
+    </div>
+    <div style="background:#fff;border-radius:12px;padding:1.1rem;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+      <div style="font-size:2rem">🚆</div>
+      <div style="font-size:1.5rem;font-weight:800;color:#16a34a;margin-top:0.3rem">${vonatKm.toLocaleString('hu-HU')} km</div>
+      <div style="font-size:0.78rem;color:#666;margin-top:0.2rem">vonatozással (${foldKorul >= 1 ? foldKorul.toFixed(1) + '× a Föld körül' : 'kb. ' + Math.round(foldKorul*100) + '% a Föld kerületéből'})</div>
+    </div>
+  </div>
+  <div style="font-size:0.68rem;color:#888;margin-top:1rem">
+    * Tájékoztató jellegű becslés a hazai hálózati villamosenergia átlagos CO₂-intenzitása (~0,3 kg/kWh) és közismert referenciaértékek alapján (fa: ~22 kg CO₂/év; benzines személygépkocsi: 6 l/100km; földgáz: ~1,88 kg CO₂/m³, átlagos családi ház ~1200 m³/év; vasúti közlekedés: ~41 g CO₂/utaskm).
   </div>
 </div>
 
