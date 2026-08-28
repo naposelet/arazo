@@ -1865,38 +1865,54 @@ let activeCalc = 1;
 // legmagasabb látható tier, jellemzően az Ajánlott ár).
 let LAST_CALC_BRUTTO = 0;
  
-function doLogin() {
+async function doLogin() {
   const email = document.getElementById('login-email').value.trim().toLowerCase();
   const pass = document.getElementById('login-pass').value;
-  const users = getUsers();
-  if (users.length === 0) {
-    document.getElementById('login-error').textContent = '⏳ Adatok még betöltés alatt, próbáld újra...';
+
+  if (!email || !pass) {
+    document.getElementById('login-error').textContent = 'Add meg az email címet és a jelszót!';
     document.getElementById('login-error').style.display = 'block';
     return;
   }
-  // Sheets-ben plaintext jelszó van tárolva
-  const user = users.find(u => u.email === email && u.pass === pass);
-  if (!user) {
-    document.getElementById('login-error').textContent = 'Hibás email cím vagy jelszó.';
-    document.getElementById('login-error').style.display = 'block';
-    return;
-  }
-  currentUser = user;
+
   document.getElementById('login-error').style.display = 'none';
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-  document.getElementById('topbar-user').textContent = user.name || user.email;
-  if (user.isAdmin) document.getElementById('admin-btn').style.display = 'inline-block';
-  buildCalcTabs();
-  showCalc();
-  loadFromSheets(); // háttérben frissít a Sheets-ből
-  startSession();   // session timer indítása
-  // Főoldal navigáció megjelenítése
-  const mainNav = document.getElementById('main-nav');
-  if (mainNav) mainNav.style.display = 'flex';
-  updateStickyOffsets();
+
+  try {
+    const data = await new Promise((resolve, reject) => {
+      const cbName = 'sflogin_' + Date.now();
+      const script = document.createElement('script');
+      const timeout = setTimeout(() => { delete window[cbName]; script.remove(); reject(new Error('timeout')); }, 15000);
+      window[cbName] = (d) => { clearTimeout(timeout); delete window[cbName]; script.remove(); resolve(d); };
+      script.src = SHEETS_API + '?action=login&email=' + encodeURIComponent(email)
+                 + '&pass=' + encodeURIComponent(pass) + '&callback=' + cbName + '&t=' + Date.now();
+      script.onerror = () => { clearTimeout(timeout); reject(new Error('error')); };
+      document.head.appendChild(script);
+    });
+
+    if (!data.success) {
+      document.getElementById('login-error').textContent = data.error || 'Hibás email cím vagy jelszó.';
+      document.getElementById('login-error').style.display = 'block';
+      return;
+    }
+
+    currentUser = data.user; // { email, name, isAdmin, calcs } – jelszó nélkül
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('topbar-user').textContent = currentUser.name || currentUser.email;
+    if (currentUser.isAdmin) document.getElementById('admin-btn').style.display = 'inline-block';
+    buildCalcTabs();
+    showCalc();
+    loadFromSheets(); // háttérben frissít a Sheets-ből
+    startSession();   // session timer indítása
+    const mainNav = document.getElementById('main-nav');
+    if (mainNav) mainNav.style.display = 'flex';
+    updateStickyOffsets();
+  } catch (err) {
+    document.getElementById('login-error').textContent = '⚠️ Bejelentkezési hiba – ellenőrizd az internetkapcsolatot és próbáld újra.';
+    document.getElementById('login-error').style.display = 'block';
+  }
 }
- 
+  
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && document.getElementById('login-screen').style.display !== 'none') doLogin();
 });
