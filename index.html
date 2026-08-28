@@ -67,13 +67,13 @@
   - A Megtérülés tab-váltás (mt_importFromArazo force=false) korábban csak beírta az
     értékeket a mezőkbe, de nem futtatta újra a kalkulációt – mostantól mindig
     újraszámol, hogy a fül azonnal mutassa az eredményt.
-  - Új admin beállítás: a "Mi vs. a piac" karbantartási gyakorisága (eddig fixen
+  - Új admin beállítás: a "" karbantartási gyakorisága (eddig fixen
     "2-3 évente" volt kódba égetve) mostantól két külön, admin-állítható számmal
     (verseny_karb_gyakorisag_1/2, alapból 2 és 3) szabályozható, és a Megtérülés
     tabon is módosítható egy adott ajánlathoz.
 
   Változások v2.56-ban (ÚJ FUNKCIÓ):
-  - "Mi vs. a piac" 18 éves összehasonlítás a Megtérülés kalkulátorban (csak Új
+  - "" 18 éves összehasonlítás a Megtérülés kalkulátorban (csak Új
     rendszer módban, Bővítésnél nem releváns): saját (12 év szervízgaranciás)
     rendszerünk vs. egy admin-állítható %-kal olcsóbb versenytárs-rendszer
     kumulált nettó haszna. A versenytárs rendszerén az 5. évtől (állítható)
@@ -87,7 +87,7 @@
   - A PDF riportba bekerült egy marketing-szekció (12 év szervízgarancia a
     piaci átlag 3-5 év helyett; teljes körű ügyintézés meghibásodás esetén,
     beleértve a gyártói garanciális ügyeket is) + egy nagyobb, részletesebb
-    verziója a "Mi vs. a piac" grafikonnak.
+    verziója a "" grafikonnak.
 
   Változások v2.55-ben (MÉG EGY KRITIKUS JAVÍTÁS):
   - A setCalcMode() eddig MINDIG mentett is, akkor is, ha csak UI-szinkronizálás
@@ -1204,6 +1204,12 @@
       <!-- Mi vs. a piac – csak Új rendszer módban -->
       <div class="mt-card" id="verseny-card" style="display:none;border:1px solid var(--sun)">
         <h3>🆚 Mi vs. a piac – 18 éves összehasonlítás</h3>
+        <div class="mt-card" id="verseny-card" style="display:none;border:1px solid var(--sun)">
+  <h3>🆚 Mi vs. a piac – 18 éves összehasonlítás</h3>
+  <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.78rem;color:var(--sun);cursor:pointer;margin-bottom:0.75rem;background:var(--bg);border:1px solid var(--border);border-radius:0.5rem;padding:0.5rem 0.75rem;width:fit-content">
+    <input type="checkbox" id="verseny-pdf-include" checked>
+    📄 Szerepeljen a PDF riportban
+  </label>
         <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.75rem">
           Bemutatja, hogy egy nálunk olcsóbb, idegen cég által telepített rendszerhez képest hosszú távon miért éri meg a Solar Future 12 éves szervízgaranciás rendszerét választani. Az alábbi értékek az admin felületen beállított alapértékek – itt, egy adott ajánlathoz igazíthatod is őket.
         </div>
@@ -5264,7 +5270,7 @@ const vanElozmenyadat = Object.keys(mt_sofarMonthly).length > 0;
     <div style="background:#fff;border-radius:10px;padding:0.85rem;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.06)">
       <div style="font-size:1.5rem">🤝</div>
       <div style="font-weight:700;color:#92400e;font-size:0.95rem;margin-top:0.3rem">Ugyanaz a csapat</div>
-      <div style="font-size:0.72rem;color:#666;margin-top:0.2rem">a telepítéstől 12 éven át az Ön mellett</div>
+      <div style="font-size:0.72rem;color:#666;margin-top:0.2rem">a telepítéstől 12 éven át Ön mellett</div>
     </div>
   </div>
 </div>
@@ -5309,7 +5315,7 @@ ${(mt_miniCrmOfferData && mt_miniCrmOfferData.minicrmOffer) ? (() => {
 })() : ''}
 
 <!-- MI VS. A PIAC -->
-${(!isBovites && mt_versenyData) ? `<div class="section">
+${(!isBovites && mt_versenyData && document.getElementById('verseny-pdf-include')?.checked !== false) ? `<div class="section">
   <div class="section-title">Mi vs. a piac – ${mt_versenyData.ciklus} éves összehasonlítás</div>
   <p style="font-size:0.88rem;color:#444;margin-bottom:1rem;line-height:1.6">
     Egy versenytárs rendszere induláskor kb. ${mt_versenyData.kedvezmenyPct}%-kal olcsóbb lehet, ám a legtöbb piaci szereplőnél már a(z) ${mt_versenyData.karbKezdes}. évtől megjelennek az időszakos karbantartási költségek (kb. ${Math.round(mt_versenyData.karbKoltseg).toLocaleString('hu-HU')} Ft alkalmanként, ${mt_versenyData.gap1}-${mt_versenyData.gap2} évente váltakozva). A Solar Future rendszerén ezzel szemben ${mt_versenyData.garanciaEv} évig nincs ilyen jellegű költség – az alábbi grafikon mutatja, hogyan alakul emiatt a két rendszer kumulált nettó haszna a teljes ${mt_versenyData.ciklus} éves ciklus alatt.
