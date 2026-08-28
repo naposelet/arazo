@@ -5340,6 +5340,15 @@ ${(mt_miniCrmOfferData && mt_miniCrmOfferData.minicrmOffer) ? (() => {
   <div class="info-grid" style="margin-bottom:1rem">
     <div class="info-card"><div class="info-label">Ügyfél</div><div class="info-val">${offer.Customer?.Name || '—'}</div></div>
     <div class="info-card"><div class="info-label">Kiállítás dátuma</div><div class="info-val">${offer.Issued || '—'}</div></div>
+    ${offer.Prompt ? (() => {
+      const validDate = new Date(offer.Prompt);
+      const isExpired = !isNaN(validDate) && validDate < new Date();
+      const color = isExpired ? '#dc2626' : '#d97706';
+      return `<div class="info-card" style="border-left-color:${color}">
+        <div class="info-label">Érvényességi határidő</div>
+        <div class="info-val" style="color:${color}">${offer.Prompt}${isExpired ? ' (lejárt)' : ''}</div>
+      </div>`;
+    })() : ''}
     <div class="info-card" style="border-left-color:#16a34a"><div class="info-label">Végösszeg (bruttó)</div><div class="info-val" style="color:#16a34a">${fmtHuf(offer.Amount)}</div></div>
   </div>
   <div style="overflow-x:auto">
