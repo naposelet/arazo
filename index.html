@@ -766,6 +766,18 @@ style="background:var(--bg);border:1px solid var(--border);border-radius:0.4rem;
 </div>
 </div>
 </div>
+<!-- TÖBB RENDSZER ÖSSZEHASONLÍTÁSA (1. fázis: napelem + inverter + tartószerkezet) -->
+<div class="section" id="extra-systems-section" style="grid-column:1/-1">
+<div class="section-title">🔀 Rendszerek összehasonlítása</div>
+<div class="card" style="gap:0.75rem">
+<div style="font-size:0.78rem;color:var(--text-muted)">
+A fenti összeállítás az 1. (alap) rendszer. Add meg a nevét, és opcionálisan hozzáadhatsz még 1-2 párhuzamos csomagot (pl. Prémium) az összehasonlításhoz – ezek saját napelemet, invertert és tartószerkezetet választanak, saját Célár-számítással.
+</div>
+<input type="text" id="sysname-1" value="Alap" placeholder="1. rendszer neve" style="max-width:220px;background:var(--bg);border:1px solid var(--border);border-radius:0.5rem;padding:0.4rem 0.6rem;color:var(--text);font-size:0.85rem;outline:none">
+<div id="extra-systems-container"></div>
+<button class="btn-add-extra" id="add-system-btn" onclick="addExtraSystem()">+ Rendszer hozzáadása</button>
+</div>
+</div>
 <div style="height:8rem"></div>
 </div>
 <!-- FIXÁLT EREDMÉNYSÁV -->
@@ -2938,6 +2950,231 @@ document.getElementById('res-breakdown').innerHTML =
 document.getElementById('rbar-empty').style.display = 'none';
 document.getElementById('rbar-full').style.display = 'block';
 }
+// ============================================================
+// TÖBB RENDSZER ÖSSZEHASONLÍTÁSA (Árazó) – 1. fázis
+// Az 1. rendszer a meglévő, fő mezőket használja (panel-input, panel-qty stb.)
+// – ez változatlan, nulla kockázatú. A 2. és 3. rendszer teljesen önálló,
+// suffixed DOM id-kkal és saját állapottal működik; a fő calculate()
+// függvényt egyáltalán nem érinti. Jelenleg csak napelem+inverter+
+// tartószerkezet választható az extra rendszereknél (optimalizátor/egyéb
+// tételek nélkül) – ha ezekre is szükség van, jelezd.
+// ============================================================
+let extraSystemCount = 1;
+const EXTRA_SYS_DEFAULT_NAMES = { 1: 'Alap', 2: 'Prémium', 3: 'Rendszer 3' };
+const extraSearchState = {
+2: { panel: { list: [], selected: null }, inv1: { list: [], selected: null } },
+3: { panel: { list: [], selected: null }, inv1: { list: [], selected: null } },
+};
+let extraSysCloseTimer = {};
+
+function resetExtraSystems() {
+extraSystemCount = 1;
+extraSearchState[2] = { panel: { list: [], selected: null }, inv1: { list: [], selected: null } };
+extraSearchState[3] = { panel: { list: [], selected: null }, inv1: { list: [], selected: null } };
+const container = document.getElementById('extra-systems-container');
+if (container) container.innerHTML = '';
+const addBtn = document.getElementById('add-system-btn');
+if (addBtn) addBtn.style.display = 'inline-block';
+const sysname1 = document.getElementById('sysname-1');
+if (sysname1) sysname1.value = 'Alap';
+}
+
+function renderExtraSystemHTML(sysNum) {
+const defName = EXTRA_SYS_DEFAULT_NAMES[sysNum] || ('Rendszer ' + sysNum);
+return `
+<div class="mt-card" id="extra-sys-${sysNum}" style="border:1px solid var(--sun);margin-bottom:0.75rem">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;gap:0.5rem;flex-wrap:wrap">
+<input type="text" id="sysname-${sysNum}" value="${defName}" style="max-width:220px;background:var(--bg);border:1px solid var(--border);border-radius:0.5rem;padding:0.4rem 0.6rem;color:var(--sun);font-weight:700;font-size:0.9rem;outline:none">
+<button onclick="removeExtraSystem(${sysNum})" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);border-radius:0.5rem;padding:0.3rem 0.6rem;font-size:0.75rem;cursor:pointer">✕ Törlés</button>
+</div>
+<div class="mt-grid-3" style="margin-bottom:0.5rem">
+<div class="mt-field">
+<label>Napelem típus</label>
+<div class="search-wrap">
+<input class="search-input" id="panel-input-${sysNum}" placeholder="Keresés..." autocomplete="off" oninput="extraFilterSearch(${sysNum},'panel')" onfocus="extraOpenDropdown(${sysNum},'panel')" onblur="extraCloseDropdown(${sysNum},'panel')">
+<div class="search-dropdown" id="panel-dropdown-${sysNum}"></div>
+</div>
+</div>
+<div class="mt-field">
+<label>Darabszám</label>
+<input class="num-input" type="number" id="panel-qty-${sysNum}" value="10" min="1" max="500" onchange="calcExtraSystem(${sysNum})">
+</div>
+<div class="mt-field">
+<label>Tartószerkezet</label>
+<select class="sel-input" id="tart-select-${sysNum}" onchange="calcExtraSystem(${sysNum})"><option value="">— Válassz —</option></select>
+</div>
+</div>
+<div class="mt-grid-3" style="margin-bottom:0.5rem">
+<div class="mt-field">
+<label>Inverter típusa</label>
+<div class="search-wrap">
+<input class="search-input" id="inv1-input-${sysNum}" placeholder="Keresés..." autocomplete="off" oninput="extraFilterSearch(${sysNum},'inv1')" onfocus="extraOpenDropdown(${sysNum},'inv1')" onblur="extraCloseDropdown(${sysNum},'inv1')">
+<div class="search-dropdown" id="inv1-dropdown-${sysNum}"></div>
+</div>
+</div>
+<div class="mt-field">
+<label>Darabszám</label>
+<input class="num-input" type="number" id="inv1-qty-${sysNum}" value="1" min="0" max="50" onchange="calcExtraSystem(${sysNum})">
+</div>
+<div class="mt-field">
+<label>Kivitelezési napok (üres = auto)</label>
+<input class="num-input" type="number" id="nap-override-${sysNum}" placeholder="auto" min="1" max="30" onchange="calcExtraSystem(${sysNum})">
+</div>
+</div>
+<div id="sysresult-${sysNum}" style="background:var(--bg);border:1px solid var(--border);border-radius:0.75rem;padding:0.75rem;font-size:0.85rem;color:var(--text-muted)">Válassz napelemtípust a rendszer kalkulálásához...</div>
+</div>`;
+}
+
+function addExtraSystem() {
+if (extraSystemCount >= 3) return;
+extraSystemCount++;
+const container = document.getElementById('extra-systems-container');
+if (container) container.insertAdjacentHTML('beforeend', renderExtraSystemHTML(extraSystemCount));
+buildExtraTartSelect(extraSystemCount);
+extraSearchState[extraSystemCount].panel.list = PRODUCTS.panels.filter(p => isValidProduct(p.code));
+extraSearchState[extraSystemCount].inv1.list = PRODUCTS.inverters.filter(p => isValidProduct(p.code));
+const addBtn = document.getElementById('add-system-btn');
+if (addBtn && extraSystemCount >= 3) addBtn.style.display = 'none';
+}
+
+function removeExtraSystem(sysNum) {
+const el = document.getElementById('extra-sys-' + sysNum);
+if (el) el.remove();
+extraSearchState[sysNum] = { panel: { list: [], selected: null }, inv1: { list: [], selected: null } };
+// Egyszerűsítésképp ebben a fázisban csak a LEGUTOLSÓ rendszer törlését
+// engedjük, hogy ne legyen "lyuk" a sorszámozásban (pl. 1,3 maradna 2 nélkül).
+extraSystemCount = sysNum - 1;
+const addBtn = document.getElementById('add-system-btn');
+if (addBtn) addBtn.style.display = 'inline-block';
+}
+
+function buildExtraTartSelect(sysNum) {
+const sel = document.getElementById('tart-select-' + sysNum);
+if (!sel) return;
+sel.innerHTML = '<option value="">— Válassz —</option>' +
+PRODUCTS.tarts.map((t, i) => `<option value="${t.code || i+1}">${t.name}</option>`).join('');
+}
+
+function extraFilterSearch(sysNum, key) {
+const input = document.getElementById(`${key}-input-${sysNum}`);
+const dropdown = document.getElementById(`${key}-dropdown-${sysNum}`);
+if (!input || !dropdown) return;
+const q = input.value.toLowerCase();
+const items = extraSearchState[sysNum][key].list.filter(p => p.name.toLowerCase().includes(q));
+dropdown.innerHTML = '';
+if (!q && items.length === 0) { dropdown.classList.remove('open'); return; }
+if (items.length === 0) {
+dropdown.innerHTML = '<div class="dropdown-empty">Nincs találat</div>';
+} else {
+items.forEach(p => {
+const div = document.createElement('div');
+div.className = 'dropdown-item';
+div.textContent = p.name;
+div.onmousedown = () => extraSelectItem(sysNum, key, p);
+dropdown.appendChild(div);
+});
+}
+dropdown.classList.add('open');
+extraSearchState[sysNum][key].selected = null;
+input.classList.remove('has-value');
+calcExtraSystem(sysNum);
+}
+
+function extraOpenDropdown(sysNum, key) {
+clearTimeout(extraSysCloseTimer[key + sysNum]);
+const input = document.getElementById(`${key}-input-${sysNum}`);
+const dropdown = document.getElementById(`${key}-dropdown-${sysNum}`);
+if (!input || !dropdown) return;
+const q = input.value.toLowerCase();
+const items = q ? extraSearchState[sysNum][key].list.filter(p => p.name.toLowerCase().includes(q)) : extraSearchState[sysNum][key].list;
+dropdown.innerHTML = '';
+items.slice(0, 30).forEach(p => {
+const div = document.createElement('div');
+div.className = 'dropdown-item';
+div.textContent = p.name;
+div.onmousedown = () => extraSelectItem(sysNum, key, p);
+dropdown.appendChild(div);
+});
+if (items.length > 0) dropdown.classList.add('open');
+}
+
+function extraCloseDropdown(sysNum, key) {
+extraSysCloseTimer[key + sysNum] = setTimeout(() => {
+const dropdown = document.getElementById(`${key}-dropdown-${sysNum}`);
+if (dropdown) dropdown.classList.remove('open');
+}, 200);
+}
+
+function extraSelectItem(sysNum, key, product) {
+extraSearchState[sysNum][key].selected = product;
+const input = document.getElementById(`${key}-input-${sysNum}`);
+const dropdown = document.getElementById(`${key}-dropdown-${sysNum}`);
+if (input) { input.value = product.name; input.classList.add('has-value'); }
+if (dropdown) dropdown.classList.remove('open');
+calcExtraSystem(sysNum);
+}
+
+function calcExtraSystem(sysNum) {
+const resEl = document.getElementById('sysresult-' + sysNum);
+if (!resEl) return;
+const panelSel = extraSearchState[sysNum].panel.selected;
+const inv1Sel = extraSearchState[sysNum].inv1.selected;
+if (!panelSel) {
+resEl.textContent = 'Válassz napelemtípust a rendszer kalkulálásához...';
+resEl.style.color = 'var(--text-muted)';
+return;
+}
+const panelQty = parseInt(document.getElementById('panel-qty-' + sysNum)?.value) || 0;
+const inv1Qty = parseInt(document.getElementById('inv1-qty-' + sysNum)?.value) || 0;
+const tartCode = parseInt(document.getElementById('tart-select-' + sysNum)?.value) || 0;
+const rendszerKw = panelSel.kw * panelQty;
+const panelCost = panelSel.huf * panelQty;
+const inv1Cost = inv1Sel ? inv1Sel.huf * inv1Qty : 0;
+let tartCost = 0;
+if (tartCode) {
+const tart = PRODUCTS.tarts.find(t => Number(t.code) === tartCode || (PRODUCTS.tarts.indexOf(t)+1) === tartCode);
+if (tart) tartCost = tart.base + Math.max(0, rendszerKw - 3) * tart.per_kw;
+}
+const anyagok = panelCost + inv1Cost + tartCost;
+const AFA_KULCS = CALC_SETTINGS.afa.value / 100;
+const mode = getActiveMode();
+const discount = parseFloat(document.getElementById('discount-val')?.value) || 0;
+const fmt = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
+const manualNapOverride = document.getElementById('nap-override-' + sysNum)?.value;
+const napok = manualNapOverride ? parseInt(manualNapOverride) : calcDaysForKw(rendszerKw);
+let bruttoKedv = 0, breakdownHtml = '';
+if (mode === 'regi') {
+const md_alap = CALC_SETTINGS.munkadij_alap.value, md_extra = CALC_SETTINGS.munkadij_extra.value, md_hatar = CALC_SETTINGS.munkadij_hatar.value;
+const munkadij = rendszerKw <= md_hatar ? rendszerKw * md_alap : md_hatar * md_alap + (rendszerKw - md_hatar) * md_extra;
+const netto = (anyagok + munkadij) * CALC_SETTINGS.haszonkulcs.value;
+bruttoKedv = netto * (1 - discount/100) * (1 + AFA_KULCS);
+} else if (mode === 'cel') {
+const cs = CALC_SETTINGS;
+const x = cs.celarazo_havi_kivitelezesi_celszam.value || 1;
+const napArany = napok / x;
+const kivitelezesiResz = cs.celarazo_havi_kivitelezesi_dij.value * napArany;
+const adminResz = cs.celarazo_havi_admin_dij.value * napArany;
+const celResz = (cs.celarazo_eves_celszam.value / 12) * napArany;
+const netto = anyagok + kivitelezesiResz + adminResz + celResz;
+bruttoKedv = netto * (1 - discount/100) * (1 + AFA_KULCS);
+const isAdminUser = currentUser && currentUser.isAdmin;
+const showBontas = isAdminUser || !!getCelarazoBontasLathato()[activeCalc];
+if (showBontas) {
+breakdownHtml = `<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.4rem">Anyag: ${fmt(anyagok)} | Kivitelezés: ${fmt(kivitelezesiResz)} | Admin: ${fmt(adminResz)} | Cél: ${fmt(celResz)} | ${napok} nap</div>`;
+}
+} else {
+const napi = CALC_SETTINGS.napi_munkadij.value;
+const munkadij = napok * napi * (1 + CALC_SETTINGS.munkadij_pct.value/100);
+const tiers = computeAr3Tier(anyagok, munkadij, discount, AFA_KULCS, rendszerKw);
+bruttoKedv = tiers[2].bruttoKedv; // Ajánlott ár
+}
+resEl.style.color = 'var(--text)';
+resEl.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:0.5rem">
+<span style="font-weight:700;color:var(--sun);font-size:1.05rem">${fmt(bruttoKedv)}</span>
+<span style="font-size:0.8rem;color:var(--text-muted)">${rendszerKw.toFixed(2)} kW</span>
+</div>${breakdownHtml}`;
+}
+
 function resetCalc() {
 // Reset search fields
 ['panel','inv1','inv2','opti'].forEach(k => {
@@ -2960,6 +3197,7 @@ if (rbarFull) rbarFull.style.display = 'none';
 extraRows = [];
 extraIdCounter = 0;
 document.getElementById('extra-list').innerHTML = '';
+if (typeof resetExtraSystems === 'function') resetExtraSystems();
 }
 // ============================================================
 // ADMIN: FELHASZNÁLÓ TÁBLA
