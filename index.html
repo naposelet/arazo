@@ -1469,9 +1469,10 @@ renderCalcSettings();
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.68 – 2026-09-11';
+const APP_VERSION = 'v2.69 – 2026-09-11';
 const APP_VERSION_HISTORY = [
-'v2.68 (2026-09-11): Megtérülés – rendszer-fülek bevezetve. Ha az Árazóban 2-3 rendszer van összeállítva, a Megtérülésben mindegyikhez saját, teljesen független fül tartozik (ügyfél/helyszín/PVGIS/fogyasztás/degradáció, saját mentett állapottal fülváltás közben) – automatikusan a megfelelő rendszer kWp/ára importálva Árazóból. A "Mi vs. piac" 4 vonalas (3 saját rendszer + versenytárs) összehasonlítása még nem része ennek a lépésnek – ez a következő fázis.',
+'v2.69 (2026-09-11): "Mi vs. a piac" grafikon kibővítve akár 4 vonalra (1-3 saját rendszer, mindegyik saját árral/degradációval/fogyasztással/garancia-hosszal + 1 közös versenytárs-görbe, az 1. rendszer árából/kedvezményéből számolva). A nem épp aktív rendszer-fülek adatait is figyelembe veszi, anélkül hogy át kellene váltani rájuk. A PDF riport egyelőre változatlanul csak az aktív rendszer 2 vonalas összehasonlítását tartalmazza.',
+'v2.68 (2026-09-11): Megtérülés – rendszer-fülek bevezetve. Ha az Árazóban 2-3 rendszer van összeállítva, a Megtérülésben mindegyikhez saját, teljesen független fül tartozik (ügyfél/helyszín/PVGIS/fogyasztás/degradáció, saját mentett állapottal fülváltás közben) – automatikusan a megfelelő rendszer kWp/ára importálva Árazóból.',
 'v2.67 (2026-09-11): Több rendszer összehasonlítása az Árazóban (1. fázis + mentés) – kalkulátoronként 1-3 párhuzamos, önállóan konfigurálható rendszer (napelem+inverter+tartószerkezet), saját Célár-számítással és elnevezéssel; mentésnél mindegyik külön sorként kerül a Sheets-be ("rendszerNev" mezővel megkülönböztetve). Optimalizátor/egyéb tételek még nem része ennek a fázisnak.',
 'v2.66 (2026-09-11): Célárazó bevezetve (anyagköltség + kivitelezési/admin/cél rész, napok/X arányában) mint alapértelmezett számítási mód; Régi/Új mód megmarad választható, kiszürkített opcióként. Admin-szerkeszthető célárazó paraméterek (éves cél, havi kivitelezési díj, havi admin díj – alap 4M Ft, havi kivitelezési célszám). 20 kW feletti figyelmeztetés a felületen. Admin látja a teljes ár-bontást, sales kolléga csak a végső Célárat (kalkulátoronként kapcsolható, hogy a sales kolléga is lássa-e a bontást). Megtérülés kalkulátor reszponzív, több-oszlopos elrendezése széles képernyőn (beállító kártyák egymás mellett, grafikonok/táblázatok teljes szélességben maradnak).',
 'v2.1 (2026-05-29): Megtérülés kalkulátor, PVGIS integráció',
@@ -4480,12 +4481,192 @@ const elony = sajatSor[sajatSor.length - 1] - versenySor[versenySor.length - 1];
 const elonyEl = document.getElementById('verseny-elony');
 elonyEl.textContent = (elony >= 0 ? '+' : '') + fmt(elony);
 elonyEl.style.color = elony >= 0 ? 'var(--green)' : 'var(--red)';
-mt_drawVersenyChart(labels, sajatSor, versenySor);
+mt_drawVersenyChartMulti();
 // A PDF riport is ezt olvassa ki
 mt_versenyData = {
 labels, sajatSor, versenySor, sajatKarbSor, versenyKarbSor,
 rendszerAr, versenyAr, karbKoltseg, karbKezdes, garanciaEv, kedvezmenyPct, elony, ciklus: CIKLUS, gap1, gap2
 };
+}
+// ============================================================
+// "MI VS. A PIAC" – TÖBB RENDSZER EGYIDEJŰ ÖSSZEHASONLÍTÁSA (2. fázis)
+// A fenti mt_getEvesKwhFogyasztas()/mt_getEvesMegtakaritas() az AKTUÁLIS
+// (élő DOM) fogyasztási beállításokat olvassa. Ahhoz, hogy a NEM aktív
+// rendszer-fülek görbéjét is ki tudjuk számolni (anélkül, hogy a felületet
+// átváltanánk rájuk), ugyanezt a logikát "fejnélkül" (egy fields objektumból
+// olvasva, DOM-mentesen) is megírtuk – lásd mtHeadlessEvesKwh/Megtakaritas.
+// ============================================================
+function mtHeadlessEvesKwh(fields, ugyfelTipus) {
+if (ugyfelTipus === 'ceges') {
+const mod = fields['mt-ceges-mod'] || 'kwh-havi';
+const val = parseFloat(fields['mt-ceges-fogyasztas']) || 0;
+const ar = parseFloat(fields['mt-ar-ceges']) || 120;
+if (val <= 0) return 0;
+if (mod === 'kwh-havi') return val * 12;
+if (mod === 'kwh-eves') return val;
+if (mod === 'ft-havi') return (val * 12) / ar;
+if (mod === 'ft-eves') return val / ar;
+return 0;
+} else {
+const mod = fields['mt-fogyasztas-mod'] || 'kwh-havi';
+const val = parseFloat(fields['mt-fogyasztas-ertek']) || 0;
+const arAlap = parseFloat(fields['mt-ar-alap']) || 40;
+const arMagas = parseFloat(fields['mt-ar-magas']) || 70;
+const kvota = parseFloat(fields['mt-kvota']) || 2500;
+if (val <= 0) return 0;
+if (mod === 'kwh-havi') return val * 12;
+if (mod === 'kwh-eves') return val;
+if (mod === 'ft-havi' || mod === 'ft-eves') {
+const evesHuf = mod === 'ft-havi' ? val * 12 : val;
+const kvotaHuf = kvota * arAlap;
+if (evesHuf <= kvotaHuf) return evesHuf / arAlap;
+return kvota + (evesHuf - kvotaHuf) / arMagas;
+}
+return 0;
+}
+}
+function mtHeadlessEvesMegtakaritas(termeltKwh, evesKwhFogyasztas, fields, ugyfelTipus) {
+const kivaltottKwh = Math.min(termeltKwh, evesKwhFogyasztas);
+if (kivaltottKwh <= 0) return 0;
+if (ugyfelTipus === 'ceges') {
+const ar = parseFloat(fields['mt-ar-ceges']) || 120;
+return kivaltottKwh * ar;
+} else {
+const arAlap = parseFloat(fields['mt-ar-alap']) || 40;
+const arMagas = parseFloat(fields['mt-ar-magas']) || 70;
+const kvota = parseFloat(fields['mt-kvota']) || 2500;
+if (evesKwhFogyasztas <= kvota) return kivaltottKwh * arAlap;
+const magas = evesKwhFogyasztas - kvota;
+const kivaltottMagas = Math.min(kivaltottKwh, magas);
+const kivaltottAlap = Math.max(0, kivaltottKwh - kivaltottMagas);
+return kivaltottMagas * arMagas + kivaltottAlap * arAlap;
+}
+}
+// A megadott fülhöz (aktív: élő DOM, egyébként: elmentett állapot) tartozó
+// fields/pvgisData/ugyfelTipus lekérése – null, ha a fület még sosem nyitották meg.
+function mtGetSystemSnapshot(sysNum) {
+if (sysNum === mtActiveSystem) {
+const fields = {};
+MT_FIELD_IDS.forEach(id => { const el = document.getElementById(id); if (el) fields[id] = el.value; });
+return { fields, pvgisData: mt_pvgisData, ugyfelTipus: mt_ugyfelTipus };
+}
+if (mtSystemStates[sysNum]) {
+const s = mtSystemStates[sysNum];
+return { fields: s.fields, pvgisData: s.pvgisData, ugyfelTipus: s.ugyfelTipus || 'lakossagi' };
+}
+return null;
+}
+// Egy SAJÁT rendszer (1/2/3) 18 éves kumulált görbéje – saját ár, saját
+// degradáció/fogyasztás, saját garancia-hossz és karbantartási ütemezés.
+function mtComputeVersenySeriesForSystem(sysNum) {
+const snap = mtGetSystemSnapshot(sysNum);
+if (!snap) return null;
+const { fields, pvgisData, ugyfelTipus } = snap;
+const kwp = parseFloat(fields['mt-kwp']) || 0;
+const rendszerAr = parseFloat(fields['mt-rendszer-ar']) || 0;
+const degradacio = parseFloat(fields['mt-degradacio']) || 0.5;
+const evesKwh = mtHeadlessEvesKwh(fields, ugyfelTipus);
+if (!kwp || !rendszerAr || !evesKwh) return null;
+const garanciaEv = parseInt(fields['verseny-garancia']) || CALC_SETTINGS.verseny_sajat_garancia_ev.value;
+const karbKezdes = parseInt(fields['verseny-karb-kezdes']) || CALC_SETTINGS.verseny_karbantartas_kezdes.value;
+const karbKoltseg = parseFloat(fields['verseny-karb-koltseg']) || CALC_SETTINGS.verseny_karbantartas_koltseg.value;
+const gap1 = parseInt(fields['verseny-gyakorisag-1']) || CALC_SETTINGS.verseny_karb_gyakorisag_1.value;
+const gap2 = parseInt(fields['verseny-gyakorisag-2']) || CALC_SETTINGS.verseny_karb_gyakorisag_2.value;
+const CIKLUS = 18;
+const evesTermeles = pvgisData ? pvgisData.yearly : (kwp * 1000);
+const karbEvek = mt_computeVersenyKarbantartasEvek(karbKezdes, CIKLUS, gap1, gap2);
+let cum = -rendszerAr;
+const sor = [];
+for (let ev = 1; ev <= CIKLUS; ev++) {
+const degradFactor = Math.pow(1 - degradacio / 100, ev - 1);
+const termeles = evesTermeles * degradFactor;
+const megtak = mtHeadlessEvesMegtakaritas(termeles, evesKwh, fields, ugyfelTipus);
+const karbEbbenAzEvben = karbEvek.has(ev);
+const sajatKarb = (karbEbbenAzEvben && ev > garanciaEv) ? karbKoltseg : 0;
+cum += megtak - sajatKarb;
+sor.push(Math.round(cum));
+}
+const nev = sysNum === 1
+? (document.getElementById('sysname-1')?.value || 'Alap')
+: (document.getElementById('sysname-' + sysNum)?.value || EXTRA_SYS_DEFAULT_NAMES[sysNum] || ('Rendszer ' + sysNum));
+return { nev, sor, rendszerAr, garanciaEv };
+}
+// A versenytárs (idegen cég) görbéje – mindig az 1. ("Alap") rendszer árából
+// és kedvezmény %-ából indul ki, mert ez egy általános, harmadik féltől
+// származó ajánlatot reprezentál, nem valamelyik saját rendszerünket.
+function mtComputeVersenyCompetitor() {
+const snap = mtGetSystemSnapshot(1);
+if (!snap) return null;
+const { fields, pvgisData, ugyfelTipus } = snap;
+const kwp = parseFloat(fields['mt-kwp']) || 0;
+const rendszerAr = parseFloat(fields['mt-rendszer-ar']) || 0;
+const degradacio = parseFloat(fields['mt-degradacio']) || 0.5;
+const evesKwh = mtHeadlessEvesKwh(fields, ugyfelTipus);
+if (!kwp || !rendszerAr || !evesKwh) return null;
+const kedvezmenyPct = parseFloat(fields['verseny-kedvezmeny']) || CALC_SETTINGS.verseny_kedvezmeny_pct.value;
+const karbKezdes = parseInt(fields['verseny-karb-kezdes']) || CALC_SETTINGS.verseny_karbantartas_kezdes.value;
+const karbKoltseg = parseFloat(fields['verseny-karb-koltseg']) || CALC_SETTINGS.verseny_karbantartas_koltseg.value;
+const gap1 = parseInt(fields['verseny-gyakorisag-1']) || CALC_SETTINGS.verseny_karb_gyakorisag_1.value;
+const gap2 = parseInt(fields['verseny-gyakorisag-2']) || CALC_SETTINGS.verseny_karb_gyakorisag_2.value;
+const CIKLUS = 18;
+const evesTermeles = pvgisData ? pvgisData.yearly : (kwp * 1000);
+const versenyAr = rendszerAr * (1 - kedvezmenyPct / 100);
+const karbEvek = mt_computeVersenyKarbantartasEvek(karbKezdes, CIKLUS, gap1, gap2);
+let cum = -versenyAr;
+const sor = [];
+for (let ev = 1; ev <= CIKLUS; ev++) {
+const degradFactor = Math.pow(1 - degradacio / 100, ev - 1);
+const termeles = evesTermeles * degradFactor;
+const megtak = mtHeadlessEvesMegtakaritas(termeles, evesKwh, fields, ugyfelTipus);
+const karb = karbEvek.has(ev) ? karbKoltseg : 0;
+cum += megtak - karb;
+sor.push(Math.round(cum));
+}
+return { sor, versenyAr };
+}
+// Több vonalas (legfeljebb 3 saját rendszer + 1 versenytárs) grafikon rajzolása.
+// Ha csak 1 rendszer van, ez pontosan a régi, 2 vonalas nézettel egyezik meg.
+function mt_drawVersenyChartMulti() {
+if (mt_chartVerseny) mt_chartVerseny.destroy();
+const ctx = document.getElementById('mt-chart-verseny');
+if (!ctx) return;
+const count = (typeof extraSystemCount !== 'undefined') ? extraSystemCount : 1;
+const colors = ['#F7A600', '#4DA6FF', '#22C55E'];
+const datasets = [];
+let labels = null;
+for (let i = 1; i <= count; i++) {
+const res = mtComputeVersenySeriesForSystem(i);
+if (!res) continue;
+if (!labels) labels = res.sor.map((_, idx) => (idx + 1) + '. év');
+datasets.push({
+label: res.nev + ' (saját rendszerünk)',
+data: res.sor, borderColor: colors[i - 1] || '#F7A600', backgroundColor: 'transparent',
+fill: false, tension: 0.3, pointRadius: 2, borderWidth: 3,
+});
+}
+const comp = mtComputeVersenyCompetitor();
+if (comp) {
+if (!labels) labels = comp.sor.map((_, idx) => (idx + 1) + '. év');
+datasets.push({
+label: 'Idegen cég rendszere (olcsóbb, karbantartási költséggel)',
+data: comp.sor, borderColor: '#94A3B8', backgroundColor: 'rgba(148,163,184,0.08)',
+fill: true, tension: 0.3, pointRadius: 2, borderWidth: 2, borderDash: [5, 3],
+});
+}
+if (!labels || datasets.length === 0) return;
+mt_chartVerseny = new Chart(ctx, {
+type: 'line',
+data: { labels, datasets },
+options: {
+responsive: true, maintainAspectRatio: false,
+plugins: { legend: { labels: { color: '#94A3B8', font: { size: 11 } } } },
+scales: {
+x: { ticks: { color: '#94A3B8', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+y: { ticks: { color: '#94A3B8', font: { size: 10 }, callback: v => Math.round(v/1000).toLocaleString('hu-HU') + ' eFt' },
+grid: { color: 'rgba(255,255,255,0.05)' } }
+}
+}
+});
 }
 function mt_drawVersenyChart(labels, sajatSor, versenySor) {
 if (mt_chartVerseny) mt_chartVerseny.destroy();
