@@ -1728,6 +1728,37 @@ v[calcNum][tier] = checked;
 saveCalcArVis(v);
 if (calcNum === activeCalc) { calculate(); refreshDetail(); }
 }
+// ============================================================
+// CÉLÁRAZÓ – kalkulátoronként állítható, hogy a sales kolléga lássa-e a
+// részletes ár-bontást (anyag/kivitelezés/admin/cél), vagy csak a végső
+// Célárat. Admin mindig látja a bontást, függetlenül ettől a beállítástól.
+// ============================================================
+const DEFAULT_CELARAZO_BONTAS = { 1:false, 2:false, 3:false, 4:false, 5:false, 6:false };
+function getCelarazoBontasLathato() {
+if (SHARED_SETTINGS && SHARED_SETTINGS.celarazo_bontas) {
+const stored = SHARED_SETTINGS.celarazo_bontas;
+[1,2,3,4,5,6].forEach(c => { if (typeof stored[c] !== 'boolean') stored[c] = false; });
+return stored;
+}
+try {
+const stored = JSON.parse(localStorage.getItem('sf_celarazo_bontas') || 'null');
+if (!stored) return { ...DEFAULT_CELARAZO_BONTAS };
+[1,2,3,4,5,6].forEach(c => { if (typeof stored[c] !== 'boolean') stored[c] = false; });
+return stored;
+} catch { return { ...DEFAULT_CELARAZO_BONTAS }; }
+}
+function saveCelarazoBontasLathato(v) {
+localStorage.setItem('sf_celarazo_bontas', JSON.stringify(v));
+if (!SHARED_SETTINGS) SHARED_SETTINGS = {};
+SHARED_SETTINGS.celarazo_bontas = v;
+saveSettingToSheets('celarazo_bontas', v);
+}
+function setCelarazoBontasLathato(calcNum, checked) {
+const v = getCelarazoBontasLathato();
+v[calcNum] = checked;
+saveCelarazoBontasLathato(v);
+if (calcNum === activeCalc) calculate();
+}
 // Kiszámolja mindhárom árat (nettó/kedvezményes nettó/áfa/bruttó/kW-ár) egy adott
 // anyagköltség + működési költség (munkadíj) párosból. A visszaadott tömb mindig
 // mindhárom szintet tartalmazza – a megjelenítésnél kell szűrni getActiveArVis() szerint.
@@ -2830,12 +2861,13 @@ const bruttoKedv = nettoKedv * (1 + AFA_KULCS);
 const kwNetKedv = rendszerKw > 0 ? nettoKedv / rendszerKw : 0;
 const kwGrossKedv = rendszerKw > 0 ? bruttoKedv / rendszerKw : 0;
 const isAdminUser = currentUser && currentUser.isAdmin;
+const showBontas = isAdminUser || !!getCelarazoBontasLathato()[activeCalc];
 mainHtml = `
 <div class="rbar-item">
 <div class="rbar-label">Célár (bruttó)</div>
 <div class="rbar-val brutto">${fmt(bruttoKedv)}</div>
 </div>`;
-if (isAdminUser) {
+if (showBontas) {
 mainHtml += `
 <div class="rbar-item">
 <div class="rbar-label">Anyagköltség (nettó)</div>
@@ -3097,6 +3129,7 @@ if (!grid) return;
 const modes = getCalcModes();
 const names = getCalcNames();
 const arVis = getCalcArVis();
+const celBontas = getCelarazoBontasLathato();
 // Per-calculator mode settings
 let modeHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">Kalkulátorok módja</div><div style="display:grid;gap:0.5rem">';
 [1,2,3,4,5,6].forEach(c => {
@@ -3115,22 +3148,14 @@ style="padding:0.25rem 0.75rem;border:none;cursor:pointer;font-size:0.75rem;${m=
 });
 modeHtml += '</div></div>';
 // Per-calculator ár-láthatóság (melyik kalkulátor melyik árat láthatja)
-let arVisHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">💰 Kalkulátorok – melyik árat mutassa (csak Új módban aktív)</div><div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:0.5rem">Régi módú kalkulátoroknál ez a beállítás nem számít – ott mindig az eredeti, egyetlen (haszonkulcsos) ár jelenik meg.</div><div style="display:grid;gap:0.5rem">';
+let arVisHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--sun);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">🎯 Kalkulátorok – Célárazó bontás láthatósága</div><div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:0.5rem">Admin mindig látja a teljes bontást (anyag/kivitelezés/admin/cél rész). Itt kalkulátoronként állítható, hogy a sales kolléga is lássa-e ezt a bontást, vagy csak a végső Célárat.</div><div style="display:grid;gap:0.5rem">';
 [1,2,3,4,5,6].forEach(c => {
-const v = arVis[c] || { ar1: true, ar2: true, ar3: true };
+const showBontas = !!celBontas[c];
 arVisHtml += `<div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg);border:1px solid var(--border);border-radius:0.75rem;padding:0.6rem 1rem;flex-wrap:wrap;gap:0.5rem">
 <span style="font-size:0.85rem">${names[c] || 'Kalkulátor ' + c}</span>
-<div style="display:flex;gap:0.75rem;flex-wrap:wrap">
 <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.78rem;color:var(--text-muted);cursor:pointer">
-<input type="checkbox" ${v.ar1 ? 'checked' : ''} onchange="setCalcArVis(${c},'ar1',this.checked)"> Bekerülési
+<input type="checkbox" ${showBontas ? 'checked' : ''} onchange="setCelarazoBontasLathato(${c},this.checked)"> Sales kolléga is lássa a bontást
 </label>
-<label style="display:flex;align-items:center;gap:0.3rem;font-size:0.78rem;color:var(--text-muted);cursor:pointer">
-<input type="checkbox" ${v.ar2 ? 'checked' : ''} onchange="setCalcArVis(${c},'ar2',this.checked)"> Minimum
-</label>
-<label style="display:flex;align-items:center;gap:0.3rem;font-size:0.78rem;color:var(--text-muted);cursor:pointer">
-<input type="checkbox" ${v.ar3 ? 'checked' : ''} onchange="setCalcArVis(${c},'ar3',this.checked)"> Ajánlott
-</label>
-</div>
 </div>`;
 });
 arVisHtml += '</div></div>';
