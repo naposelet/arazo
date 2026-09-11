@@ -1465,9 +1465,10 @@ renderCalcSettings();
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.66 – 2026-09-11';
+const APP_VERSION = 'v2.67 – 2026-09-11';
 const APP_VERSION_HISTORY = [
-'v2.66 (2026-09-11): Célárazó bevezetve (anyagköltség + kivitelezési/admin/cél rész, napok/X arányában) mint alapértelmezett számítási mód; Régi/Új mód megmarad választható, kiszürkített opcióként. Admin-szerkeszthető célárazó paraméterek (éves cél, havi kivitelezési díj, havi admin díj – alap 4M Ft, havi kivitelezési célszám). 20 kW feletti figyelmeztetés a felületen. Admin látja a teljes ár-bontást, sales kolléga csak a végső Célárat. Megtérülés kalkulátor reszponzív, több-oszlopos elrendezése széles képernyőn (beállító kártyák egymás mellett, grafikonok/táblázatok teljes szélességben maradnak).',
+'v2.67 (2026-09-11): Több rendszer összehasonlítása az Árazóban (1. fázis + mentés) – kalkulátoronként 1-3 párhuzamos, önállóan konfigurálható rendszer (napelem+inverter+tartószerkezet), saját Célár-számítással és elnevezéssel; mentésnél mindegyik külön sorként kerül a Sheets-be ("rendszerNev" mezővel megkülönböztetve). Optimalizátor/egyéb tételek és a Megtérülés-integráció (4 vonalas grafikon) még nem része ennek a fázisnak.',
+'v2.66 (2026-09-11): Célárazó bevezetve (anyagköltség + kivitelezési/admin/cél rész, napok/X arányában) mint alapértelmezett számítási mód; Régi/Új mód megmarad választható, kiszürkített opcióként. Admin-szerkeszthető célárazó paraméterek (éves cél, havi kivitelezési díj, havi admin díj – alap 4M Ft, havi kivitelezési célszám). 20 kW feletti figyelmeztetés a felületen. Admin látja a teljes ár-bontást, sales kolléga csak a végső Célárat (kalkulátoronként kapcsolható, hogy a sales kolléga is lássa-e a bontást). Megtérülés kalkulátor reszponzív, több-oszlopos elrendezése széles képernyőn (beállító kártyák egymás mellett, grafikonok/táblázatok teljes szélességben maradnak).',
 'v2.1 (2026-05-29): Megtérülés kalkulátor, PVGIS integráció',
 'v2.3 (2026-05-29): Sávos áramár, cashflow táblázat, grafikonok',
 'v2.4 (2026-06-05): Excel import, geocoding, PVGIS manuális gomb, riport PDF',
@@ -2141,6 +2142,7 @@ ar3Nev: t3.label, ar3Netto: Math.round(t3.nettoKedv), ar3Afa: Math.round(t3.afaK
 const payload = {
 ertekesito: currentUser.name || currentUser.email,
 kalkulator: names[activeCalc] || 'Kalkulátor ' + activeCalc,
+rendszerNev: document.getElementById('sysname-1')?.value || 'Alap',
 mod: bovitesMod ? 'Bővítés' : (mode === 'regi' ? 'Régi' : mode === 'cel' ? 'Célár' : 'Új'),
 arTipus,
 // Napelem
@@ -2195,6 +2197,22 @@ mode: 'no-cors',
 headers: { 'Content-Type': 'application/json' },
 body: JSON.stringify(payload)
 });
+// Ha 1-nél több rendszer van összeállítva (multi-rendszer összehasonlítás),
+// mindegyik extra rendszert is külön sorként mentjük, ugyanazzal az
+// értékesítővel/kalkulátorral – a "rendszerNev" mező különbözteti meg őket.
+if (typeof extraSystemCount !== 'undefined' && extraSystemCount > 1) {
+for (let sn = 2; sn <= extraSystemCount; sn++) {
+const extraPayload = buildExtraAjanlatPayload(sn, payload.ertekesito, payload.kalkulator);
+if (extraPayload) {
+await fetch(SHEETS_API, {
+method: 'POST',
+mode: 'no-cors',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify(extraPayload)
+});
+}
+}
+}
 if (btn && !silent) {
 btn.textContent = '✅ Mentve!';
 btn.style.background = 'var(--green)';
@@ -3173,6 +3191,89 @@ resEl.innerHTML = `<div style="display:flex;justify-content:space-between;align-
 <span style="font-weight:700;color:var(--sun);font-size:1.05rem">${fmt(bruttoKedv)}</span>
 <span style="font-size:0.8rem;color:var(--text-muted)">${rendszerKw.toFixed(2)} kW</span>
 </div>${breakdownHtml}`;
+}
+
+// Egy extra rendszer (2. vagy 3.) teljes ajánlat-payloadja mentéshez – ugyanaz
+// a séma, mint az 1. rendszeré, csak Inverter2/Optimalizátor/Egyéb tételek
+// nélkül (ezek jelenleg nem választhatók extra rendszereknél).
+function buildExtraAjanlatPayload(sysNum, ertekesitoName, kalkulatorNev) {
+const panelSel = extraSearchState[sysNum].panel.selected;
+if (!panelSel) return null;
+const panelQty = parseInt(document.getElementById('panel-qty-' + sysNum)?.value) || 0;
+const inv1Sel = extraSearchState[sysNum].inv1.selected;
+const inv1Qty = parseInt(document.getElementById('inv1-qty-' + sysNum)?.value) || 0;
+const tartCode = parseInt(document.getElementById('tart-select-' + sysNum)?.value) || 0;
+const discount = parseFloat(document.getElementById('discount-val')?.value) || 0;
+const mode = getActiveMode();
+const bovitesMod = isBovitesKalkulacio();
+const rendszerKw = panelSel.kw * panelQty;
+const panelCost = panelSel.huf * panelQty;
+const inv1Cost = inv1Sel ? inv1Sel.huf * inv1Qty : 0;
+let tartCost = 0, tartName = '';
+if (tartCode) {
+const tart = PRODUCTS.tarts.find(t => Number(t.code) === tartCode || (PRODUCTS.tarts.indexOf(t)+1) === tartCode);
+if (tart) { tartCost = tart.base + Math.max(0, rendszerKw - 3) * tart.per_kw; tartName = tart.name; }
+}
+const anyagköltseg = panelCost + inv1Cost + tartCost;
+const AFA = CALC_SETTINGS.afa.value / 100;
+const manualNapOverride = document.getElementById('nap-override-' + sysNum)?.value;
+const napok = manualNapOverride ? parseInt(manualNapOverride) : calcDaysForKw(rendszerKw);
+let munkadij = 0;
+if (!bovitesMod && mode === 'regi') {
+const md_alap = CALC_SETTINGS.munkadij_alap.value, md_extra = CALC_SETTINGS.munkadij_extra.value, md_hatar = CALC_SETTINGS.munkadij_hatar.value;
+munkadij = rendszerKw <= md_hatar ? rendszerKw * md_alap : md_hatar * md_alap + (rendszerKw - md_hatar) * md_extra;
+} else if (!bovitesMod && mode !== 'cel') {
+munkadij = napok * CALC_SETTINGS.napi_munkadij.value * (1 + CALC_SETTINGS.munkadij_pct.value/100);
+}
+let netto, nettoKedv, bruttoKedv, arTipus;
+let ar3Fields = {};
+if (bovitesMod) {
+const bNetto = anyagköltseg * CALC_SETTINGS.bovites_szorzo.value;
+netto = bNetto; nettoKedv = bNetto * (1 - discount/100); bruttoKedv = nettoKedv * (1+AFA); arTipus = 'Bővítés';
+} else if (mode === 'regi') {
+const rNetto = (anyagköltseg + munkadij) * CALC_SETTINGS.haszonkulcs.value;
+netto = rNetto; nettoKedv = rNetto * (1 - discount/100); bruttoKedv = nettoKedv * (1+AFA); arTipus = 'Régi (haszonkulcsos)';
+} else if (mode === 'cel') {
+const cs = CALC_SETTINGS;
+const x = cs.celarazo_havi_kivitelezesi_celszam.value || 1;
+const napArany = napok / x;
+const kivitelezesiResz = cs.celarazo_havi_kivitelezesi_dij.value * napArany;
+const adminResz = cs.celarazo_havi_admin_dij.value * napArany;
+const celResz = (cs.celarazo_eves_celszam.value / 12) * napArany;
+const cNetto = anyagköltseg + kivitelezesiResz + adminResz + celResz;
+netto = cNetto; nettoKedv = cNetto * (1 - discount/100); bruttoKedv = nettoKedv * (1+AFA); arTipus = 'Célár';
+ar3Fields = { celKivitelezesiResz: Math.round(kivitelezesiResz), celAdminResz: Math.round(adminResz), celHaszonResz: Math.round(celResz), celNapok: napok };
+} else {
+const tiers = computeAr3Tier(anyagköltseg, munkadij, discount, AFA, rendszerKw);
+const [t1, t2, t3] = tiers;
+netto = t3.netto; nettoKedv = t3.nettoKedv; bruttoKedv = t3.bruttoKedv; arTipus = 'Ajánlott (3 szintű árazás)';
+ar3Fields = {
+ar1Nev: t1.label, ar1Netto: Math.round(t1.nettoKedv), ar1Afa: Math.round(t1.afaKedv), ar1Brutto: Math.round(t1.bruttoKedv),
+ar2Nev: t2.label, ar2Netto: Math.round(t2.nettoKedv), ar2Afa: Math.round(t2.afaKedv), ar2Brutto: Math.round(t2.bruttoKedv),
+ar3Nev: t3.label, ar3Netto: Math.round(t3.nettoKedv), ar3Afa: Math.round(t3.afaKedv), ar3Brutto: Math.round(t3.bruttoKedv),
+};
+}
+const rendszerNev = document.getElementById('sysname-' + sysNum)?.value || EXTRA_SYS_DEFAULT_NAMES[sysNum] || ('Rendszer ' + sysNum);
+return {
+ertekesito: ertekesitoName,
+kalkulator: kalkulatorNev,
+rendszerNev,
+mod: bovitesMod ? 'Bővítés' : (mode === 'regi' ? 'Régi' : mode === 'cel' ? 'Célár' : 'Új'),
+arTipus,
+napelem: panelSel.name, napelemDb: panelQty, napelemEgysegar: Math.round(panelSel.huf), napelemOsszeg: Math.round(panelCost),
+rendszerKw: Math.round(rendszerKw * 1000) / 1000,
+tartoszerkezet: tartName, tartoszerkezetOsszeg: Math.round(tartCost),
+inverter1: inv1Sel ? inv1Sel.name : '', inverter1Db: inv1Sel ? inv1Qty : 0, inverter1Egysegar: inv1Sel ? Math.round(inv1Sel.huf) : 0, inverter1Osszeg: Math.round(inv1Cost),
+inverter2: '', inverter2Db: 0, inverter2Egysegar: 0, inverter2Osszeg: 0,
+optimalizator: '', optimalizatorDb: 0, optimalizatorEgysegar: 0, optimalizatorOsszeg: 0,
+tetelek: [], egyebOsszeg: 0,
+anyagköltseg: Math.round(anyagköltseg), munkadij: Math.round(munkadij), bekerulesi: Math.round(anyagköltseg + munkadij),
+haszonkulcs: bovitesMod ? CALC_SETTINGS.bovites_szorzo.value : (mode === 'regi' ? CALC_SETTINGS.haszonkulcs.value : mode === 'cel' ? null : CALC_SETTINGS.ajanlott_ar_szorzo.value),
+...ar3Fields,
+nettoKedvNelkul: Math.round(netto), kedvezmeny: discount, kedvezmenyOsszeg: Math.round(netto - nettoKedv),
+netto: Math.round(nettoKedv), afa: Math.round(nettoKedv * CALC_SETTINGS.afa.value / 100), brutto: Math.round(bruttoKedv),
+kwArNetto: Math.round(rendszerKw > 0 ? nettoKedv / rendszerKw : 0), kwArBrutto: Math.round(rendszerKw > 0 ? bruttoKedv / rendszerKw : 0),
+};
 }
 
 function resetCalc() {
