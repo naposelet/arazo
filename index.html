@@ -804,9 +804,13 @@ style="background:var(--green);color:#fff;border:none;border-radius:0.5rem;paddi
 </div>
 <!-- MEGTÉRÜLÉS KALKULÁTOR -->
 <div id="megterules-view">
+<!-- Rendszer-fülek – csak akkor látszik, ha az aktív Árazó-kalkulátorban 1-nél több
+     rendszer van összeállítva. Mindegyik fül saját, teljesen független paraméter-
+     készletet (ügyfél/helyszín/PVGIS/fogyasztás/degradáció) tárol. -->
+<div id="mt-system-tabs" style="display:none;padding:0.5rem 1rem 0;gap:0.4rem;flex-wrap:wrap"></div>
 <!-- Rögzített (sticky) gyorsgombok – görgetéskor is mindig látszanak -->
 <div id="mt-sticky-header" style="padding:0.6rem 1rem;display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">
-<button onclick="mt_importFromArazo(true)"
+<button onclick="mtImportActiveSystemFromArazo(true)"
 style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.6rem;padding:0.45rem 0.9rem;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:0.4rem">
 🔄 Ár frissítése az Árazóból
 </button>
@@ -1000,7 +1004,7 @@ Add meg a koordinátákat vagy keress városnév alapján
 </div></div>
 <!-- Frissítés gomb -->
 <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
-<button onclick="mt_importFromArazo(true)"
+<button onclick="mtImportActiveSystemFromArazo(true)"
 style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.6rem;padding:0.55rem 1rem;font-size:0.82rem;cursor:pointer;display:flex;align-items:center;gap:0.4rem;transition:all 0.2s"
 onmouseover="this.style.borderColor='var(--sun)';this.style.color='var(--sun)'"
 onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)'">
@@ -1465,9 +1469,10 @@ renderCalcSettings();
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.67 – 2026-09-11';
+const APP_VERSION = 'v2.68 – 2026-09-11';
 const APP_VERSION_HISTORY = [
-'v2.67 (2026-09-11): Több rendszer összehasonlítása az Árazóban (1. fázis + mentés) – kalkulátoronként 1-3 párhuzamos, önállóan konfigurálható rendszer (napelem+inverter+tartószerkezet), saját Célár-számítással és elnevezéssel; mentésnél mindegyik külön sorként kerül a Sheets-be ("rendszerNev" mezővel megkülönböztetve). Optimalizátor/egyéb tételek és a Megtérülés-integráció (4 vonalas grafikon) még nem része ennek a fázisnak.',
+'v2.68 (2026-09-11): Megtérülés – rendszer-fülek bevezetve. Ha az Árazóban 2-3 rendszer van összeállítva, a Megtérülésben mindegyikhez saját, teljesen független fül tartozik (ügyfél/helyszín/PVGIS/fogyasztás/degradáció, saját mentett állapottal fülváltás közben) – automatikusan a megfelelő rendszer kWp/ára importálva Árazóból. A "Mi vs. piac" 4 vonalas (3 saját rendszer + versenytárs) összehasonlítása még nem része ennek a lépésnek – ez a következő fázis.',
+'v2.67 (2026-09-11): Több rendszer összehasonlítása az Árazóban (1. fázis + mentés) – kalkulátoronként 1-3 párhuzamos, önállóan konfigurálható rendszer (napelem+inverter+tartószerkezet), saját Célár-számítással és elnevezéssel; mentésnél mindegyik külön sorként kerül a Sheets-be ("rendszerNev" mezővel megkülönböztetve). Optimalizátor/egyéb tételek még nem része ennek a fázisnak.',
 'v2.66 (2026-09-11): Célárazó bevezetve (anyagköltség + kivitelezési/admin/cél rész, napok/X arányában) mint alapértelmezett számítási mód; Régi/Új mód megmarad választható, kiszürkített opcióként. Admin-szerkeszthető célárazó paraméterek (éves cél, havi kivitelezési díj, havi admin díj – alap 4M Ft, havi kivitelezési célszám). 20 kW feletti figyelmeztetés a felületen. Admin látja a teljes ár-bontást, sales kolléga csak a végső Célárat (kalkulátoronként kapcsolható, hogy a sales kolléga is lássa-e a bontást). Megtérülés kalkulátor reszponzív, több-oszlopos elrendezése széles képernyőn (beállító kártyák egymás mellett, grafikonok/táblázatok teljes szélességben maradnak).',
 'v2.1 (2026-05-29): Megtérülés kalkulátor, PVGIS integráció',
 'v2.3 (2026-05-29): Sávos áramár, cashflow táblázat, grafikonok',
@@ -2978,6 +2983,7 @@ document.getElementById('rbar-full').style.display = 'block';
 // tételek nélkül) – ha ezekre is szükség van, jelezd.
 // ============================================================
 let extraSystemCount = 1;
+let LAST_EXTRA_SYS_BRUTTO = { 2: 0, 3: 0 };
 const EXTRA_SYS_DEFAULT_NAMES = { 1: 'Alap', 2: 'Prémium', 3: 'Rendszer 3' };
 const extraSearchState = {
 2: { panel: { list: [], selected: null }, inv1: { list: [], selected: null } },
@@ -2989,6 +2995,7 @@ function resetExtraSystems() {
 extraSystemCount = 1;
 extraSearchState[2] = { panel: { list: [], selected: null }, inv1: { list: [], selected: null } };
 extraSearchState[3] = { panel: { list: [], selected: null }, inv1: { list: [], selected: null } };
+LAST_EXTRA_SYS_BRUTTO = { 2: 0, 3: 0 };
 const container = document.getElementById('extra-systems-container');
 if (container) container.innerHTML = '';
 const addBtn = document.getElementById('add-system-btn');
@@ -3140,6 +3147,7 @@ const inv1Sel = extraSearchState[sysNum].inv1.selected;
 if (!panelSel) {
 resEl.textContent = 'Válassz napelemtípust a rendszer kalkulálásához...';
 resEl.style.color = 'var(--text-muted)';
+if (typeof LAST_EXTRA_SYS_BRUTTO !== 'undefined') LAST_EXTRA_SYS_BRUTTO[sysNum] = 0;
 return;
 }
 const panelQty = parseInt(document.getElementById('panel-qty-' + sysNum)?.value) || 0;
@@ -3191,6 +3199,7 @@ resEl.innerHTML = `<div style="display:flex;justify-content:space-between;align-
 <span style="font-weight:700;color:var(--sun);font-size:1.05rem">${fmt(bruttoKedv)}</span>
 <span style="font-size:0.8rem;color:var(--text-muted)">${rendszerKw.toFixed(2)} kW</span>
 </div>${breakdownHtml}`;
+if (typeof LAST_EXTRA_SYS_BRUTTO !== 'undefined') LAST_EXTRA_SYS_BRUTTO[sysNum] = bruttoKedv;
 }
 
 // Egy extra rendszer (2. vagy 3.) teljes ajánlat-payloadja mentéshez – ugyanaz
@@ -3777,8 +3786,9 @@ if (calcView) { calcView.classList.add('js-hidden'); calcView.style.display = 'n
 if (adminPanel) adminPanel.style.display = 'none';
 if (megView) megView.style.display = 'block';
 if (resultBar) resultBar.classList.remove('visible');
-// Átveszi az árazó értékeit
-mt_importFromArazo();
+// Átveszi az árazó értékeit (az aktuálisan megjelenített rendszer-fülre)
+mtRenderSystemTabs();
+mtImportActiveSystemFromArazo();
 }
 updateStickyOffsets();
 }
@@ -3940,6 +3950,125 @@ if (arEl && mt_arazoAdatok.ar != null) arEl.value = Math.round(mt_arazoAdatok.ar
 }
 mt_recalculate();
 }
+// ============================================================
+// MEGTÉRÜLÉS – RENDSZER-FÜLEK (1-3 rendszer, teljesen független paraméterekkel)
+// Minden fül saját ügyfél/helyszín/PVGIS/fogyasztás/degradáció adatot tárol.
+// Fülváltáskor a jelenlegi mezők állapota elmentődik, majd a célfül állapota
+// (vagy – első megnyitásnál – az alapértékek + Árazóból importált kWp/ár)
+// betöltődik ugyanazokba a mezőkbe.
+// ============================================================
+let mtActiveSystem = 1;
+const mtSystemStates = { 1: null, 2: null, 3: null };
+const MT_FIELD_DEFAULTS = {
+'mt-ugyfel-nev': '', 'mt-helyszin': '', 'mt-lat': '', 'mt-lon': '',
+'mt-tilt': '35', 'mt-azimut': '0',
+'mt-kwp': '', 'mt-rendszer-ar': '',
+'mt-kvota': '2500', 'mt-ar-alap': '40', 'mt-ar-magas': '70',
+'mt-fogyasztas-mod': 'kwh-havi', 'mt-fogyasztas-ertek': '',
+'mt-ar-ceges': '120', 'mt-ceges-mod': 'kwh-havi', 'mt-ceges-fogyasztas': '',
+'mt-elettartam': '18', 'mt-degradacio': '0.5', 'mt-veszteseg': '14',
+'verseny-kedvezmeny': '', 'verseny-karb-kezdes': '', 'verseny-karb-koltseg': '',
+'verseny-garancia': '', 'verseny-gyakorisag-1': '', 'verseny-gyakorisag-2': '',
+};
+const MT_FIELD_IDS = Object.keys(MT_FIELD_DEFAULTS);
+
+function mtSerializeCurrentState() {
+const fields = {};
+MT_FIELD_IDS.forEach(id => {
+const el = document.getElementById(id);
+if (el) fields[id] = el.value;
+});
+return { fields, pvgisData: mt_pvgisData, ugyfelTipus: mt_ugyfelTipus, adatforras: mt_adatforras };
+}
+
+function mtApplyFields(fieldsObj) {
+MT_FIELD_IDS.forEach(id => {
+const el = document.getElementById(id);
+if (el) el.value = (fieldsObj[id] !== undefined ? fieldsObj[id] : '');
+});
+}
+
+function mtRenderSystemTabs() {
+const wrap = document.getElementById('mt-system-tabs');
+if (!wrap) return;
+const count = (typeof extraSystemCount !== 'undefined') ? extraSystemCount : 1;
+if (count <= 1) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+wrap.style.display = 'flex';
+let html = '';
+for (let i = 1; i <= count; i++) {
+const nev = i === 1
+? (document.getElementById('sysname-1')?.value || 'Alap')
+: (document.getElementById('sysname-' + i)?.value || EXTRA_SYS_DEFAULT_NAMES[i] || ('Rendszer ' + i));
+const active = i === mtActiveSystem;
+html += `<button onclick="mtSwitchSystem(${i})" style="padding:0.35rem 0.9rem;border:none;cursor:pointer;font-size:0.8rem;border-radius:0.5rem;${active ? 'background:var(--sun);color:#000;font-weight:700' : 'background:var(--surface2);color:var(--text-muted)'}">${nev}</button>`;
+}
+wrap.innerHTML = html;
+}
+
+function mtSwitchSystem(sysNum) {
+if (sysNum === mtActiveSystem) return;
+// A jelenlegi (elhagyott) fül állapotának mentése
+mtSystemStates[mtActiveSystem] = mtSerializeCurrentState();
+mtActiveSystem = sysNum;
+const saved = mtSystemStates[sysNum];
+if (saved) {
+mtApplyFields(saved.fields);
+mt_pvgisData = saved.pvgisData || null;
+mt_ugyfelTipus = saved.ugyfelTipus || 'lakossagi';
+mt_adatforras = saved.adatforras || 'arazo';
+} else {
+// Első alkalommal nyitjuk meg ezt a rendszert – alapértékek, majd Árazó-import
+mtApplyFields(MT_FIELD_DEFAULTS);
+mt_pvgisData = null;
+mt_ugyfelTipus = 'lakossagi';
+mt_adatforras = 'arazo';
+mtImportSystemFromArazo(sysNum);
+}
+const toggleLak = document.getElementById('toggle-lakossagi');
+const toggleCeg = document.getElementById('toggle-ceges');
+if (toggleLak) toggleLak.classList.toggle('active', mt_ugyfelTipus === 'lakossagi');
+if (toggleCeg) toggleCeg.classList.toggle('active', mt_ugyfelTipus === 'ceges');
+const lakPanel = document.getElementById('lakossagi-panel');
+const cegPanel = document.getElementById('ceges-panel');
+if (lakPanel) lakPanel.style.display = mt_ugyfelTipus === 'lakossagi' ? 'block' : 'none';
+if (cegPanel) cegPanel.style.display = mt_ugyfelTipus === 'ceges' ? 'block' : 'none';
+mtRenderSystemTabs();
+mt_recalculate();
+}
+
+// Egy adott rendszerszámhoz (1/2/3) tartozó kWp+ár importálása az Árazóból –
+// nem-destruktív módon (csak akkor ír felül, ha üres a mező, vagy force=true).
+function mtImportSystemFromArazo(sysNum, force = false) {
+let kwp = null, ar = null;
+if (sysNum === 1) {
+const panelSel = searchState.panel ? searchState.panel.selected : null;
+const panelQty = parseInt(document.getElementById('panel-qty')?.value) || 0;
+if (panelSel && panelQty > 0) kwp = panelSel.kw * panelQty;
+if (LAST_CALC_BRUTTO > 0) ar = LAST_CALC_BRUTTO;
+} else {
+const panelSel = (typeof extraSearchState !== 'undefined' && extraSearchState[sysNum]) ? extraSearchState[sysNum].panel.selected : null;
+const panelQty = parseInt(document.getElementById('panel-qty-' + sysNum)?.value) || 0;
+if (panelSel && panelQty > 0) kwp = panelSel.kw * panelQty;
+if (typeof LAST_EXTRA_SYS_BRUTTO !== 'undefined' && LAST_EXTRA_SYS_BRUTTO[sysNum] > 0) ar = LAST_EXTRA_SYS_BRUTTO[sysNum];
+}
+const kwpEl = document.getElementById('mt-kwp');
+const arEl = document.getElementById('mt-rendszer-ar');
+if (kwp != null && kwpEl && (force || !kwpEl.value)) kwpEl.value = kwp.toFixed(2);
+if (ar != null && arEl && (force || !arEl.value)) arEl.value = Math.round(ar);
+}
+
+// Dispatcher: az 1. rendszernél a meglévő, bevált mt_importFromArazo()-t hívja
+// (nulla kockázat, változatlan viselkedés), a 2./3. rendszernél az új, önálló
+// importáló függvényt.
+function mtImportActiveSystemFromArazo(force = false) {
+if (mtActiveSystem === 1) {
+mt_importFromArazo(force);
+} else {
+mtImportSystemFromArazo(mtActiveSystem, force);
+mt_recalculate();
+}
+}
+
 function mt_importFromArazo(force = false) {
 const panelSel = searchState.panel ? searchState.panel.selected : null;
 const panelQty = parseInt(document.getElementById('panel-qty')?.value) || 0;
