@@ -290,6 +290,11 @@ max-width: 1500px;
 grid-template-columns: repeat(3, 1fr) !important;
 }
 }
+/* Az admin panelre váltáskor a JS a calc-view-t elrejti (js-hidden osztály).
+   Ez ID+class kombinációval magasabb specificitású, mint a fenti
+   #calc-view { display: grid !important }, ezért helyesen felülírja azt –
+   különben a fenti !important örökre láthatóvá tenné a rácsot admin nézetben is. */
+#calc-view.js-hidden { display: none !important; }
 .field-row { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem; align-items: end; }
 .field-label { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.3rem; }
 /* SEARCH INPUT */
@@ -1880,6 +1885,7 @@ updateStickyOffsets();
 // ============================================================
 function showCalc() {
 document.getElementById('admin-panel').style.display = 'none';
+document.getElementById('calc-view').classList.remove('js-hidden');
 document.getElementById('calc-view').style.display = 'block';
 document.getElementById('result-bar').classList.add('visible');
 resetCalc();
@@ -1889,6 +1895,7 @@ initModeUI();
 updateStickyOffsets();
 }
 function showAdmin() {
+document.getElementById('calc-view').classList.add('js-hidden');
 document.getElementById('calc-view').style.display = 'none';
 // JAVÍTVA: korábban a Megtérülés nézet nem lett elrejtve, ezért ha valaki
 // a Megtérülés tabon állva kattintott az Adminra, a panel ténylegesen megjelent,
@@ -3395,14 +3402,14 @@ if (syncBar) syncBar.style.display = '';
 // "Árazó" fülre kattintva az admin panel nyitva maradt, a calc-view pedig
 // nem jelent meg alatta/mögötte.
 if (adminPanel) adminPanel.style.display = 'none';
-if (calcView) calcView.style.display = 'block';
+if (calcView) { calcView.classList.remove('js-hidden'); calcView.style.display = 'block'; }
 if (megView) megView.style.display = 'none';
 if (resultBar) resultBar.classList.add('visible');
 } else {
 if (calcTabs) calcTabs.style.display = 'none';
 if (syncBar) syncBar.style.display = 'none';
 if (ujNapBar) ujNapBar.style.display = 'none';
-if (calcView) calcView.style.display = 'none';
+if (calcView) { calcView.classList.add('js-hidden'); calcView.style.display = 'none'; }
 if (adminPanel) adminPanel.style.display = 'none';
 if (megView) megView.style.display = 'block';
 if (resultBar) resultBar.classList.remove('visible');
