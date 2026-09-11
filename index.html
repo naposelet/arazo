@@ -1469,9 +1469,10 @@ renderCalcSettings();
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.69 – 2026-09-11';
+const APP_VERSION = 'v2.70 – 2026-09-11';
 const APP_VERSION_HISTORY = [
-'v2.69 (2026-09-11): "Mi vs. a piac" grafikon kibővítve akár 4 vonalra (1-3 saját rendszer, mindegyik saját árral/degradációval/fogyasztással/garancia-hosszal + 1 közös versenytárs-görbe, az 1. rendszer árából/kedvezményéből számolva). A nem épp aktív rendszer-fülek adatait is figyelembe veszi, anélkül hogy át kellene váltani rájuk. A PDF riport egyelőre változatlanul csak az aktív rendszer 2 vonalas összehasonlítását tartalmazza.',
+'v2.70 (2026-09-11): (1) A 2./3. rendszereknél mostantól Optimalizátor és Egyéb tételek is választhatók, ugyanazzal a kompatibilitás-ellenőrzéssel (inverterhez illő kiegészítők), és ezek bekerülnek a mentett ajánlatokba is. (2) A PDF riport "Mi vs. a piac" grafikonja is akár 4 vonalas (1-3 saját rendszer + versenytárs) – korábban csak az élő Megtérülés nézetben volt ez így, a PDF-ben még az aktív rendszer 2 vonalas nézete jelent meg.',
+'v2.69 (2026-09-11): "Mi vs. a piac" grafikon kibővítve akár 4 vonalra (1-3 saját rendszer, mindegyik saját árral/degradációval/fogyasztással/garancia-hosszal + 1 közös versenytárs-görbe, az 1. rendszer árából/kedvezményéből számolva) az élő Megtérülés nézetben. A nem épp aktív rendszer-fülek adatait is figyelembe veszi, anélkül hogy át kellene váltani rájuk.',
 'v2.68 (2026-09-11): Megtérülés – rendszer-fülek bevezetve. Ha az Árazóban 2-3 rendszer van összeállítva, a Megtérülésben mindegyikhez saját, teljesen független fül tartozik (ügyfél/helyszín/PVGIS/fogyasztás/degradáció, saját mentett állapottal fülváltás közben) – automatikusan a megfelelő rendszer kWp/ára importálva Árazóból.',
 'v2.67 (2026-09-11): Több rendszer összehasonlítása az Árazóban (1. fázis + mentés) – kalkulátoronként 1-3 párhuzamos, önállóan konfigurálható rendszer (napelem+inverter+tartószerkezet), saját Célár-számítással és elnevezéssel; mentésnél mindegyik külön sorként kerül a Sheets-be ("rendszerNev" mezővel megkülönböztetve). Optimalizátor/egyéb tételek még nem része ennek a fázisnak.',
 'v2.66 (2026-09-11): Célárazó bevezetve (anyagköltség + kivitelezési/admin/cél rész, napok/X arányában) mint alapértelmezett számítási mód; Régi/Új mód megmarad választható, kiszürkített opcióként. Admin-szerkeszthető célárazó paraméterek (éves cél, havi kivitelezési díj, havi admin díj – alap 4M Ft, havi kivitelezési célszám). 20 kW feletti figyelmeztetés a felületen. Admin látja a teljes ár-bontást, sales kolléga csak a végső Célárat (kalkulátoronként kapcsolható, hogy a sales kolléga is lássa-e a bontást). Megtérülés kalkulátor reszponzív, több-oszlopos elrendezése széles képernyőn (beállító kártyák egymás mellett, grafikonok/táblázatok teljes szélességben maradnak).',
@@ -1588,6 +1589,15 @@ if (!inv) return;
 const c = COMPAT_MAP[String(inv.code)];
 if (c) c.forEach(code => codes.add(code));
 });
+return codes.size > 0 ? codes : null;
+}
+// Ugyanaz, mint getCompatibleCodes(), de egy tetszőleges (pl. egy extra rendszer
+// saját) inverter-választáshoz – nem a fő searchState-hez kötött.
+function getCompatibleCodesFor(inv1Sel) {
+if (!inv1Sel) return null;
+const codes = new Set();
+const c = COMPAT_MAP[String(inv1Sel.code)];
+if (c) c.forEach(code => codes.add(code));
 return codes.size > 0 ? codes : null;
 }
 function filterByCompat(products) {
@@ -2987,15 +2997,18 @@ let extraSystemCount = 1;
 let LAST_EXTRA_SYS_BRUTTO = { 2: 0, 3: 0 };
 const EXTRA_SYS_DEFAULT_NAMES = { 1: 'Alap', 2: 'Prémium', 3: 'Rendszer 3' };
 const extraSearchState = {
-2: { panel: { list: [], selected: null }, inv1: { list: [], selected: null } },
-3: { panel: { list: [], selected: null }, inv1: { list: [], selected: null } },
+2: { panel: { list: [], selected: null }, inv1: { list: [], selected: null }, opti: { list: [], selected: null } },
+3: { panel: { list: [], selected: null }, inv1: { list: [], selected: null }, opti: { list: [], selected: null } },
 };
 let extraSysCloseTimer = {};
+let extraRowsSys = { 2: [], 3: [] };
+let extraRowIdCounterSys = 0;
 
 function resetExtraSystems() {
 extraSystemCount = 1;
-extraSearchState[2] = { panel: { list: [], selected: null }, inv1: { list: [], selected: null } };
-extraSearchState[3] = { panel: { list: [], selected: null }, inv1: { list: [], selected: null } };
+extraSearchState[2] = { panel: { list: [], selected: null }, inv1: { list: [], selected: null }, opti: { list: [], selected: null } };
+extraSearchState[3] = { panel: { list: [], selected: null }, inv1: { list: [], selected: null }, opti: { list: [], selected: null } };
+extraRowsSys = { 2: [], 3: [] };
 LAST_EXTRA_SYS_BRUTTO = { 2: 0, 3: 0 };
 const container = document.getElementById('extra-systems-container');
 if (container) container.innerHTML = '';
@@ -3047,6 +3060,25 @@ return `
 <input class="num-input" type="number" id="nap-override-${sysNum}" placeholder="auto" min="1" max="30" onchange="calcExtraSystem(${sysNum})">
 </div>
 </div>
+<div class="mt-grid-3" style="margin-bottom:0.5rem">
+<div class="mt-field">
+<label>Optimalizátor (opcionális)</label>
+<div class="search-wrap">
+<input class="search-input" id="opti-input-${sysNum}" placeholder="Keresés..." autocomplete="off" oninput="extraFilterSearch(${sysNum},'opti')" onfocus="extraOpenDropdown(${sysNum},'opti')" onblur="extraCloseDropdown(${sysNum},'opti')">
+<div class="search-dropdown" id="opti-dropdown-${sysNum}"></div>
+</div>
+</div>
+<div class="mt-field">
+<label>Darabszám</label>
+<input class="num-input" type="number" id="opti-qty-${sysNum}" value="0" min="0" max="500" onchange="calcExtraSystem(${sysNum})">
+</div>
+<div class="mt-field"></div>
+</div>
+<div style="margin-bottom:0.5rem">
+<label style="display:block;font-size:0.75rem;color:var(--text-muted);margin-bottom:0.3rem;text-transform:uppercase;letter-spacing:0.04em">Egyéb tételek</label>
+<div class="extra-list" id="extra-list-${sysNum}"></div>
+<button class="btn-add-extra" onclick="addExtraRowSys(${sysNum})">+ Kiegészítő hozzáadása</button>
+</div>
 <div id="sysresult-${sysNum}" style="background:var(--bg);border:1px solid var(--border);border-radius:0.75rem;padding:0.75rem;font-size:0.85rem;color:var(--text-muted)">Válassz napelemtípust a rendszer kalkulálásához...</div>
 </div>`;
 }
@@ -3059,6 +3091,9 @@ if (container) container.insertAdjacentHTML('beforeend', renderExtraSystemHTML(e
 buildExtraTartSelect(extraSystemCount);
 extraSearchState[extraSystemCount].panel.list = PRODUCTS.panels.filter(p => isValidProduct(p.code));
 extraSearchState[extraSystemCount].inv1.list = PRODUCTS.inverters.filter(p => isValidProduct(p.code));
+extraSearchState[extraSystemCount].opti.list = PRODUCTS.optik.filter(p => isValidProduct(p.code));
+extraRowsSys[extraSystemCount] = [];
+renderExtraRowsSys(extraSystemCount);
 const addBtn = document.getElementById('add-system-btn');
 if (addBtn && extraSystemCount >= 3) addBtn.style.display = 'none';
 }
@@ -3137,6 +3172,128 @@ const input = document.getElementById(`${key}-input-${sysNum}`);
 const dropdown = document.getElementById(`${key}-dropdown-${sysNum}`);
 if (input) { input.value = product.name; input.classList.add('has-value'); }
 if (dropdown) dropdown.classList.remove('open');
+if (key === 'inv1') checkExtraCompatibilitySys(sysNum);
+calcExtraSystem(sysNum);
+}
+// Ugyanaz, mint checkExtraCompatibility(), csak egy adott extra rendszer
+// (2./3.) saját invertere és saját egyéb-tétel listája szerint.
+function checkExtraCompatibilitySys(sysNum) {
+const inv1Sel = extraSearchState[sysNum].inv1.selected;
+const compatCodes = getCompatibleCodesFor(inv1Sel);
+if (!compatCodes) return;
+(extraRowsSys[sysNum] || []).forEach(row => {
+const inp = document.getElementById(`extra-input-sys${sysNum}-${row.id}`);
+if (!inp) return;
+if (row.product && !compatCodes.has(row.product.code)) {
+inp.style.borderColor = 'var(--red)';
+inp.title = '⚠️ Ez a termék nem kompatibilis a kiválasztott inverterrel!';
+} else if (row.product) {
+inp.style.borderColor = '';
+inp.title = '';
+}
+});
+}
+
+// Egyéb tételek (kiegészítők) rendszerenként (2./3. rendszer) – ugyanaz a
+// logika, mint a fő "Egyéb termékek" listánál, csak a saját inverterükhöz
+// (inv1Sel) szűrt kompatibilitással és saját, sysNum-mal ellátott DOM id-kkal.
+function addExtraRowSys(sysNum) {
+const id = ++extraRowIdCounterSys;
+extraRowsSys[sysNum].push({ id, product: null, qty: 1 });
+renderExtraRowsSys(sysNum);
+}
+function removeExtraRowSys(sysNum, id) {
+extraRowsSys[sysNum] = extraRowsSys[sysNum].filter(r => r.id !== id);
+renderExtraRowsSys(sysNum);
+calcExtraSystem(sysNum);
+}
+function renderExtraRowsSys(sysNum) {
+const container = document.getElementById('extra-list-' + sysNum);
+if (!container) return;
+container.innerHTML = '';
+extraRowsSys[sysNum].forEach(row => {
+const div = document.createElement('div');
+div.className = 'extra-row';
+div.innerHTML = `
+<div class="search-wrap" style="position:relative">
+<input class="search-input${row.product ? ' has-value' : ''}"
+id="extra-input-sys${sysNum}-${row.id}"
+value="${row.product ? row.product.name : ''}"
+placeholder="Keresés..."
+autocomplete="off"
+oninput="filterExtraSys(${sysNum},${row.id})"
+onfocus="openExtraDropdownSys(${sysNum},${row.id})"
+onblur="closeExtraDropdownSys(${sysNum},${row.id})">
+<div class="search-dropdown" id="extra-dropdown-sys${sysNum}-${row.id}"></div>
+</div>
+<input class="num-input" type="number" value="${row.qty}" min="1" max="999"
+style="width:65px"
+onchange="updateExtraQtySys(${sysNum},${row.id}, this.value)">
+<button class="btn-remove" onclick="removeExtraRowSys(${sysNum},${row.id})">✕</button>
+`;
+container.appendChild(div);
+});
+}
+function filterExtraSys(sysNum, id) {
+const input = document.getElementById(`extra-input-sys${sysNum}-${id}`);
+const dropdown = document.getElementById(`extra-dropdown-sys${sysNum}-${id}`);
+if (!input || !dropdown) return;
+const q = input.value.toLowerCase();
+const allExtra = [...PRODUCTS.egyeb, ...PRODUCTS.optik].filter(p => isValidProduct(p.code));
+const inv1Sel = extraSearchState[sysNum].inv1.selected;
+const compatCodes = getCompatibleCodesFor(inv1Sel);
+const items = allExtra.filter(p => p.name.toLowerCase().includes(q) && (!compatCodes || compatCodes.has(p.code)));
+dropdown.innerHTML = '';
+items.slice(0, 20).forEach(p => {
+const div = document.createElement('div');
+div.className = 'dropdown-item';
+div.textContent = p.name;
+div.onmousedown = () => selectExtraSys(sysNum, id, p);
+dropdown.appendChild(div);
+});
+dropdown.classList.toggle('open', items.length > 0);
+const row = extraRowsSys[sysNum].find(r => r.id === id);
+if (row) { row.product = null; input.classList.remove('has-value'); }
+calcExtraSystem(sysNum);
+}
+function openExtraDropdownSys(sysNum, id) {
+clearTimeout(extraSysCloseTimer['row' + sysNum + '-' + id]);
+const input = document.getElementById(`extra-input-sys${sysNum}-${id}`);
+const dropdown = document.getElementById(`extra-dropdown-sys${sysNum}-${id}`);
+if (!input || !dropdown) return;
+const q = input.value.toLowerCase();
+const allExtra = [...PRODUCTS.egyeb, ...PRODUCTS.optik].filter(p => isValidProduct(p.code));
+const inv1Sel = extraSearchState[sysNum].inv1.selected;
+const compatCodes = getCompatibleCodesFor(inv1Sel);
+const items = allExtra.filter(p => (!q || p.name.toLowerCase().includes(q)) && (!compatCodes || compatCodes.has(p.code)));
+dropdown.innerHTML = '';
+items.slice(0, 30).forEach(p => {
+const div = document.createElement('div');
+div.className = 'dropdown-item';
+div.textContent = p.name;
+div.onmousedown = () => selectExtraSys(sysNum, id, p);
+dropdown.appendChild(div);
+});
+if (items.length > 0) dropdown.classList.add('open');
+}
+function closeExtraDropdownSys(sysNum, id) {
+extraSysCloseTimer['row' + sysNum + '-' + id] = setTimeout(() => {
+const d = document.getElementById(`extra-dropdown-sys${sysNum}-${id}`);
+if (d) d.classList.remove('open');
+}, 200);
+}
+function selectExtraSys(sysNum, id, product) {
+const row = extraRowsSys[sysNum].find(r => r.id === id);
+if (row) row.product = product;
+const input = document.getElementById(`extra-input-sys${sysNum}-${id}`);
+if (input) { input.value = product.name; input.classList.add('has-value'); }
+const dropdown = document.getElementById(`extra-dropdown-sys${sysNum}-${id}`);
+if (dropdown) dropdown.classList.remove('open');
+calcExtraSystem(sysNum);
+}
+function updateExtraQtySys(sysNum, id, val) {
+const row = extraRowsSys[sysNum].find(r => r.id === id);
+if (row) row.qty = parseInt(val) || 1;
 calcExtraSystem(sysNum);
 }
 
@@ -3154,6 +3311,8 @@ return;
 const panelQty = parseInt(document.getElementById('panel-qty-' + sysNum)?.value) || 0;
 const inv1Qty = parseInt(document.getElementById('inv1-qty-' + sysNum)?.value) || 0;
 const tartCode = parseInt(document.getElementById('tart-select-' + sysNum)?.value) || 0;
+const optiSel = extraSearchState[sysNum].opti ? extraSearchState[sysNum].opti.selected : null;
+const optiQty = parseInt(document.getElementById('opti-qty-' + sysNum)?.value) || 0;
 const rendszerKw = panelSel.kw * panelQty;
 const panelCost = panelSel.huf * panelQty;
 const inv1Cost = inv1Sel ? inv1Sel.huf * inv1Qty : 0;
@@ -3162,7 +3321,12 @@ if (tartCode) {
 const tart = PRODUCTS.tarts.find(t => Number(t.code) === tartCode || (PRODUCTS.tarts.indexOf(t)+1) === tartCode);
 if (tart) tartCost = tart.base + Math.max(0, rendszerKw - 3) * tart.per_kw;
 }
-const anyagok = panelCost + inv1Cost + tartCost;
+const optiCost = optiSel && optiQty > 0 ? optiSel.huf * optiQty : 0;
+let egyebCost = 0;
+(extraRowsSys[sysNum] || []).forEach(row => {
+if (row.product && row.qty > 0) egyebCost += row.product.huf * row.qty;
+});
+const anyagok = panelCost + inv1Cost + tartCost + optiCost + egyebCost;
 const AFA_KULCS = CALC_SETTINGS.afa.value / 100;
 const mode = getActiveMode();
 const discount = parseFloat(document.getElementById('discount-val')?.value) || 0;
@@ -3213,6 +3377,8 @@ const panelQty = parseInt(document.getElementById('panel-qty-' + sysNum)?.value)
 const inv1Sel = extraSearchState[sysNum].inv1.selected;
 const inv1Qty = parseInt(document.getElementById('inv1-qty-' + sysNum)?.value) || 0;
 const tartCode = parseInt(document.getElementById('tart-select-' + sysNum)?.value) || 0;
+const optiSel = extraSearchState[sysNum].opti ? extraSearchState[sysNum].opti.selected : null;
+const optiQty = parseInt(document.getElementById('opti-qty-' + sysNum)?.value) || 0;
 const discount = parseFloat(document.getElementById('discount-val')?.value) || 0;
 const mode = getActiveMode();
 const bovitesMod = isBovitesKalkulacio();
@@ -3224,7 +3390,16 @@ if (tartCode) {
 const tart = PRODUCTS.tarts.find(t => Number(t.code) === tartCode || (PRODUCTS.tarts.indexOf(t)+1) === tartCode);
 if (tart) { tartCost = tart.base + Math.max(0, rendszerKw - 3) * tart.per_kw; tartName = tart.name; }
 }
-const anyagköltseg = panelCost + inv1Cost + tartCost;
+const optiCost = optiSel && optiQty > 0 ? optiSel.huf * optiQty : 0;
+const tetelek = [];
+let egyebCost = 0;
+(extraRowsSys[sysNum] || []).forEach(row => {
+if (row.product && row.qty > 0) {
+tetelek.push({ name: row.product.name, qty: row.qty, egysegar: row.product.huf, cost: row.product.huf * row.qty });
+egyebCost += row.product.huf * row.qty;
+}
+});
+const anyagköltseg = panelCost + inv1Cost + tartCost + optiCost + egyebCost;
 const AFA = CALC_SETTINGS.afa.value / 100;
 const manualNapOverride = document.getElementById('nap-override-' + sysNum)?.value;
 const napok = manualNapOverride ? parseInt(manualNapOverride) : calcDaysForKw(rendszerKw);
@@ -3275,8 +3450,8 @@ rendszerKw: Math.round(rendszerKw * 1000) / 1000,
 tartoszerkezet: tartName, tartoszerkezetOsszeg: Math.round(tartCost),
 inverter1: inv1Sel ? inv1Sel.name : '', inverter1Db: inv1Sel ? inv1Qty : 0, inverter1Egysegar: inv1Sel ? Math.round(inv1Sel.huf) : 0, inverter1Osszeg: Math.round(inv1Cost),
 inverter2: '', inverter2Db: 0, inverter2Egysegar: 0, inverter2Osszeg: 0,
-optimalizator: '', optimalizatorDb: 0, optimalizatorEgysegar: 0, optimalizatorOsszeg: 0,
-tetelek: [], egyebOsszeg: 0,
+optimalizator: optiSel && optiQty > 0 ? optiSel.name : '', optimalizatorDb: optiSel && optiQty > 0 ? optiQty : 0, optimalizatorEgysegar: optiSel && optiQty > 0 ? Math.round(optiSel.huf) : 0, optimalizatorOsszeg: Math.round(optiCost),
+tetelek, egyebOsszeg: Math.round(egyebCost),
 anyagköltseg: Math.round(anyagköltseg), munkadij: Math.round(munkadij), bekerulesi: Math.round(anyagköltseg + munkadij),
 haszonkulcs: bovitesMod ? CALC_SETTINGS.bovites_szorzo.value : (mode === 'regi' ? CALC_SETTINGS.haszonkulcs.value : mode === 'cel' ? null : CALC_SETTINGS.ajanlott_ar_szorzo.value),
 ...ar3Fields,
@@ -5358,6 +5533,35 @@ const azimut = document.getElementById('mt-azimut')?.value || '0';
 const evesKwh = mt_getEvesKwhFogyasztas();
 const evesTermeles = mt_pvgisData ? mt_pvgisData.yearly : kwp * 1000;
 const atlagAr = mt_getAtlagosKwhAr(evesKwh);
+// "Mi vs. a piac" – ha 1-nél több rendszer van összeállítva az Árazóban,
+// mindegyiket kigyűjtjük a PDF-es grafikonhoz is (nem csak az élő nézetben).
+const mt_riportSajatSorok = [];
+{
+const sysCount = (typeof extraSystemCount !== 'undefined') ? extraSystemCount : 1;
+for (let si = 1; si <= sysCount; si++) {
+const res = mtComputeVersenySeriesForSystem(si);
+if (res) mt_riportSajatSorok.push(res);
+}
+}
+const mt_riportVersenySor = mtComputeVersenyCompetitor();
+// A riport Chart.js datasetjei előre összeállítva (max 3 saját szín + versenytárs)
+const MT_RIPORT_SZINEK = ['#f7a600', '#4da6ff', '#22c55e'];
+const mt_riportChartDatasets = [];
+mt_riportSajatSorok.forEach((s, idx) => {
+mt_riportChartDatasets.push({
+label: s.nev + ' (saját rendszerünk)',
+data: s.sor, borderColor: MT_RIPORT_SZINEK[idx] || '#f7a600', backgroundColor: 'transparent',
+fill: false, tension: 0.3, borderWidth: 3, pointRadius: 2,
+});
+});
+if (mt_riportVersenySor) {
+mt_riportChartDatasets.push({
+label: 'Idegen cég rendszere (olcsóbb, karbantartási költséggel)',
+data: mt_riportVersenySor.sor, borderColor: '#94a3b8', backgroundColor: 'rgba(148,163,184,0.08)',
+fill: true, tension: 0.3, borderWidth: 2, borderDash: [6, 4], pointRadius: 2,
+});
+}
+const mt_riportChartLabels = mt_versenyData ? mt_versenyData.labels.map(y => y + '. év') : [];
 // ============================================================
 // KÖRNYEZETI HATÁS – CO2-megtakarítás és szemléltető összehasonlítások
 // Tájékoztató jellegű becslés, közismert referenciaértékek alapján:
@@ -5731,11 +5935,16 @@ ${offer.DocumentUrl ? `<div style="margin-top:0.75rem;font-size:0.82rem"><a href
 ${(!isBovites && mt_versenyData && document.getElementById('verseny-pdf-include-top')?.checked !== false) ? `<div class="section">
 <div class="section-title">Mi vs. a piac – ${mt_versenyData.ciklus} éves összehasonlítás</div>
 <p style="font-size:0.88rem;color:#444;margin-bottom:1rem;line-height:1.6">
-Egy versenytárs rendszere induláskor kb. ${mt_versenyData.kedvezmenyPct}%-kal olcsóbb lehet, ám a legtöbb piaci szereplőnél már a(z) ${mt_versenyData.karbKezdes}. évtől megjelennek az időszakos karbantartási költségek (kb. ${Math.round(mt_versenyData.karbKoltseg).toLocaleString('hu-HU')} Ft alkalmanként, ${mt_versenyData.gap1}-${mt_versenyData.gap2} évente váltakozva). A Solar Future rendszerén ezzel szemben ${mt_versenyData.garanciaEv} évig nincs ilyen jellegű költség – az alábbi grafikon mutatja, hogyan alakul emiatt a két rendszer kumulált nettó haszna a teljes ${mt_versenyData.ciklus} éves ciklus alatt.
+Egy versenytárs rendszere induláskor kb. ${mt_versenyData.kedvezmenyPct}%-kal olcsóbb lehet, ám a legtöbb piaci szereplőnél már a(z) ${mt_versenyData.karbKezdes}. évtől megjelennek az időszakos karbantartási költségek (kb. ${Math.round(mt_versenyData.karbKoltseg).toLocaleString('hu-HU')} Ft alkalmanként, ${mt_versenyData.gap1}-${mt_versenyData.gap2} évente váltakozva).
+${mt_riportSajatSorok.length > 1
+? `A Solar Future ${mt_riportSajatSorok.length} összeállított rendszere ezzel szemben saját szervízgarancia-időszakában nem terhelődik ilyen költséggel – az alábbi grafikon mutatja, hogyan alakul emiatt mindegyik saját rendszerünk, illetve a versenytárs kumulált nettó haszna a teljes ${mt_versenyData.ciklus} éves ciklus alatt.`
+: `A Solar Future rendszerén ezzel szemben ${mt_versenyData.garanciaEv} évig nincs ilyen jellegű költség – az alábbi grafikon mutatja, hogyan alakul emiatt a két rendszer kumulált nettó haszna a teljes ${mt_versenyData.ciklus} éves ciklus alatt.`}
 </p>
 <div class="chart-wrap" style="height:380px"><canvas id="chart-verseny-riport"></canvas></div>
 <div style="margin-top:1rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0.75rem">
-<div class="info-card"><div class="info-label">Saját rendszer ára</div><div class="info-val">${Math.round(mt_versenyData.rendszerAr).toLocaleString('hu-HU')} Ft</div></div>
+${mt_riportSajatSorok.length > 1
+? mt_riportSajatSorok.map(s => `<div class="info-card"><div class="info-label">${s.nev} ára</div><div class="info-val">${Math.round(s.rendszerAr).toLocaleString('hu-HU')} Ft</div></div>`).join('')
+: `<div class="info-card"><div class="info-label">Saját rendszer ára</div><div class="info-val">${Math.round(mt_versenyData.rendszerAr).toLocaleString('hu-HU')} Ft</div></div>`}
 <div class="info-card"><div class="info-label">Versenytárs ára (becsült)</div><div class="info-val">${Math.round(mt_versenyData.versenyAr).toLocaleString('hu-HU')} Ft</div></div>
 <div class="info-card" style="border-left-color:#16a34a"><div class="info-label">Előnyünk ${mt_versenyData.ciklus} év alatt</div><div class="info-val" style="color:#16a34a">${mt_versenyData.elony >= 0 ? '+' : ''}${Math.round(mt_versenyData.elony).toLocaleString('hu-HU')} Ft</div></div>
 </div>
@@ -6030,15 +6239,12 @@ datasets: [{ label: 'PVGIS várható havi termelés (kWh)', data: ${chartHaviPvg
 options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ font:{size:12} } } }, scales:{ y:{ ticks:{ callback: v => v+' kWh' } } } }
 });` : ''}
 ${(!isBovites && mt_versenyData) ? `
-// Mi vs. a piac grafikon
+// Mi vs. a piac grafikon (akár 4 vonal: 1-3 saját rendszer + versenytárs)
 new Chart(document.getElementById('chart-verseny-riport'), {
 type: 'line',
 data: {
-labels: ${JSON.stringify(mt_versenyData.labels.map(y => y + '. év'))},
-datasets: [
-{ label: 'Solar Future rendszerünk (12 év szervízgaranciával)', data: ${JSON.stringify(mt_versenyData.sajatSor)}, borderColor:'#f7a600', backgroundColor:'rgba(247,166,0,0.15)', fill:true, tension:0.3, borderWidth:3, pointRadius:2 },
-{ label: 'Idegen cég rendszere (olcsóbb, karbantartási költséggel)', data: ${JSON.stringify(mt_versenyData.versenySor)}, borderColor:'#94a3b8', backgroundColor:'rgba(148,163,184,0.08)', fill:true, tension:0.3, borderWidth:2, borderDash:[6,4], pointRadius:2 }
-]
+labels: ${JSON.stringify(mt_riportChartLabels)},
+datasets: ${JSON.stringify(mt_riportChartDatasets)}
 },
 options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ font:{size:13} } } }, scales:{ y:{ ticks:{ callback: v => Math.round(v/1000).toLocaleString('hu-HU')+' eFt' } } } }
 });` : ''}
