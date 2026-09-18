@@ -804,38 +804,38 @@ style="background:var(--green);color:#fff;border:none;border-radius:0.5rem;paddi
 </div>
 <!-- MEGTÉRÜLÉS KALKULÁTOR -->
 <div id="megterules-view">
-<!-- Rendszer-fülek – csak akkor látszik, ha az aktív Árazó-kalkulátorban 1-nél több
-     rendszer van összeállítva. Mindegyik fül saját, teljesen független paraméter-
-     készletet (ügyfél/helyszín/PVGIS/fogyasztás/degradáció) tárol. -->
-<div id="mt-system-tabs" style="display:none;padding:0.5rem 1rem 0;gap:0.4rem;flex-wrap:wrap"></div>
-<!-- Rögzített (sticky) gyorsgombok – görgetéskor is mindig látszanak -->
-<div id="mt-sticky-header" style="padding:0.6rem 1rem;display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">
-<button onclick="mtImportActiveSystemFromArazo(true)"
-style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.6rem;padding:0.45rem 0.9rem;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:0.4rem">
-🔄 Ár frissítése az Árazóból
+<!-- Rögzített (sticky) fejléc – rendszer-fülek + gyorsgombok EGY közös, kompakt
+     sorban (a fülek csak akkor látszanak, ha az Árazóban 1-nél több rendszer
+     van összeállítva; addig a gombsor egyedül tölti ki a sort). -->
+<div id="mt-sticky-header" style="padding:0.45rem 0.75rem;display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;row-gap:0.35rem">
+<div id="mt-system-tabs" style="display:none;gap:0.3rem;flex-wrap:wrap;padding-right:0.5rem;margin-right:0.15rem;border-right:1px solid var(--border)"></div>
+<button onclick="mtImportActiveSystemFromArazo(true)" title="Ár frissítése az Árazóból"
+style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.5rem;padding:0.35rem 0.55rem;font-size:0.72rem;cursor:pointer;display:flex;align-items:center;gap:0.3rem;white-space:nowrap">
+🔄 Ár frissítése
 </button>
-<button onclick="sofar_apiLoadStations()"
-style="background:var(--sun);color:#000;border:none;border-radius:0.6rem;padding:0.45rem 0.9rem;font-weight:700;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:0.4rem">
-📋 SofarCloud rendszerek betöltése
+<button onclick="sofar_apiLoadStations()" title="SofarCloud rendszerek betöltése"
+style="background:var(--sun);color:#000;border:none;border-radius:0.5rem;padding:0.35rem 0.55rem;font-weight:700;font-size:0.72rem;cursor:pointer;display:flex;align-items:center;gap:0.3rem;white-space:nowrap">
+📋 SofarCloud
 </button>
-<button onclick="mt_pvgisManual()"
-style="background:linear-gradient(135deg,#1a3a5c,#2e6da4);color:#fff;border:none;border-radius:0.6rem;padding:0.45rem 0.9rem;font-weight:700;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:0.4rem">
-🛰️ PVGIS lekérése
+<button onclick="mt_pvgisManual()" title="PVGIS lekérése"
+style="background:linear-gradient(135deg,#1a3a5c,#2e6da4);color:#fff;border:none;border-radius:0.5rem;padding:0.35rem 0.55rem;font-weight:700;font-size:0.72rem;cursor:pointer;display:flex;align-items:center;gap:0.3rem;white-space:nowrap">
+🛰️ PVGIS
 </button>
-<button onclick="mt_generateReport()"
-style="background:linear-gradient(135deg,#166534,#16a34a);color:#fff;border:none;border-radius:0.6rem;padding:0.45rem 0.9rem;font-weight:700;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:0.4rem;margin-left:auto">
+<label title="Mi vs. piac szerepeljen a PDF riportban" style="display:flex;align-items:center;gap:0.3rem;font-size:0.7rem;color:var(--sun);cursor:pointer;background:var(--bg);border:1px solid var(--border);border-radius:0.5rem;padding:0.35rem 0.55rem;white-space:nowrap;margin-left:auto">
+<input type="checkbox" id="verseny-pdf-include-top" checked onchange="mt_syncVersenyPdfToggle(this.checked, 'top')" style="margin:0">
+Mi/piac PDF
+</label>
+<button onclick="mt_generateReport()" title="Riport / PDF generálása"
+style="background:linear-gradient(135deg,#166534,#16a34a);color:#fff;border:none;border-radius:0.5rem;padding:0.35rem 0.7rem;font-weight:700;font-size:0.72rem;cursor:pointer;display:flex;align-items:center;gap:0.3rem;white-space:nowrap">
 📄 Riport / PDF
 </button>
-<label style="display:flex;align-items:center;gap:0.35rem;font-size:0.75rem;color:var(--sun);cursor:pointer;background:var(--bg);border:1px solid var(--border);border-radius:0.5rem;padding:0.4rem 0.65rem;white-space:nowrap">
-<input type="checkbox" id="verseny-pdf-include-top" checked onchange="mt_syncVersenyPdfToggle(this.checked, 'top')">
-Mi vs. piac a PDF-ben
-</label>
 </div>
 <!-- PDF TARTALOM – melyik riport-szegmens kerüljön bele a generált PDF-be.
      Alapból minden bepipálva (visszafelé kompatibilis); ha egy szegmens
-     hibásan jelenne meg, ideiglenesen kivehető innen javításig. -->
-<details style="margin:0 1rem 0.75rem;background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.6rem 0.9rem">
-<summary style="cursor:pointer;font-size:0.82rem;font-weight:700;color:var(--sun)">📑 PDF tartalom – szegmensek ki/bekapcsolása</summary>
+     hibásan jelenne meg, ideiglenesen kivehető innen javításig. Alapból
+     összecsukva, hogy ne foglaljon helyet – csak igény esetén nyílik le. -->
+<details style="margin:0 0.75rem 0.6rem;background:var(--bg);border:1px solid var(--border);border-radius:0.5rem;padding:0.4rem 0.75rem">
+<summary style="cursor:pointer;font-size:0.74rem;font-weight:700;color:var(--sun)">📑 PDF tartalom – szegmensek ki/bekapcsolása</summary>
 <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.65rem">
 <label style="display:flex;align-items:center;gap:0.35rem;font-size:0.76rem;cursor:pointer"><input type="checkbox" id="pdfsec-offer" checked> MiniCRM ajánlat tételei</label>
 <label id="pdfsec-itemcompare-row" style="display:none;align-items:center;gap:0.35rem;font-size:0.76rem;cursor:pointer"><input type="checkbox" id="pdfsec-itemcompare" checked> Rendszer-összehasonlítás (tételek)</label>
@@ -1504,8 +1504,9 @@ renderCalcSettings();
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.72 – 2026-09-18';
+const APP_VERSION = 'v2.73 – 2026-09-18';
 const APP_VERSION_HISTORY = [
+'v2.73 (2026-09-18): Megtérülés – a rendszer-fülek (Alap/Prémium) és a gyorsgombok (Ár frissítése, SofarCloud, PVGIS, Riport/PDF, Mi vs. piac) most egyetlen kompakt, végig rögzített (sticky) sorba kerültek a korábbi 2 külön sor helyett – rövidebb feliratok, kisebb gombok, a checkbox a jobb szélre igazítva. A "PDF tartalom" szegmens-kapcsolók továbbra is alapból összecsukva maradnak, hogy ne foglaljanak helyet.',
 'v2.72 (2026-09-18): Kritikus hibajavítás – a v2.71-ben az új tétel-összehasonlító táblázatot frissítő hívás véletlenül a calculate() függvényen KÍVÜLRE került, ami oldalbetöltéskor azonnal lefutott, még az extraSystemCount változó inicializálása előtt ("Cannot access before initialization" hiba). Emiatt a teljes szkript leállt, és a Google Sheets-kapcsolódás sosem fejeződött be ("⏳ Kapcsolódás..." beragadt). Most javítva.',
 'v2.71 (2026-09-18): (1) Megtérülés – új "Rendszerek összehasonlítása – összetevők" táblázat (élő nézetben és PDF-ben is), ha 1-nél több rendszer van összeállítva az Árazóban: oszloponként a rendszerek, soronként napelem típus/darabszám/kW, inverter(ek), a Telepítés és Engedélyeztetés sorok pedig egy közös, minden rendszer-oszlopot átfogó "1 db" cellaként. (2) Új "📑 PDF tartalom" panel a Megtérülés tetején – bepipálható/kikapcsolható riport-szegmensek (ajánlat tételei, összehasonlító táblázat, kulcsmutatók, CO2, PVGIS, havi adatok/grafikon, negyedéves összesítő, cashflow, bővítés), hogy egy hibás szegmens ideiglenesen kivehető legyen a PDF-ből. (3) A "Megtérülési Elemzés – Éves Cashflow" tábla a PDF-ben mostantól minden összehasonlított rendszerre külön-külön megjelenik, vagy – választhatóan – csak egy kiválasztott rendszerre.',
 'v2.70 (2026-09-11): (1) A 2./3. rendszereknél mostantól Optimalizátor és Egyéb tételek is választhatók, ugyanazzal a kompatibilitás-ellenőrzéssel (inverterhez illő kiegészítők), és ezek bekerülnek a mentett ajánlatokba is. (2) A PDF riport "Mi vs. a piac" grafikonja is akár 4 vonalas (1-3 saját rendszer + versenytárs) – korábban csak az élő Megtérülés nézetben volt ez így, a PDF-ben még az aktív rendszer 2 vonalas nézete jelent meg.',
@@ -4227,7 +4228,7 @@ const nev = i === 1
 ? (document.getElementById('sysname-1')?.value || 'Alap')
 : (document.getElementById('sysname-' + i)?.value || EXTRA_SYS_DEFAULT_NAMES[i] || ('Rendszer ' + i));
 const active = i === mtActiveSystem;
-html += `<button onclick="mtSwitchSystem(${i})" style="padding:0.35rem 0.9rem;border:none;cursor:pointer;font-size:0.8rem;border-radius:0.5rem;${active ? 'background:var(--sun);color:#000;font-weight:700' : 'background:var(--surface2);color:var(--text-muted)'}">${nev}</button>`;
+html += `<button onclick="mtSwitchSystem(${i})" style="padding:0.35rem 0.55rem;border:none;cursor:pointer;font-size:0.72rem;border-radius:0.5rem;white-space:nowrap;${active ? 'background:var(--sun);color:#000;font-weight:700' : 'background:var(--surface2);color:var(--text-muted)'}">${nev}</button>`;
 }
 wrap.innerHTML = html;
 if (typeof mt_renderItemCompareTable === 'function') mt_renderItemCompareTable();
