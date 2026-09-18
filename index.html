@@ -1504,8 +1504,9 @@ renderCalcSettings();
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.71 – 2026-09-18';
+const APP_VERSION = 'v2.72 – 2026-09-18';
 const APP_VERSION_HISTORY = [
+'v2.72 (2026-09-18): Kritikus hibajavítás – a v2.71-ben az új tétel-összehasonlító táblázatot frissítő hívás véletlenül a calculate() függvényen KÍVÜLRE került, ami oldalbetöltéskor azonnal lefutott, még az extraSystemCount változó inicializálása előtt ("Cannot access before initialization" hiba). Emiatt a teljes szkript leállt, és a Google Sheets-kapcsolódás sosem fejeződött be ("⏳ Kapcsolódás..." beragadt). Most javítva.',
 'v2.71 (2026-09-18): (1) Megtérülés – új "Rendszerek összehasonlítása – összetevők" táblázat (élő nézetben és PDF-ben is), ha 1-nél több rendszer van összeállítva az Árazóban: oszloponként a rendszerek, soronként napelem típus/darabszám/kW, inverter(ek), a Telepítés és Engedélyeztetés sorok pedig egy közös, minden rendszer-oszlopot átfogó "1 db" cellaként. (2) Új "📑 PDF tartalom" panel a Megtérülés tetején – bepipálható/kikapcsolható riport-szegmensek (ajánlat tételei, összehasonlító táblázat, kulcsmutatók, CO2, PVGIS, havi adatok/grafikon, negyedéves összesítő, cashflow, bővítés), hogy egy hibás szegmens ideiglenesen kivehető legyen a PDF-ből. (3) A "Megtérülési Elemzés – Éves Cashflow" tábla a PDF-ben mostantól minden összehasonlított rendszerre külön-külön megjelenik, vagy – választhatóan – csak egy kiválasztott rendszerre.',
 'v2.70 (2026-09-11): (1) A 2./3. rendszereknél mostantól Optimalizátor és Egyéb tételek is választhatók, ugyanazzal a kompatibilitás-ellenőrzéssel (inverterhez illő kiegészítők), és ezek bekerülnek a mentett ajánlatokba is. (2) A PDF riport "Mi vs. a piac" grafikonja is akár 4 vonalas (1-3 saját rendszer + versenytárs) – korábban csak az élő Megtérülés nézetben volt ez így, a PDF-ben még az aktív rendszer 2 vonalas nézete jelent meg.',
 'v2.69 (2026-09-11): "Mi vs. a piac" grafikon kibővítve akár 4 vonalra (1-3 saját rendszer, mindegyik saját árral/degradációval/fogyasztással/garancia-hosszal + 1 közös versenytárs-görbe, az 1. rendszer árából/kedvezményéből számolva) az élő Megtérülés nézetben. A nem épp aktív rendszer-fülek adatait is figyelembe veszi, anélkül hogy át kellene váltani rájuk.',
@@ -3019,8 +3020,8 @@ document.getElementById('res-breakdown').innerHTML =
 (bovitesMod || mode === 'cel' ? '' : ` | Munkadíj: ${fmt(munkadij)}`) + modeLabel;
 document.getElementById('rbar-empty').style.display = 'none';
 document.getElementById('rbar-full').style.display = 'block';
-}
 if (typeof mt_renderItemCompareTable === 'function') mt_renderItemCompareTable();
+}
 // ============================================================
 // TÖBB RENDSZER ÖSSZEHASONLÍTÁSA (Árazó) – 1. fázis
 // Az 1. rendszer a meglévő, fő mezőket használja (panel-input, panel-qty stb.)
