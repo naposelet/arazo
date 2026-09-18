@@ -1344,6 +1344,10 @@ style="background:var(--surface2);border:1px solid var(--border);color:var(--tex
 <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem">
 A felhasználókat a Google Sheets <strong style="color:var(--sun)">„Felhasználók"</strong> lapján kezeld.
 Ott tudod hozzáadni, törölni, jelszót és jogosultságot módosítani.<br><br>
+A <strong>„Látható kalkulátorok"</strong> oszlopba (D) vesszővel elválasztva add meg a jogosultságokat:
+kalkulátor-sorszámok (pl. <code>1,2,3</code>) az Árazóhoz/Megtérüléshez, és/vagy a speciális
+<code>terkepek</code> szó a Térképek fülhöz. Például <code>terkepek</code> = csak Térképek, semmi más;
+<code>1,2,terkepek</code> = Árazó (2 kalkulátor) + Megtérülés + Térképek is.<br><br>
 Változtatás után kattints a 🔄 gombra az app tetején a frissítéshez.
 </p>
 <a href="https://docs.google.com/spreadsheets/d/1jB1bYn9r6VgjxnX1oCMgyW29fCS45nE5EkjZsiqxbfA/edit#gid=0"
@@ -1532,8 +1536,9 @@ renderCalcSettings();
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.76 – 2026-09-18';
+const APP_VERSION = 'v2.77 – 2026-09-18';
 const APP_VERSION_HISTORY = [
+'v2.77 (2026-09-18): Bejelentkezés – a Google Sheets "Felhasználók" lap D oszlopában ("Látható kalkulátorok") mostantól a szám-kalkulátorok mellett a "terkepek" kulcsszó is megadható, ami CSAK a Térképek fülhöz ad jogot (Árazó/Megtérülés nélkül) – így felvehető egy olyan felhasználó, aki kizárólag az ügyfél-térképet látja. Bejelentkezéskor a felső navigáció automatikusan csak az elérhető füleket mutatja, és egy csak-térképes felhasználó egyenesen a Térképek fülre kerül. Admin oldalon a felhasználó-táblázat és a súgószöveg is frissült ehhez. Az Apps Script "Felhasználók" beolvasó függvényét (getUsersFromSheet) is frissíteni kell a szerveren, hogy a "terkepek" szót ne dobja el – lásd a chatben küldött kódot.',
 'v2.76 (2026-09-18): Térképek – minden státusz-chip mellé egyéni színválasztó került (natív színválasztó pötty a checkbox mellett), így bárki tetszőlegesen élénkebb/eltérő színekre állíthatja a státuszokat a térképi pineken, buborékokban és az oldalsó listán. A választott színek böngészőnként (localStorage) mentődnek, nem íródnak vissza a Sheetbe. "↺ Színek visszaállítása" gomb jelenik meg, ha van egyéni felülírás.',
 'v2.75 (2026-09-18): Térképek fül átírva Leaflet.js + OpenStreetMap alapra – ingyenes, NEM kell hozzá se Google Maps API-kulcs, se Google Cloud Console beállítás (a v2.74-ben ez még hiányzott). Emellett új kereső mező (név/cím/CRM link szerint szűr) és bal oldali kártyalista az ügyfelekről, a térképpel kétirányban szinkronban (lista-kártyára kattintva a térkép odaugrik és megnyitja a buborékot; pin-re kattintva a lista kiemeli a megfelelő kártyát). A geokódolás (cím → koordináta) változatlanul a szerver oldali, kulcs nélküli Apps Script Maps.geocode()-dal történik. Az Apps Script végpontok (action=ugyfelek, action=geocodeUgyfelek) élesítése a Code.gs-ben és az "Ugyfelek" Sheets-fül létrehozása még hátravan.',
 'v2.74 (2026-09-18): Új "🗺️ Térképek" fő fül – ügyfelek megjelenítése Google Maps-en egy Sheets "Ügyfelek" fül (Név/Cím/Státusz/CRM link, +Lat/Lon koordináta-cache) alapján, státuszonként ki/bekapcsolható réteggel (checkbox chip-ek, dinamikusan a ténylegesen előforduló státuszokból). "📍 Koordináták frissítése" gomb hiányzó koordinátájú ügyfelek geokódolásához (szerver oldali Apps Script Maps.geocode). Kliens-oldalon minden kész; az Apps Script végpontok (action=ugyfelek, action=geocodeUgyfelek) és a Google Maps JavaScript API-kulcs beállítása még hátravan.',
@@ -1902,6 +1907,26 @@ function saveUsers(u) {
 // ============================================================
 let currentUser = null;
 let activeCalc = 1;
+// A Sheets "Felhasználók" lap D oszlopa (Látható kalkulátorok) vegyesen tartalmazhat
+// kalkulátor-sorszámokat (1-6) és a speciális "terkepek" kulcsszót – utóbbi kizárólag
+// a Térképek fülhöz ad jogot, Árazó/Megtérülés hozzáférés nélkül. Példák a D oszlopba:
+//   "1,2,3"          → csak Árazó (3 kalkulátor) + Megtérülés, Térképek nélkül
+//   "terkepek"        → csak Térképek, Árazó/Megtérülés nélkül
+//   "1,2,terkepek"    → Árazó (2 kalkulátor) + Megtérülés + Térképek is
+function parseUserCalcs(raw) {
+const tokens = Array.isArray(raw) ? raw.map(String) : String(raw || '').split(',');
+const cleaned = tokens.map(t => String(t).trim()).filter(Boolean);
+const calcIds = cleaned.map(t => parseInt(t)).filter(n => !isNaN(n) && n >= 1 && n <= 6);
+const hasTerkepek = cleaned.some(t => t.toLowerCase() === 'terkepek');
+return { calcIds, hasTerkepek };
+}
+// A bejelentkezett felhasználó tényleges jogosultságai – isAdmin mindent felülír.
+function getUserAccess(user) {
+if (!user) return { canArazo: false, canTerkepek: false, calcIds: [] };
+if (user.isAdmin) return { canArazo: true, canTerkepek: true, calcIds: [1, 2, 3, 4, 5, 6] };
+const { calcIds, hasTerkepek } = parseUserCalcs(user.calcs);
+return { canArazo: calcIds.length > 0, canTerkepek: hasTerkepek, calcIds };
+}
 // A jelenlegi kalkulátor "fő" (kiemelt) bruttó ára – a Megtérülés tab ebből importálja
 // az árat. A régi res-brutto DOM elem a 3 szintű árazással megszűnt, ezért ezt a globális
 // változót frissíti a calculate() minden ágban (bővítés / régi / 3 szintű – utóbbinál a
@@ -1937,8 +1962,24 @@ document.getElementById('login-screen').style.display = 'none';
 document.getElementById('app').style.display = 'block';
 document.getElementById('topbar-user').textContent = currentUser.name || currentUser.email;
 if (currentUser.isAdmin) document.getElementById('admin-btn').style.display = 'inline-block';
+const access = getUserAccess(currentUser);
+const navArazas = document.getElementById('nav-arazas');
+const navMegterules = document.getElementById('nav-megterules');
+const navTerkepek = document.getElementById('nav-terkepek');
+if (navArazas) navArazas.style.display = access.canArazo ? '' : 'none';
+if (navMegterules) navMegterules.style.display = access.canArazo ? '' : 'none';
+if (navTerkepek) navTerkepek.style.display = access.canTerkepek ? '' : 'none';
+if (access.canArazo) {
 buildCalcTabs();
 showCalc();
+} else if (access.canTerkepek) {
+// Csak Térképek-jogosultságú felhasználó – egyenesen a Térképek fülre navigálunk,
+// az Árazó/Megtérülés kalkulátoros felületet meg sem próbáljuk felépíteni.
+switchMainTab('terkepek');
+} else {
+document.getElementById('login-error').textContent = 'Ehhez a fiókhoz nincs egyetlen kalkulátor vagy a Térképek fül sem hozzárendelve. Kérj jogosultságot az adminisztrátortól.';
+document.getElementById('login-error').style.display = 'block';
+}
 loadFromSheets(); // háttérben frissít a Sheets-ből
 startSession(); // session timer indítása
 const mainNav = document.getElementById('main-nav');
@@ -1976,22 +2017,7 @@ document.getElementById('admin-btn').style.display = 'none';
 function buildCalcTabs() {
 const tabs = document.getElementById('calc-tabs');
 const names = getCalcNames();
-// Ensure calcs is always an array of numbers (Sheets returns "5,6" as string sometimes)
-let calcs;
-if (currentUser.isAdmin) {
-calcs = [1,2,3,4,5,6];
-} else {
-const raw = currentUser.calcs;
-if (Array.isArray(raw)) {
-calcs = raw.map(Number).filter(n => n >= 1 && n <= 6);
-} else if (typeof raw === 'string') {
-calcs = raw.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
-} else if (typeof raw === 'number') {
-calcs = [raw];
-} else {
-calcs = [1];
-}
-}
+const calcs = getUserAccess(currentUser).calcIds;
 tabs.innerHTML = '';
 calcs.forEach((c, i) => {
 const btn = document.createElement('button');
@@ -3572,9 +3598,15 @@ const names = getCalcNames();
 const tbody = document.getElementById('user-table-body');
 tbody.innerHTML = '';
 users.forEach((u, i) => {
-const calcsStr = u.isAdmin
-? '<span class="badge admin">Összes</span>'
-: (u.calcs || []).map(c => `<span class="badge">${names[c] || 'K'+c}</span>`).join('');
+let calcsStr;
+if (u.isAdmin) {
+calcsStr = '<span class="badge admin">Összes</span> <span class="badge">🗺️ Térképek</span>';
+} else {
+const { calcIds, hasTerkepek } = parseUserCalcs(u.calcs);
+calcsStr = calcIds.map(c => `<span class="badge">${names[c] || 'K'+c}</span>`).join('')
++ (hasTerkepek ? ' <span class="badge">🗺️ Térképek</span>' : '');
+if (!calcsStr) calcsStr = '<span class="badge" style="opacity:0.6">– nincs jogosultság –</span>';
+}
 tbody.innerHTML += `<tr>
 <td><div>${u.name || ''}</div><div style="color:var(--text-muted);font-size:0.75rem">${u.email}</div></td>
 <td>${calcsStr}</td>
@@ -4008,6 +4040,11 @@ if (syncTime) syncTime.textContent = '(beépített adatok)';
 // ============================================================
 let activeMainTab = 'arazas';
 function switchMainTab(tab) {
+// Jogosultság-védelem: ha valaki (pl. böngésző-history-val) olyan fülre lépne,
+// amihez a felhasználójának nincs hozzáférése, visszairányítjuk egy elérhetőre.
+const access = getUserAccess(currentUser);
+if ((tab === 'arazas' || tab === 'megterules') && !access.canArazo) tab = access.canTerkepek ? 'terkepek' : tab;
+if (tab === 'terkepek' && !access.canTerkepek) tab = access.canArazo ? 'arazas' : tab;
 activeMainTab = tab;
 ['arazas','megterules','terkepek'].forEach(t => {
 const btn = document.getElementById('nav-' + t);
