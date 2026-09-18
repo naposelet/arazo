@@ -625,6 +625,7 @@ border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.3rem; margin-top: 0
 <div id="main-nav" style="background:var(--surface);border-bottom:2px solid var(--border);padding:0 1rem;display:flex;gap:0;display:none">
 <button class="main-nav-tab active" id="nav-arazas" onclick="switchMainTab('arazas')">🧮 Árazó</button>
 <button class="main-nav-tab" id="nav-megterules" onclick="switchMainTab('megterules')">📊 Megtérülés</button>
+<button class="main-nav-tab" id="nav-terkepek" onclick="switchMainTab('terkepek')">🗺️ Térképek</button>
 </div>
 <!-- CALC SELECTOR -->
 <div class="calc-tabs" id="calc-tabs"></div>
@@ -1284,6 +1285,33 @@ Bemutatja, hogy egy nálunk olcsóbb, idegen cég által telepített rendszerhez
 <div style="font-size:0.8rem">A kWp és a rendszer ára az árazóból automatikusan átvehető</div>
 </div>
 </div><!-- /megterules-view -->
+<!-- TÉRKÉPEK -->
+<div id="terkepek-view" style="display:none">
+<div id="terkep-sticky-header" style="position:sticky;top:0;z-index:95;background:var(--surface);border-bottom:1px solid var(--border);padding:0.5rem 0.75rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+<div style="position:relative;flex:1 1 220px;min-width:160px;max-width:320px">
+<input type="text" id="terkep-search" placeholder="🔍 Keresés név, cím, CRM..." oninput="terkep_onSearchInput(this.value)"
+style="width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:0.5rem;padding:0.35rem 0.6rem;font-size:0.78rem">
+</div>
+<div id="terkep-legend" style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap"></div>
+<button onclick="terkep_geocodeMissing()" id="terkep-geocode-btn" title="A hiányzó koordinátájú (új/módosított című) ügyfelek geokódolása"
+style="background:linear-gradient(135deg,#1a3a5c,#2e6da4);color:#fff;border:none;border-radius:0.5rem;padding:0.35rem 0.6rem;font-weight:700;font-size:0.72rem;cursor:pointer;display:flex;align-items:center;gap:0.3rem;white-space:nowrap">
+📍 Koordináták frissítése
+</button>
+<button onclick="terkep_loadUgyfelek(true)" title="Ügyfél-lista újratöltése a Sheetből"
+style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.5rem;padding:0.35rem 0.6rem;font-size:0.72rem;cursor:pointer;display:flex;align-items:center;gap:0.3rem;white-space:nowrap">
+🔄 Frissítés
+</button>
+<span id="terkep-status" style="font-size:0.72rem;color:var(--text-muted);margin-left:auto;white-space:nowrap"></span>
+</div>
+<div style="padding:0.75rem;display:flex;gap:0.75rem;flex-wrap:wrap-reverse;align-items:flex-start">
+<div id="terkep-list-wrap" style="flex:1 1 300px;min-width:260px;max-width:380px;max-height:70vh;overflow-y:auto;border:1px solid var(--border);border-radius:0.75rem;background:var(--surface2)">
+<div id="terkep-count" style="padding:0.5rem 0.75rem;font-size:0.72rem;color:var(--text-muted);border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface2)"></div>
+<div id="terkep-list"></div>
+</div>
+<div id="terkep-map" style="flex:3 1 480px;min-width:280px;height:70vh;border-radius:0.75rem;border:1px solid var(--border);background:var(--surface2)"></div>
+</div>
+<div id="terkep-empty" style="display:none;text-align:center;padding:2rem 1rem;color:var(--text-muted);font-size:0.85rem;line-height:1.6"></div>
+</div>
 <!-- ADMIN PANEL -->
 <div id="admin-panel">
 <!-- ADMIN TABS -->
@@ -1504,8 +1532,10 @@ renderCalcSettings();
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.73 – 2026-09-18';
+const APP_VERSION = 'v2.75 – 2026-09-18';
 const APP_VERSION_HISTORY = [
+'v2.75 (2026-09-18): Térképek fül átírva Leaflet.js + OpenStreetMap alapra – ingyenes, NEM kell hozzá se Google Maps API-kulcs, se Google Cloud Console beállítás (a v2.74-ben ez még hiányzott). Emellett új kereső mező (név/cím/CRM link szerint szűr) és bal oldali kártyalista az ügyfelekről, a térképpel kétirányban szinkronban (lista-kártyára kattintva a térkép odaugrik és megnyitja a buborékot; pin-re kattintva a lista kiemeli a megfelelő kártyát). A geokódolás (cím → koordináta) változatlanul a szerver oldali, kulcs nélküli Apps Script Maps.geocode()-dal történik. Az Apps Script végpontok (action=ugyfelek, action=geocodeUgyfelek) élesítése a Code.gs-ben és az "Ugyfelek" Sheets-fül létrehozása még hátravan.',
+'v2.74 (2026-09-18): Új "🗺️ Térképek" fő fül – ügyfelek megjelenítése Google Maps-en egy Sheets "Ügyfelek" fül (Név/Cím/Státusz/CRM link, +Lat/Lon koordináta-cache) alapján, státuszonként ki/bekapcsolható réteggel (checkbox chip-ek, dinamikusan a ténylegesen előforduló státuszokból). "📍 Koordináták frissítése" gomb hiányzó koordinátájú ügyfelek geokódolásához (szerver oldali Apps Script Maps.geocode). Kliens-oldalon minden kész; az Apps Script végpontok (action=ugyfelek, action=geocodeUgyfelek) és a Google Maps JavaScript API-kulcs beállítása még hátravan.',
 'v2.73 (2026-09-18): Megtérülés – a rendszer-fülek (Alap/Prémium) és a gyorsgombok (Ár frissítése, SofarCloud, PVGIS, Riport/PDF, Mi vs. piac) most egyetlen kompakt, végig rögzített (sticky) sorba kerültek a korábbi 2 külön sor helyett – rövidebb feliratok, kisebb gombok, a checkbox a jobb szélre igazítva. A "PDF tartalom" szegmens-kapcsolók továbbra is alapból összecsukva maradnak, hogy ne foglaljanak helyet.',
 'v2.72 (2026-09-18): Kritikus hibajavítás – a v2.71-ben az új tétel-összehasonlító táblázatot frissítő hívás véletlenül a calculate() függvényen KÍVÜLRE került, ami oldalbetöltéskor azonnal lefutott, még az extraSystemCount változó inicializálása előtt ("Cannot access before initialization" hiba). Emiatt a teljes szkript leállt, és a Google Sheets-kapcsolódás sosem fejeződött be ("⏳ Kapcsolódás..." beragadt). Most javítva.',
 'v2.71 (2026-09-18): (1) Megtérülés – új "Rendszerek összehasonlítása – összetevők" táblázat (élő nézetben és PDF-ben is), ha 1-nél több rendszer van összeállítva az Árazóban: oszloponként a rendszerek, soronként napelem típus/darabszám/kW, inverter(ek), a Telepítés és Engedélyeztetés sorok pedig egy közös, minden rendszer-oszlopot átfogó "1 db" cellaként. (2) Új "📑 PDF tartalom" panel a Megtérülés tetején – bepipálható/kikapcsolható riport-szegmensek (ajánlat tételei, összehasonlító táblázat, kulcsmutatók, CO2, PVGIS, havi adatok/grafikon, negyedéves összesítő, cashflow, bővítés), hogy egy hibás szegmens ideiglenesen kivehető legyen a PDF-ből. (3) A "Megtérülési Elemzés – Éves Cashflow" tábla a PDF-ben mostantól minden összehasonlított rendszerre külön-külön megjelenik, vagy – választhatóan – csak egy kiválasztott rendszerre.',
@@ -3978,7 +4008,7 @@ if (syncTime) syncTime.textContent = '(beépített adatok)';
 let activeMainTab = 'arazas';
 function switchMainTab(tab) {
 activeMainTab = tab;
-['arazas','megterules'].forEach(t => {
+['arazas','megterules','terkepek'].forEach(t => {
 const btn = document.getElementById('nav-' + t);
 if (btn) btn.classList.toggle('active', t === tab);
 });
@@ -3990,6 +4020,7 @@ const calcView = document.getElementById('calc-view');
 const adminPanel = document.getElementById('admin-panel');
 const resultBar = document.getElementById('result-bar');
 const megView = document.getElementById('megterules-view');
+const terkepView = document.getElementById('terkepek-view');
 if (tab === 'arazas') {
 if (calcTabs) calcTabs.style.display = '';
 if (syncBar) syncBar.style.display = '';
@@ -4000,7 +4031,18 @@ if (syncBar) syncBar.style.display = '';
 if (adminPanel) adminPanel.style.display = 'none';
 if (calcView) { calcView.classList.remove('js-hidden'); calcView.style.display = 'block'; }
 if (megView) megView.style.display = 'none';
+if (terkepView) terkepView.style.display = 'none';
 if (resultBar) resultBar.classList.add('visible');
+} else if (tab === 'terkepek') {
+if (calcTabs) calcTabs.style.display = 'none';
+if (syncBar) syncBar.style.display = 'none';
+if (ujNapBar) ujNapBar.style.display = 'none';
+if (calcView) { calcView.classList.add('js-hidden'); calcView.style.display = 'none'; }
+if (adminPanel) adminPanel.style.display = 'none';
+if (megView) megView.style.display = 'none';
+if (terkepView) terkepView.style.display = 'block';
+if (resultBar) resultBar.classList.remove('visible');
+if (typeof terkep_activate === 'function') terkep_activate();
 } else {
 if (calcTabs) calcTabs.style.display = 'none';
 if (syncBar) syncBar.style.display = 'none';
@@ -4008,6 +4050,7 @@ if (ujNapBar) ujNapBar.style.display = 'none';
 if (calcView) { calcView.classList.add('js-hidden'); calcView.style.display = 'none'; }
 if (adminPanel) adminPanel.style.display = 'none';
 if (megView) megView.style.display = 'block';
+if (terkepView) terkepView.style.display = 'none';
 if (resultBar) resultBar.classList.remove('visible');
 // Átveszi az árazó értékeit (az aktuálisan megjelenített rendszer-fülre)
 mtRenderSystemTabs();
@@ -4029,10 +4072,12 @@ const calcTabs = document.getElementById('calc-tabs');
 const syncBar = document.getElementById('sync-bar');
 const ujNapBar = document.getElementById('uj-nap-bar');
 const mtHeader = document.getElementById('mt-sticky-header');
+const terkepHeader = document.getElementById('terkep-sticky-header');
 let offset = topbar ? topbar.offsetHeight : 0;
 if (mainNav) { mainNav.style.top = offset + 'px'; offset += mainNav.offsetHeight; }
-// A Megtérülés sticky fejléc közvetlenül a topbar+main-nav alatt kezdődik
+// A Megtérülés / Térképek sticky fejléce közvetlenül a topbar+main-nav alatt kezdődik
 if (mtHeader) mtHeader.style.top = offset + 'px';
+if (terkepHeader) terkepHeader.style.top = offset + 'px';
 // Az Árazó saját fejléc-sávjai (csak akkor adnak hozzá magasságot, ha látszanak –
 // egy display:none elem offsetHeight-je automatikusan 0)
 if (calcTabs) { calcTabs.style.top = offset + 'px'; offset += calcTabs.offsetHeight; }
@@ -6656,6 +6701,255 @@ const elapsed = Date.now() - stored;
 if (elapsed < SESSION_DURATION - WARNING_BEFORE - 60000) {
 startSession();
 }
+}
+// ============================================================
+// TÉRKÉPEK – ügyfél-nyilvántartás (Sheets "Ügyfelek" fül: Név/Cím/Státusz/
+// CRM link/Lat/Lon) megjelenítése Google Maps-en, státuszonként ki/bekapcsolható
+// réteggel. A koordinátákat az Apps Script geokódolja (Maps.geocode), a kliens
+// csak a már elmentett lat/lon-t olvassa – nem geokódol minden betöltéskor.
+// ============================================================
+// A térkép megjelenítése Leaflet.js + OpenStreetMap csempékkel – teljesen
+// ingyenes, nem kell hozzá se API-kulcs, se Google Cloud Console beállítás.
+// A geokódolás (cím → koordináta) továbbra is az Apps Script beépített,
+// szintén kulcs nélküli Maps.geocode() szolgáltatásával történik a szerveren.
+const TERKEP_STATUS_COLORS = {
+'Felmérésre vár': '#f7a600',
+'Kivitelezésre vár': '#2e6da4',
+'Javításra vár': '#dc2626',
+'Kész': '#16a34a',
+};
+const TERKEP_DEFAULT_COLOR = '#94a3b8';
+let terkep_map = null;
+let terkep_markers = [];
+let terkep_markerByRow = {};
+let terkep_ugyfelek = [];
+let terkep_activeStatuses = new Set();
+let terkep_leafletLoaded = false;
+let terkep_leafletLoading = false;
+let terkep_dataLoadedOnce = false;
+let terkep_searchTerm = '';
+function terkep_esc(s) {
+return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+// A Leaflet CSS+JS betöltése (cdnjs-ről, ugyanúgy mint a Chart.js), csak akkor,
+// amikor először megnyitják a Térképek fület.
+function terkep_ensureLeafletLoaded(callback) {
+if (terkep_leafletLoaded && typeof L !== 'undefined') { callback(); return; }
+const statusEl = document.getElementById('terkep-status');
+if (terkep_leafletLoading) return;
+terkep_leafletLoading = true;
+if (statusEl) statusEl.textContent = '⏳ Térkép betöltése...';
+if (!document.getElementById('terkep-leaflet-css')) {
+const link = document.createElement('link');
+link.id = 'terkep-leaflet-css';
+link.rel = 'stylesheet';
+link.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+document.head.appendChild(link);
+}
+const script = document.createElement('script');
+script.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+script.async = true;
+script.onload = () => {
+terkep_leafletLoaded = true;
+terkep_leafletLoading = false;
+callback();
+};
+script.onerror = () => {
+terkep_leafletLoading = false;
+if (statusEl) statusEl.textContent = '⚠️ A térkép betöltése nem sikerült (Leaflet).';
+};
+document.head.appendChild(script);
+}
+function terkep_initMap() {
+const el = document.getElementById('terkep-map');
+if (!el || terkep_map || typeof L === 'undefined') return;
+terkep_map = L.map(el).setView([47.1625, 19.5033], 7); // Magyarország nagyjábóli közepe
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
+maxZoom: 19,
+}).addTo(terkep_map);
+}
+// Ügyfelek lekérdezése a Sheets-ből (ugyanaz a JSONP-minta, mint a PRODUCTS/preload).
+function terkep_fetchUgyfelek() {
+return new Promise((resolve, reject) => {
+const cbName = 'sfterk_' + Date.now();
+const script = document.createElement('script');
+const timeout = setTimeout(() => { delete window[cbName]; script.remove(); reject(new Error('timeout')); }, 20000);
+window[cbName] = (d) => { clearTimeout(timeout); delete window[cbName]; script.remove(); resolve(d); };
+script.src = SHEETS_API + '?action=ugyfelek&callback=' + cbName + '&t=' + Date.now();
+script.onerror = () => { clearTimeout(timeout); reject(new Error('error')); };
+document.head.appendChild(script);
+});
+}
+async function terkep_loadUgyfelek(showStatus) {
+const statusEl = document.getElementById('terkep-status');
+if (showStatus && statusEl) statusEl.textContent = '⏳ Ügyfelek betöltése...';
+try {
+const data = await terkep_fetchUgyfelek();
+terkep_ugyfelek = (data && Array.isArray(data.ugyfelek)) ? data.ugyfelek : [];
+terkep_dataLoadedOnce = true;
+terkep_renderLegend();
+terkep_renderMarkers();
+terkep_renderSidebarList();
+const missingCoord = terkep_ugyfelek.filter(u => !u.lat || !u.lon).length;
+if (statusEl) statusEl.textContent = `${terkep_ugyfelek.length} ügyfél betöltve` + (missingCoord > 0 ? ` (${missingCoord} db koordináta nélkül – "📍 Koordináták frissítése")` : '');
+const emptyEl = document.getElementById('terkep-empty');
+if (emptyEl) emptyEl.style.display = terkep_ugyfelek.length === 0 ? 'block' : 'none';
+if (emptyEl && terkep_ugyfelek.length === 0) emptyEl.textContent = 'Még nincs egyetlen ügyfél sem az "Ügyfelek" Sheets-fülön.';
+} catch (e) {
+if (statusEl) statusEl.textContent = '⚠️ Nem sikerült betölteni az ügyfél-adatokat.';
+}
+}
+// Réteg-kapcsolók (checkbox chip-ek) a Sheetben ténylegesen előforduló Státusz-
+// értékek alapján, dinamikusan – nem kell előre felsorolni őket a kódban.
+function terkep_renderLegend() {
+const wrap = document.getElementById('terkep-legend');
+if (!wrap) return;
+const statuses = [...new Set(terkep_ugyfelek.map(u => u.statusz || 'Ismeretlen'))];
+if (terkep_activeStatuses.size === 0) statuses.forEach(s => terkep_activeStatuses.add(s));
+wrap.innerHTML = statuses.map(s => {
+const color = TERKEP_STATUS_COLORS[s] || TERKEP_DEFAULT_COLOR;
+const checked = terkep_activeStatuses.has(s) ? 'checked' : '';
+const count = terkep_ugyfelek.filter(u => (u.statusz || 'Ismeretlen') === s).length;
+return `<label style="display:flex;align-items:center;gap:0.3rem;font-size:0.74rem;cursor:pointer;background:var(--bg);border:1px solid var(--border);border-radius:0.5rem;padding:0.3rem 0.55rem;white-space:nowrap">
+<input type="checkbox" ${checked} onchange="terkep_toggleStatus('${terkep_esc(s).replace(/'/g, "\\'")}', this.checked)" style="margin:0">
+<span style="width:0.6rem;height:0.6rem;border-radius:50%;background:${color};display:inline-block"></span>
+${terkep_esc(s)} (${count})
+</label>`;
+}).join('');
+}
+function terkep_toggleStatus(status, on) {
+if (on) terkep_activeStatuses.add(status); else terkep_activeStatuses.delete(status);
+terkep_renderMarkers();
+terkep_renderSidebarList();
+}
+// Keresőmező – név / cím / CRM-link szerint szűr, a státusz-szűréssel együtt.
+function terkep_onSearchInput(val) {
+terkep_searchTerm = String(val || '').trim().toLowerCase();
+terkep_renderMarkers();
+terkep_renderSidebarList();
+}
+function terkep_matchesSearch(u) {
+if (!terkep_searchTerm) return true;
+const hay = [u.nev, u.cim, u.crmLink].map(x => String(x || '').toLowerCase()).join(' ');
+return hay.indexOf(terkep_searchTerm) !== -1;
+}
+// A szűrt (státusz + keresés) lista – ezt jeleníti meg mind a térkép, mind az oldalsáv.
+function terkep_visibleList() {
+return terkep_ugyfelek.filter(u => terkep_activeStatuses.has(u.statusz || 'Ismeretlen') && terkep_matchesSearch(u));
+}
+function terkep_popupHtml(u, color, statusz) {
+return `<div style="min-width:180px">
+<div style="font-weight:700;margin-bottom:0.2rem">${terkep_esc(u.nev || '—')}</div>
+<div style="font-size:0.82rem;color:#555;margin-bottom:0.3rem">${terkep_esc(u.cim || '—')}</div>
+<div style="font-size:0.78rem;margin-bottom:0.4rem"><span style="background:${color}22;color:${color};padding:2px 8px;border-radius:10px;font-weight:600">${terkep_esc(statusz)}</span></div>
+${u.crmLink ? `<a href="${terkep_esc(u.crmLink)}" target="_blank" rel="noopener" style="font-size:0.8rem;color:#2e6da4;font-weight:600">🔗 CRM megnyitása</a>` : ''}
+</div>`;
+}
+function terkep_renderMarkers() {
+if (!terkep_map || typeof L === 'undefined') return;
+terkep_markers.forEach(m => terkep_map.removeLayer(m));
+terkep_markers = [];
+terkep_markerByRow = {};
+const pts = [];
+terkep_visibleList().forEach(u => {
+const lat = parseFloat(u.lat), lon = parseFloat(u.lon);
+if (!lat || !lon || isNaN(lat) || isNaN(lon)) return;
+const statusz = u.statusz || 'Ismeretlen';
+const color = TERKEP_STATUS_COLORS[statusz] || TERKEP_DEFAULT_COLOR;
+const marker = L.circleMarker([lat, lon], {
+radius: 9, fillColor: color, fillOpacity: 1, color: '#fff', weight: 2,
+}).addTo(terkep_map);
+marker.bindPopup(terkep_popupHtml(u, color, statusz));
+marker.on('click', () => terkep_highlightListItem(u.row));
+terkep_markers.push(marker);
+terkep_markerByRow[u.row] = marker;
+pts.push([lat, lon]);
+});
+if (pts.length > 0) terkep_map.fitBounds(pts, { padding: [30, 30], maxZoom: 14 });
+}
+// Kattintásra a listaelemre – középre pásztázza a térképet és megnyitja a popupot.
+function terkep_focusItem(row) {
+const marker = terkep_markerByRow[row];
+if (!marker || !terkep_map) return;
+terkep_map.setView(marker.getLatLng(), Math.max(terkep_map.getZoom(), 13));
+marker.openPopup();
+terkep_highlightListItem(row);
+}
+// Térkép-pin kattintásra a megfelelő lista-kártya kiemelése.
+function terkep_highlightListItem(row) {
+document.querySelectorAll('.terkep-list-item').forEach(el => {
+el.style.background = el.dataset.row === String(row) ? 'var(--surface)' : 'transparent';
+el.style.borderColor = el.dataset.row === String(row) ? 'var(--sun)' : 'var(--border)';
+});
+const el = document.querySelector(`.terkep-list-item[data-row="${row}"]`);
+if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+// Bal oldali kártyalista – a térképpel szinkronban (kereséssel/státusszal szűrve).
+function terkep_renderSidebarList() {
+const listEl = document.getElementById('terkep-list');
+const countEl = document.getElementById('terkep-count');
+if (!listEl) return;
+const list = terkep_visibleList();
+if (countEl) countEl.textContent = `${list.length} / ${terkep_ugyfelek.length} ügyfél`;
+if (list.length === 0) {
+listEl.innerHTML = '<div style="padding:1rem 0.75rem;color:var(--text-muted);font-size:0.78rem">Nincs a szűrésnek megfelelő ügyfél.</div>';
+return;
+}
+listEl.innerHTML = list.map(u => {
+const statusz = u.statusz || 'Ismeretlen';
+const color = TERKEP_STATUS_COLORS[statusz] || TERKEP_DEFAULT_COLOR;
+const hasCoord = u.lat && u.lon;
+return `<div class="terkep-list-item" data-row="${u.row}" onclick="terkep_focusItem(${u.row})"
+style="padding:0.55rem 0.75rem;border-bottom:1px solid var(--border);border-left:3px solid var(--border);cursor:pointer;transition:background 0.15s">
+<div style="font-weight:700;font-size:0.8rem;display:flex;align-items:center;gap:0.35rem">
+<span style="width:0.6rem;height:0.6rem;border-radius:50%;background:${color};display:inline-block;flex:none"></span>
+${terkep_esc(u.nev || '—')}
+</div>
+<div style="font-size:0.74rem;color:var(--text-muted);margin:0.15rem 0 0.3rem">${terkep_esc(u.cim || '—')}</div>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:0.4rem">
+<span style="font-size:0.7rem;background:${color}22;color:${color};padding:1px 7px;border-radius:9px;font-weight:600">${terkep_esc(statusz)}</span>
+${!hasCoord ? '<span style="font-size:0.68rem;color:var(--text-muted)" title="Nincs koordináta">📍❔</span>' : ''}
+${u.crmLink ? `<a href="${terkep_esc(u.crmLink)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:0.7rem;color:#2e6da4;font-weight:600">🔗 CRM</a>` : ''}
+</div>
+</div>`;
+}).join('');
+}
+// Hiányzó koordinátájú ügyfelek geokódolása – szerver oldalon (Apps Script
+// Maps.geocode), a kliens csak elindítja és megvárja az eredményt.
+async function terkep_geocodeMissing() {
+const btn = document.getElementById('terkep-geocode-btn');
+const statusEl = document.getElementById('terkep-status');
+if (btn) btn.disabled = true;
+if (statusEl) statusEl.textContent = '⏳ Koordináták frissítése – ez eltarthat néhány másodpercig...';
+try {
+const data = await new Promise((resolve, reject) => {
+const cbName = 'sfgeo_' + Date.now();
+const script = document.createElement('script');
+const timeout = setTimeout(() => { delete window[cbName]; script.remove(); reject(new Error('timeout')); }, 90000);
+window[cbName] = (d) => { clearTimeout(timeout); delete window[cbName]; script.remove(); resolve(d); };
+script.src = SHEETS_API + '?action=geocodeUgyfelek&callback=' + cbName + '&t=' + Date.now();
+script.onerror = () => { clearTimeout(timeout); reject(new Error('error')); };
+document.head.appendChild(script);
+});
+const okCount = data && typeof data.geocoded === 'number' ? data.geocoded : 0;
+const failedList = data && Array.isArray(data.failedList) ? data.failedList : [];
+if (statusEl) statusEl.textContent = `✅ ${okCount} cím geokódolva` + (failedList.length > 0 ? `, ${failedList.length} sikertelen: ${failedList.join(', ')}` : '.');
+await terkep_loadUgyfelek(false);
+} catch (e) {
+if (statusEl) statusEl.textContent = '⚠️ A koordináták frissítése nem sikerült.';
+} finally {
+if (btn) btn.disabled = false;
+}
+}
+// A Térképek fül aktiválásakor hívódik (switchMainTab). Első megnyitáskor
+// betölti a Leaflet könyvtárat + az ügyfeleket; utána csak frissíti a nézetet.
+function terkep_activate() {
+terkep_ensureLeafletLoaded(() => {
+terkep_initMap();
+if (terkep_map) setTimeout(() => terkep_map.invalidateSize(), 50);
+terkep_loadUgyfelek(true);
+});
 }
 // ============================================================
 // INIT
