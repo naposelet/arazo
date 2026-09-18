@@ -831,6 +831,34 @@ style="background:linear-gradient(135deg,#166534,#16a34a);color:#fff;border:none
 Mi vs. piac a PDF-ben
 </label>
 </div>
+<!-- PDF TARTALOM – melyik riport-szegmens kerüljön bele a generált PDF-be.
+     Alapból minden bepipálva (visszafelé kompatibilis); ha egy szegmens
+     hibásan jelenne meg, ideiglenesen kivehető innen javításig. -->
+<details style="margin:0 1rem 0.75rem;background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.6rem 0.9rem">
+<summary style="cursor:pointer;font-size:0.82rem;font-weight:700;color:var(--sun)">📑 PDF tartalom – szegmensek ki/bekapcsolása</summary>
+<div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.65rem">
+<label style="display:flex;align-items:center;gap:0.35rem;font-size:0.76rem;cursor:pointer"><input type="checkbox" id="pdfsec-offer" checked> MiniCRM ajánlat tételei</label>
+<label id="pdfsec-itemcompare-row" style="display:none;align-items:center;gap:0.35rem;font-size:0.76rem;cursor:pointer"><input type="checkbox" id="pdfsec-itemcompare" checked> Rendszer-összehasonlítás (tételek)</label>
+<label style="display:flex;align-items:center;gap:0.35rem;font-size:0.76rem;cursor:pointer"><input type="checkbox" id="pdfsec-kpi" checked> Kulcsmutatók</label>
+<label style="display:flex;align-items:center;gap:0.35rem;font-size:0.76rem;cursor:pointer"><input type="checkbox" id="pdfsec-co2" checked> Környezeti hatás (CO₂)</label>
+<label style="display:flex;align-items:center;gap:0.35rem;font-size:0.76rem;cursor:pointer"><input type="checkbox" id="pdfsec-pvgis" checked> PVGIS helyszíni elemzés</label>
+<label style="display:flex;align-items:center;gap:0.35rem;font-size:0.76rem;cursor:pointer"><input type="checkbox" id="pdfsec-havitabla" checked> Havi termelési adatok (tábla)</label>
+<label style="display:flex;align-items:center;gap:0.35rem;font-size:0.76rem;cursor:pointer"><input type="checkbox" id="pdfsec-havigrafikon" checked> Havi termelési grafikon</label>
+<label style="display:flex;align-items:center;gap:0.35rem;font-size:0.76rem;cursor:pointer"><input type="checkbox" id="pdfsec-negyedeves" checked> Negyedéves összesítő</label>
+<label style="display:flex;align-items:center;gap:0.35rem;font-size:0.76rem;cursor:pointer"><input type="checkbox" id="pdfsec-cashflow" checked> Megtérülési elemzés (éves cashflow)</label>
+<label style="display:flex;align-items:center;gap:0.35rem;font-size:0.76rem;cursor:pointer"><input type="checkbox" id="pdfsec-bovites" checked> Rendszerbővítés (jelenlegi vs. bővítéssel)</label>
+</div>
+<div id="pdfsec-cashflow-scope-row" style="display:none;align-items:center;gap:0.5rem;margin-top:0.6rem;font-size:0.76rem;flex-wrap:wrap">
+<span style="color:var(--text-muted)">Cashflow tábla, ha több rendszer van:</span>
+<select id="pdfsec-cashflow-scope" onchange="mt_updatePdfSectionControls()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.4rem;padding:0.25rem 0.5rem;font-size:0.76rem">
+<option value="all">Minden összehasonlított rendszer</option>
+<option value="one">Csak egy kiválasztott rendszer</option>
+</select>
+<span id="pdfsec-cashflow-system-wrap" style="display:none">
+<select id="pdfsec-cashflow-system" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.4rem;padding:0.25rem 0.5rem;font-size:0.76rem"></select>
+</span>
+</div>
+</details>
 <!-- MINICRM AJÁNLAT LEKÉRDEZÉSE + ADATFORRÁS VÁLASZTÓ -->
 <div class="mt-card" style="border:1px solid #2e6da4">
 <h3>🔗 MiniCRM ajánlat lekérdezése</h3>
@@ -1184,6 +1212,13 @@ onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)
 </table>
 </div>
 </div>
+<!-- Rendszerek tétel-összehasonlítása – csak akkor látszik, ha 1-nél több
+     rendszer van összeállítva az Árazóban (napelem/inverter/kW, valamint a
+     minden rendszernél azonos telepítés/engedélyeztetés tételek). -->
+<div class="mt-card" id="item-compare-card" style="display:none;border:1px solid var(--border)">
+<h3>📊 Rendszerek összehasonlítása – összetevők</h3>
+<div style="overflow-x:auto" id="item-compare-table-wrap"></div>
+</div>
 <!-- Mi vs. a piac – csak Új rendszer módban -->
 <div class="mt-card" id="verseny-card" style="display:none;border:1px solid var(--sun)">
 <h3>🆚 Mi vs. a piac – 18 éves összehasonlítás</h3>
@@ -1469,8 +1504,9 @@ renderCalcSettings();
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.70 – 2026-09-11';
+const APP_VERSION = 'v2.71 – 2026-09-18';
 const APP_VERSION_HISTORY = [
+'v2.71 (2026-09-18): (1) Megtérülés – új "Rendszerek összehasonlítása – összetevők" táblázat (élő nézetben és PDF-ben is), ha 1-nél több rendszer van összeállítva az Árazóban: oszloponként a rendszerek, soronként napelem típus/darabszám/kW, inverter(ek), a Telepítés és Engedélyeztetés sorok pedig egy közös, minden rendszer-oszlopot átfogó "1 db" cellaként. (2) Új "📑 PDF tartalom" panel a Megtérülés tetején – bepipálható/kikapcsolható riport-szegmensek (ajánlat tételei, összehasonlító táblázat, kulcsmutatók, CO2, PVGIS, havi adatok/grafikon, negyedéves összesítő, cashflow, bővítés), hogy egy hibás szegmens ideiglenesen kivehető legyen a PDF-ből. (3) A "Megtérülési Elemzés – Éves Cashflow" tábla a PDF-ben mostantól minden összehasonlított rendszerre külön-külön megjelenik, vagy – választhatóan – csak egy kiválasztott rendszerre.',
 'v2.70 (2026-09-11): (1) A 2./3. rendszereknél mostantól Optimalizátor és Egyéb tételek is választhatók, ugyanazzal a kompatibilitás-ellenőrzéssel (inverterhez illő kiegészítők), és ezek bekerülnek a mentett ajánlatokba is. (2) A PDF riport "Mi vs. a piac" grafikonja is akár 4 vonalas (1-3 saját rendszer + versenytárs) – korábban csak az élő Megtérülés nézetben volt ez így, a PDF-ben még az aktív rendszer 2 vonalas nézete jelent meg.',
 'v2.69 (2026-09-11): "Mi vs. a piac" grafikon kibővítve akár 4 vonalra (1-3 saját rendszer, mindegyik saját árral/degradációval/fogyasztással/garancia-hosszal + 1 közös versenytárs-görbe, az 1. rendszer árából/kedvezményéből számolva) az élő Megtérülés nézetben. A nem épp aktív rendszer-fülek adatait is figyelembe veszi, anélkül hogy át kellene váltani rájuk.',
 'v2.68 (2026-09-11): Megtérülés – rendszer-fülek bevezetve. Ha az Árazóban 2-3 rendszer van összeállítva, a Megtérülésben mindegyikhez saját, teljesen független fül tartozik (ügyfél/helyszín/PVGIS/fogyasztás/degradáció, saját mentett állapottal fülváltás közben) – automatikusan a megfelelő rendszer kWp/ára importálva Árazóból.',
@@ -2984,6 +3020,7 @@ document.getElementById('res-breakdown').innerHTML =
 document.getElementById('rbar-empty').style.display = 'none';
 document.getElementById('rbar-full').style.display = 'block';
 }
+if (typeof mt_renderItemCompareTable === 'function') mt_renderItemCompareTable();
 // ============================================================
 // TÖBB RENDSZER ÖSSZEHASONLÍTÁSA (Árazó) – 1. fázis
 // Az 1. rendszer a meglévő, fő mezőket használja (panel-input, panel-qty stb.)
@@ -3096,6 +3133,9 @@ extraRowsSys[extraSystemCount] = [];
 renderExtraRowsSys(extraSystemCount);
 const addBtn = document.getElementById('add-system-btn');
 if (addBtn && extraSystemCount >= 3) addBtn.style.display = 'none';
+if (typeof mtRenderSystemTabs === 'function') mtRenderSystemTabs();
+if (typeof mt_renderItemCompareTable === 'function') mt_renderItemCompareTable();
+if (typeof mt_updatePdfSectionControls === 'function') mt_updatePdfSectionControls();
 }
 
 function removeExtraSystem(sysNum) {
@@ -3107,6 +3147,9 @@ extraSearchState[sysNum] = { panel: { list: [], selected: null }, inv1: { list: 
 extraSystemCount = sysNum - 1;
 const addBtn = document.getElementById('add-system-btn');
 if (addBtn) addBtn.style.display = 'inline-block';
+if (typeof mtRenderSystemTabs === 'function') mtRenderSystemTabs();
+if (typeof mt_renderItemCompareTable === 'function') mt_renderItemCompareTable();
+if (typeof mt_updatePdfSectionControls === 'function') mt_updatePdfSectionControls();
 }
 
 function buildExtraTartSelect(sysNum) {
@@ -3365,6 +3408,8 @@ resEl.innerHTML = `<div style="display:flex;justify-content:space-between;align-
 <span style="font-size:0.8rem;color:var(--text-muted)">${rendszerKw.toFixed(2)} kW</span>
 </div>${breakdownHtml}`;
 if (typeof LAST_EXTRA_SYS_BRUTTO !== 'undefined') LAST_EXTRA_SYS_BRUTTO[sysNum] = bruttoKedv;
+if (typeof mt_renderItemCompareTable === 'function') mt_renderItemCompareTable();
+if (typeof mt_updatePdfSectionControls === 'function') mt_updatePdfSectionControls();
 }
 
 // Egy extra rendszer (2. vagy 3.) teljes ajánlat-payloadja mentéshez – ugyanaz
@@ -4168,7 +4213,12 @@ function mtRenderSystemTabs() {
 const wrap = document.getElementById('mt-system-tabs');
 if (!wrap) return;
 const count = (typeof extraSystemCount !== 'undefined') ? extraSystemCount : 1;
-if (count <= 1) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+if (count <= 1) {
+wrap.style.display = 'none'; wrap.innerHTML = '';
+if (typeof mt_renderItemCompareTable === 'function') mt_renderItemCompareTable();
+if (typeof mt_updatePdfSectionControls === 'function') mt_updatePdfSectionControls();
+return;
+}
 wrap.style.display = 'flex';
 let html = '';
 for (let i = 1; i <= count; i++) {
@@ -4179,6 +4229,8 @@ const active = i === mtActiveSystem;
 html += `<button onclick="mtSwitchSystem(${i})" style="padding:0.35rem 0.9rem;border:none;cursor:pointer;font-size:0.8rem;border-radius:0.5rem;${active ? 'background:var(--sun);color:#000;font-weight:700' : 'background:var(--surface2);color:var(--text-muted)'}">${nev}</button>`;
 }
 wrap.innerHTML = html;
+if (typeof mt_renderItemCompareTable === 'function') mt_renderItemCompareTable();
+if (typeof mt_updatePdfSectionControls === 'function') mt_updatePdfSectionControls();
 }
 
 function mtSwitchSystem(sysNum) {
@@ -4798,6 +4850,134 @@ cum += megtak - karb;
 sor.push(Math.round(cum));
 }
 return { sor, versenyAr };
+}
+// Egy SAJÁT rendszer (1/2/3) teljes éves cashflow-sora a riport "Megtérülési
+// Elemzés" táblázatához – ugyanaz a logika, mint amit mt_generateReport az
+// 1. (aktív) rendszerre már kiszámol, csak DOM-független (fields snapshot alapú),
+// így 2./3. rendszerre is meghívható attól függetlenül, melyik fül aktív.
+function mtHeadlessCashflow(sysNum) {
+const snap = mtGetSystemSnapshot(sysNum);
+if (!snap) return null;
+const { fields, pvgisData, ugyfelTipus } = snap;
+const kwp = parseFloat(fields['mt-kwp']) || 0;
+const rendszerAr = parseFloat(fields['mt-rendszer-ar']) || 0;
+const elettartam = parseInt(fields['mt-elettartam']) || 18;
+const degradacio = parseFloat(fields['mt-degradacio']) || 0.5;
+const evesKwh = mtHeadlessEvesKwh(fields, ugyfelTipus);
+if (!kwp || !rendszerAr || !evesKwh) return null;
+const evesTermeles = pvgisData ? pvgisData.yearly : (kwp * 1000);
+const currentYear = new Date().getFullYear();
+let kumMegtak = 0;
+let megterulesEv = null;
+const cashflow = [];
+for (let ev = 1; ev <= elettartam; ev++) {
+const degradFactor = Math.pow(1 - degradacio / 100, ev - 1);
+const termeles = evesTermeles * degradFactor;
+const megtak = mtHeadlessEvesMegtakaritas(termeles, evesKwh, fields, ugyfelTipus);
+kumMegtak += megtak;
+if (!megterulesEv && kumMegtak >= rendszerAr) megterulesEv = ev;
+cashflow.push({ ev, calendarYear: currentYear + ev - 1, termeles, megtak, kumMegtak });
+}
+const nev = sysNum === 1
+? (document.getElementById('sysname-1')?.value || 'Alap')
+: (document.getElementById('sysname-' + sysNum)?.value || EXTRA_SYS_DEFAULT_NAMES[sysNum] || ('Rendszer ' + sysNum));
+const osszesMegtak = cashflow.reduce((s, r) => s + r.megtak, 0);
+return { nev, kwp, rendszerAr, elettartam, cashflow, megterulesEv, osszesMegtak };
+}
+// Rendszerek tétel-összehasonlító táblázatának adatai (Megtérülés modul) – az
+// Árazóban élőben összeállított 1-3 rendszer napelem/inverter összetétele.
+function mt_getSystemCompareData() {
+const count = (typeof extraSystemCount !== 'undefined') ? extraSystemCount : 1;
+const systems = [];
+for (let i = 1; i <= count; i++) {
+let nev, panelSel, panelQty, inverters = [];
+if (i === 1) {
+nev = document.getElementById('sysname-1')?.value || 'Alap';
+panelSel = (typeof searchState !== 'undefined' && searchState.panel) ? searchState.panel.selected : null;
+panelQty = parseInt(document.getElementById('panel-qty')?.value) || 0;
+const inv1Sel = searchState.inv1 ? searchState.inv1.selected : null;
+const inv1Qty = parseInt(document.getElementById('inv1-qty')?.value) || 0;
+if (inv1Sel && inv1Qty > 0) inverters.push({ name: inv1Sel.name, qty: inv1Qty });
+const inv2Sel = searchState.inv2 ? searchState.inv2.selected : null;
+const inv2Qty = parseInt(document.getElementById('inv2-qty')?.value) || 0;
+if (inv2Sel && inv2Qty > 0) inverters.push({ name: inv2Sel.name, qty: inv2Qty });
+} else {
+nev = document.getElementById('sysname-' + i)?.value || EXTRA_SYS_DEFAULT_NAMES[i] || ('Rendszer ' + i);
+panelSel = (extraSearchState[i] && extraSearchState[i].panel) ? extraSearchState[i].panel.selected : null;
+panelQty = parseInt(document.getElementById('panel-qty-' + i)?.value) || 0;
+const inv1Sel = (extraSearchState[i] && extraSearchState[i].inv1) ? extraSearchState[i].inv1.selected : null;
+const inv1Qty = parseInt(document.getElementById('inv1-qty-' + i)?.value) || 0;
+if (inv1Sel && inv1Qty > 0) inverters.push({ name: inv1Sel.name, qty: inv1Qty });
+}
+const kw = panelSel ? panelSel.kw * panelQty : 0;
+systems.push({ nev, panelNev: panelSel ? panelSel.name : '—', panelQty, kw, inverters });
+}
+return systems;
+}
+// A fenti adatokból HTML táblázatot épít: oszlop = rendszer, sor = összetevő;
+// a "Telepítés"/"Engedélyeztetés" sorok minden rendszernél azonosak (1 db),
+// ezért egyetlen, az összes rendszer-oszlopot átfogó (colspan) cellaként jelennek meg.
+// Ha csak 1 rendszer van összeállítva, nincs mit összehasonlítani – üres string.
+function mt_buildItemCompareTableHtml(forReport) {
+const systems = mt_getSystemCompareData();
+if (systems.length < 2) return '';
+const maxInv = Math.max(1, ...systems.map(s => s.inverters.length));
+const colCount = systems.length;
+const thead = '<tr><th style="text-align:left">Összetevő</th>' +
+systems.map(s => `<th style="text-align:center">${s.nev}</th>`).join('') + '</tr>';
+let rows = '';
+rows += '<tr><td>Napelem típusa</td>' + systems.map(s => `<td style="text-align:center">${s.panelNev}</td>`).join('') + '</tr>';
+rows += '<tr><td>Napelem darabszám</td>' + systems.map(s => `<td style="text-align:center">${s.panelQty > 0 ? s.panelQty + ' db' : '—'}</td>`).join('') + '</tr>';
+rows += '<tr><td>Teljesítmény</td>' + systems.map(s => `<td style="text-align:center">${s.kw > 0 ? s.kw.toFixed(2) + ' kW' : '—'}</td>`).join('') + '</tr>';
+for (let ii = 0; ii < maxInv; ii++) {
+const label = maxInv > 1 ? `Inverter ${ii + 1} típusa` : 'Inverter típusa';
+rows += '<tr><td>' + label + '</td>' + systems.map(s => {
+const inv = s.inverters[ii];
+return `<td style="text-align:center">${inv ? inv.name + (inv.qty > 1 ? ' (' + inv.qty + ' db)' : '') : '—'}</td>`;
+}).join('') + '</tr>';
+}
+rows += `<tr><td>Telepítés</td><td colspan="${colCount}" style="text-align:center;font-weight:700">1 db</td></tr>`;
+rows += `<tr><td>Engedélyeztetés</td><td colspan="${colCount}" style="text-align:center;font-weight:700">1 db</td></tr>`;
+const cls = forReport ? '' : ' class="mt-table"';
+return `<table${cls} style="width:100%;border-collapse:collapse"><thead>${thead}</thead><tbody>${rows}</tbody></table>`;
+}
+// Élő nézet: a tétel-összehasonlító táblázat frissítése (csak akkor látszik,
+// ha 1-nél több rendszer van összeállítva az Árazóban).
+function mt_renderItemCompareTable() {
+const card = document.getElementById('item-compare-card');
+const wrap = document.getElementById('item-compare-table-wrap');
+if (!card || !wrap) return;
+const count = (typeof extraSystemCount !== 'undefined') ? extraSystemCount : 1;
+if (count < 2) { card.style.display = 'none'; return; }
+card.style.display = 'block';
+wrap.innerHTML = mt_buildItemCompareTableHtml(false);
+}
+// A "PDF tartalom" panel vezérlőinek frissítése: a rendszer-összehasonlítós
+// és a cashflow-hatókör vezérlők csak 1-nél több rendszer esetén relevánsak,
+// a cashflow "csak egy rendszer" választó opciói pedig a rendszernevekkel
+// frissülnek.
+function mt_updatePdfSectionControls() {
+const count = (typeof extraSystemCount !== 'undefined') ? extraSystemCount : 1;
+const itemRow = document.getElementById('pdfsec-itemcompare-row');
+if (itemRow) itemRow.style.display = count > 1 ? 'flex' : 'none';
+const scopeRow = document.getElementById('pdfsec-cashflow-scope-row');
+if (scopeRow) scopeRow.style.display = count > 1 ? 'flex' : 'none';
+const sysSelect = document.getElementById('pdfsec-cashflow-system');
+if (sysSelect) {
+const prevVal = sysSelect.value;
+let opts = '';
+for (let i = 1; i <= count; i++) {
+const nev = i === 1
+? (document.getElementById('sysname-1')?.value || 'Alap')
+: (document.getElementById('sysname-' + i)?.value || EXTRA_SYS_DEFAULT_NAMES[i] || ('Rendszer ' + i));
+opts += `<option value="${i}">${nev}</option>`;
+}
+sysSelect.innerHTML = opts;
+if (prevVal && parseInt(prevVal) <= count) sysSelect.value = prevVal;
+}
+const scopeSel = document.getElementById('pdfsec-cashflow-scope');
+const sysWrap = document.getElementById('pdfsec-cashflow-system-wrap');
+if (scopeSel && sysWrap) sysWrap.style.display = scopeSel.value === 'one' ? 'inline-block' : 'none';
 }
 // Több vonalas (legfeljebb 3 saját rendszer + 1 versenytárs) grafikon rajzolása.
 // Ha csak 1 rendszer van, ez pontosan a régi, 2 vonalas nézettel egyezik meg.
@@ -5533,6 +5713,10 @@ const azimut = document.getElementById('mt-azimut')?.value || '0';
 const evesKwh = mt_getEvesKwhFogyasztas();
 const evesTermeles = mt_pvgisData ? mt_pvgisData.yearly : kwp * 1000;
 const atlagAr = mt_getAtlagosKwhAr(evesKwh);
+// "PDF tartalom" szegmens-kapcsolók – alapból minden bekapcsolva (a checkbox
+// hiánya, pl. régebbi DOM-állapotban, sosem zárja ki a szegmenst).
+const pdfSecOn = id => document.getElementById(id)?.checked !== false;
+const mt_itemCompareHtml = mt_buildItemCompareTableHtml(true);
 // "Mi vs. a piac" – ha 1-nél több rendszer van összeállítva az Árazóban,
 // mindegyiket kigyűjtjük a PDF-es grafikonhoz is (nem csak az élő nézetben).
 const mt_riportSajatSorok = [];
@@ -5885,7 +6069,7 @@ ${marketing.bekezdes2}
 </div>
 </div>
 <!-- AJÁNLAT TÉTELEI (MINICRM) -->
-${(mt_miniCrmOfferData && mt_miniCrmOfferData.minicrmOffer) ? (() => {
+${(pdfSecOn('pdfsec-offer') && mt_miniCrmOfferData && mt_miniCrmOfferData.minicrmOffer) ? (() => {
 const offer = mt_miniCrmOfferData.minicrmOffer;
 const fmtHuf = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
 const itemRows = (offer.Items || []).map(it => `<tr>
@@ -5949,8 +6133,13 @@ ${mt_riportSajatSorok.length > 1
 <div class="info-card" style="border-left-color:#16a34a"><div class="info-label">Előnyünk ${mt_versenyData.ciklus} év alatt</div><div class="info-val" style="color:#16a34a">${mt_versenyData.elony >= 0 ? '+' : ''}${Math.round(mt_versenyData.elony).toLocaleString('hu-HU')} Ft</div></div>
 </div>
 </div>` : ''}
+<!-- RENDSZEREK ÖSSZEHASONLÍTÁSA (TÉTELLISTA) -->
+${(pdfSecOn('pdfsec-itemcompare') && mt_itemCompareHtml) ? `<div class="section">
+<div class="section-title">Rendszerek összehasonlítása – összetevők</div>
+<div style="overflow-x:auto">${mt_itemCompareHtml}</div>
+</div>` : ''}
 <!-- KPI KÁRTYÁK -->
-<div class="section">
+${pdfSecOn('pdfsec-kpi') ? `<div class="section">
 <div class="section-title">Kulcsmutatók</div>
 <div class="kpi-grid">
 <div class="kpi">
@@ -5984,8 +6173,9 @@ ${vanElozmenyadat && betoltottEvek > 0 ? `
 <div class="kpi-label">Összes megtakarítás (${elettartam} év)</div>
 </div>
 </div>
+</div>` : ''}
 <!-- KÖRNYEZETI HATÁS / CO2 -->
-<div class="section" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #16a34a">
+${pdfSecOn('pdfsec-co2') ? `<div class="section" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #16a34a">
 <div class="section-title" style="border-left-color:#16a34a">🌍 Környezeti hatás – ennyi CO₂-t takarít meg évente</div>
 <div style="font-size:0.85rem;color:#166534;margin-bottom:1.25rem">
 A rendszer várható éves termelése alapján becsülve: <strong>${Math.round(evesCo2Kg).toLocaleString('hu-HU')} kg</strong> (${evesCo2Tonna.toFixed(1)} tonna) CO₂-kibocsátás marad el évente.
@@ -6015,9 +6205,9 @@ A rendszer várható éves termelése alapján becsülve: <strong>${Math.round(e
 <div style="font-size:0.68rem;color:#888;margin-top:1rem">
 * Tájékoztató jellegű becslés a hazai hálózati villamosenergia átlagos CO₂-intenzitása (~0,3 kg/kWh) és közismert referenciaértékek alapján (fa: ~22 kg CO₂/év; benzines személygépkocsi: 6 l/100km; földgáz: ~1,88 kg CO₂/m³, átlagos családi ház ~1200 m³/év; vasúti közlekedés: ~41 g CO₂/utaskm).
 </div>
-</div>
+</div>` : ''}
 <!-- PVGIS ELEMZÉS -->
-${mt_pvgisData ? `<div class="section">
+${(pdfSecOn('pdfsec-pvgis') && mt_pvgisData) ? `<div class="section">
 <div class="section-title">PVGIS Helyszíni Elemzés</div>
 <div style="display:flex;flex-wrap:wrap;gap:0.5rem 1.5rem;font-size:0.82rem;margin-bottom:0.85rem;line-height:1.6">
 <div style="white-space:nowrap"><span style="color:#888">Várható éves termelés:</span> <strong style="color:#f7a600">${Math.round(mt_pvgisData.yearly).toLocaleString('hu-HU')} kWh/év</strong></div>
@@ -6028,7 +6218,7 @@ ${mt_pvgisData ? `<div class="section">
 <div class="chart-wrap"><canvas id="chart-pvgis"></canvas></div>
 </div>` : ''}
 <!-- HAVI TERMELÉSI ADATOK -->
-${haviSorok ? `<div class="section">
+${(pdfSecOn('pdfsec-havitabla') && haviSorok) ? `<div class="section">
 <div class="section-title">Havi Termelési Adatok (tényleges vs. PVGIS)</div>
 <div style="overflow-x:auto">
 <table>
@@ -6056,18 +6246,57 @@ ${osszPct !== null ? (osszPct >= 90 ? '<strong style="color:#16a34a">kiemelkedő
 </div>
 </div>` : ''}
 <!-- HAVI GRAFIKON (csak akkor, ha van tényleges adat – új rendszernél ez megegyezne a lenti "PVGIS Helyszíni Elemzés" grafikonjával) -->
-${vanElozmenyadat ? `<div class="section">
+${(pdfSecOn('pdfsec-havigrafikon') && vanElozmenyadat) ? `<div class="section">
 <div class="section-title">Havi Termelési Grafikon (tényleges vs. PVGIS)</div>
 <div class="chart-wrap"><canvas id="chart-havi"></canvas></div>
 </div>` : ''}
-${vanElozmenyadat ? `
+${(pdfSecOn('pdfsec-negyedeves') && vanElozmenyadat) ? `
 <div class="section">
 <div class="section-title">Negyedéves Összesítő – Évenkénti bontás</div>
 ${qKartyak}
 </div>` : ''}
-<!-- CASHFLOW TÁBLÁZAT -->
-${rendszerAr > 0 ? `<div class="section">
-<div class="section-title">Megtérülési Elemzés – Éves Cashflow (${currentYear}–${currentYear+elettartam-1})</div>
+<!-- CASHFLOW TÁBLÁZAT (1 vagy több összehasonlított rendszerre) -->
+${(() => {
+if (!pdfSecOn('pdfsec-cashflow')) return '';
+if (isBovites) {
+// Bővítés-módban a saját, kombinált (jelenlegi+bővítés) cashflow-tábla
+// a lenti "RENDSZERBŐVÍTÉS" szekcióban már szerepel, itt nincs mit mutatni.
+return '';
+}
+const cfSysCount = (typeof extraSystemCount !== 'undefined') ? extraSystemCount : 1;
+const cfScope = document.getElementById('pdfsec-cashflow-scope')?.value || 'all';
+let cfSystems = [];
+if (cfSysCount <= 1) {
+if (rendszerAr > 0) cfSystems = [{ nev: (document.getElementById('sysname-1')?.value || 'Alap'), elettartam, cashflow, megterulesEv, osszesMegtak, isPrimary: true }];
+} else if (cfScope === 'one') {
+const si = parseInt(document.getElementById('pdfsec-cashflow-system')?.value) || 1;
+if (si === 1) {
+if (rendszerAr > 0) cfSystems = [{ nev: (document.getElementById('sysname-1')?.value || 'Alap'), elettartam, cashflow, megterulesEv, osszesMegtak, isPrimary: true }];
+} else {
+const r = mtHeadlessCashflow(si);
+if (r) cfSystems = [r];
+}
+} else {
+if (rendszerAr > 0) cfSystems.push({ nev: (document.getElementById('sysname-1')?.value || 'Alap'), elettartam, cashflow, megterulesEv, osszesMegtak, isPrimary: true });
+for (let si = 2; si <= cfSysCount; si++) {
+const r = mtHeadlessCashflow(si);
+if (r) cfSystems.push(r);
+}
+}
+if (cfSystems.length === 0) return '';
+const multi = cfSystems.length > 1;
+return cfSystems.map(s => {
+const sTitle = multi ? `Megtérülési Elemzés – Éves Cashflow – ${s.nev} (${currentYear}–${currentYear + s.elettartam - 1})`
+: `Megtérülési Elemzés – Éves Cashflow (${currentYear}–${currentYear + s.elettartam - 1})`;
+const sRows = s.isPrimary ? cashflowSorok : s.cashflow.map(r => `<tr style="${r.ev === s.megterulesEv ? 'background:#16a34a15;font-weight:700' : ''}">
+<td>${r.ev}. év (${r.calendarYear})</td>
+<td style="text-align:right">${Math.round(r.termeles).toLocaleString('hu-HU')} kWh</td>
+<td style="text-align:right">${fmtFt(r.megtak)}</td>
+<td style="text-align:right;font-weight:600;color:#1a3a5c">${fmtFt(r.kumMegtak)}</td>
+<td style="text-align:center">${r.ev === s.megterulesEv ? '<span style="background:#16a34a;color:#fff;padding:2px 8px;border-radius:12px;font-size:0.75rem">✅ MEGTÉRÜLT</span>' : ''}</td>
+</tr>`).join('');
+return `<div class="section">
+<div class="section-title">${sTitle}</div>
 <div style="overflow-x:auto">
 <table>
 <thead><tr>
@@ -6077,19 +6306,21 @@ ${rendszerAr > 0 ? `<div class="section">
 <th style="text-align:right">Kumulált megtakarítás</th>
 <th style="text-align:center">Státusz</th>
 </tr></thead>
-<tbody>${cashflowSorok}</tbody>
+<tbody>${sRows}</tbody>
 <tr class="total-row">
-<td>ÖSSZESEN (${elettartam} év)</td>
+<td>ÖSSZESEN (${s.elettartam} év)</td>
 <td></td>
-<td style="text-align:right">${fmtFt(osszesMegtak)}</td>
+<td style="text-align:right">${fmtFt(s.osszesMegtak)}</td>
 <td></td>
-<td style="text-align:center">${megterulesEv ? '✅ '+megterulesEv+'. évben megtérül' : '⚠️'}</td>
+<td style="text-align:center">${s.megterulesEv ? '✅ '+s.megterulesEv+'. évben megtérül' : '⚠️'}</td>
 </tr>
 </table>
 </div>
-</div>` : ''}
+</div>`;
+}).join('');
+})()}
 <!-- RENDSZERBŐVÍTÉS – JELENLEGI VS. BŐVÍTÉSSEL -->
-${isBovites ? `<div class="section">
+${(pdfSecOn('pdfsec-bovites') && isBovites) ? `<div class="section">
 <div class="section-title">Rendszerbővítés – Jelenlegi vs. Bővítéssel</div>
 <div class="kpi-grid" style="margin-bottom:1.25rem">
 <div class="kpi"><div class="kpi-val">${mt_sofarKwp}</div><div class="kpi-label">Meglévő rendszer kapacitása (kWp)</div></div>
