@@ -1332,20 +1332,27 @@ style="flex:1 1 220px;min-width:180px;background:var(--surface2);border:1px soli
 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;margin:0.5rem 0">
 <span style="color:var(--text-muted)">Szolgáltató:</span>
 <select id="terkep-routing-provider" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.4rem;padding:0.25rem 0.4rem;font-size:0.76rem">
-<option value="ors">OpenRouteService (ingyenes)</option>
-<option value="google">Google Maps (API-kulcs szükséges)</option>
+<option value="google">Google Maps (a térkép kulcsát használja)</option>
+<option value="ors">OpenRouteService (ingyenes, külön kulcs)</option>
 </select>
-<input type="text" id="terkep-ors-key" placeholder="OpenRouteService API-kulcs"
-style="flex:1 1 160px;min-width:140px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.4rem;padding:0.3rem 0.5rem;font-size:0.76rem">
-<input type="text" id="terkep-google-key" placeholder="Google Maps API-kulcs (opcionális)"
-style="flex:1 1 160px;min-width:140px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.4rem;padding:0.3rem 0.5rem;font-size:0.76rem">
+<input type="text" id="terkep-ors-key" placeholder="OpenRouteService API-kulcs (csak ha azt választod)"
+style="flex:1 1 200px;min-width:180px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.4rem;padding:0.3rem 0.5rem;font-size:0.76rem">
 <button onclick="terkep_saveRoutingSettings()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.4rem;padding:0.3rem 0.6rem;font-size:0.76rem;cursor:pointer">💾 Mentés</button>
 </div>
 <div style="color:var(--text-muted);font-size:0.7rem;line-height:1.5">
-Szolgáltató nélkül is működik: ilyenkor légvonalbeli (nem autós) távolságot mutat. Az OpenRouteService ingyenes, csak regisztráció kell hozzá
+Google Maps-hez nem kell külön kulcs (a térkép saját kulcsát használja), de a Cloud Console projektben a "Directions API"-t is engedélyezni kell hozzá.
+Szolgáltató nélkül is működik: ilyenkor légvonalbeli (nem autós) távolságot mutat. Az OpenRouteService ingyenes alternatíva, csak regisztráció kell hozzá
 (<a href="https://openrouteservice.org/dev/#/signup" target="_blank" rel="noopener" style="color:#2e6da4">openrouteservice.org</a>).
-A beállítások az egész csapatnak közösek (Sheets-ben tárolva), az API-kulcsok a böngészőből közvetlenül híváskor kerülnek elküldésre.
+A beállítások az egész csapatnak közösek (Sheets-ben tárolva).
 </div>
+</details>
+<details style="margin-top:0.4rem">
+<summary style="cursor:pointer;color:var(--text-muted);font-size:0.72rem">🔄 CRM adatok frissítése (MiniCRM-ből)</summary>
+<div style="color:var(--text-muted);font-size:0.7rem;line-height:1.5;margin:0.4rem 0">
+Az alábbi gombok az adott CRM-forrás ImportData-képletét kényszerítik újra lekérdezésre (ugyanazt csinálják, mint amikor kézzel kimásolod → törlöd →
+visszamásolod a cellát), majd rögtön frissítik is a hozzá tartozó koordinátákat. Blokkonként kb. 10-30 másodpercig tarthat.
+</div>
+<div id="terkep-crm-refresh-buttons" style="display:flex;gap:0.4rem;flex-wrap:wrap"></div>
 </details>
 </div>
 <div style="padding:0.75rem;display:flex;gap:0.75rem;flex-wrap:wrap-reverse;align-items:flex-start">
@@ -1570,7 +1577,7 @@ if (CALC_SETTINGS[k] && typeof v === 'number') CALC_SETTINGS[k].value = v;
 }
 // Térképek – telephely és útvonal-szolgáltató (ha még nem állította be senki, marad az alapérték).
 if (SHARED_SETTINGS.terkep_telephely && SHARED_SETTINGS.terkep_telephely.lat) terkep_telephely = SHARED_SETTINGS.terkep_telephely;
-if (SHARED_SETTINGS.terkep_routing) terkep_routing = Object.assign({ provider: 'ors', orsKey: '', googleKey: '' }, SHARED_SETTINGS.terkep_routing);
+if (SHARED_SETTINGS.terkep_routing) terkep_routing = Object.assign({ provider: 'google', orsKey: '' }, SHARED_SETTINGS.terkep_routing);
 if (typeof terkep_applySettingsToUI === 'function') terkep_applySettingsToUI();
 // Frissítjük a látható UI-t is, ha épp fut a kalkulátor / admin panel
 if (typeof calculate === 'function') calculate();
@@ -1585,8 +1592,10 @@ renderCalcSettings();
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.78 – 2026-09-18';
+const APP_VERSION = 'v2.80 – 2026-09-18';
 const APP_VERSION_HISTORY = [
+'v2.80 (2026-09-18): Beillesztve a Google Maps JavaScript API-kulcs (GOOGLE_MAPS_API_KEY) – a Térképek fül mostantól ténylegesen meg tudja jeleníteni a Google térképet (korábban csak a "IDE_ÍRD_A..." helykitöltő szerepelt, ami figyelmeztető üzenetet mutatott).',
+'v2.79 (2026-09-18): Térképek – ENGINE-VÁLTÁS: a térkép mostantól Google Maps JavaScript API-t használ (Leaflet/OpenStreetMap helyett; a v2.75-ben bevezetett Leaflet-motort ez váltja le). A geokódolás (cím→koordináta) változatlanul a szerver oldali, kulcs nélküli Apps Script Maps.geocode()-dal történik, ehhez NEM kell API-kulcs – kizárólag a térkép MEGJELENÍTÉSÉHEZ kell egy Google Maps API-kulcs (Google Cloud Console, "Maps JavaScript API" + útvonaltervezéshez "Directions API"). Az "Ugyfelek" adatmodell mostantól 5 forrásból áll össze: (1) egy kézzel tölthető A-I oszlopos tábla (Név/Irányítószám/Cím/Teendő/Dátum/Státusz/CRM link/Lat/Lon) a "Bővítésre vár", "Bővítés folyamatban", "Javításra vár", "Javításra folyamatban" ügyfeleknek, (2)-(5) a 4 meglévő MiniCRM ImportData-blokk (Felmérésre vár, Felmérés folyamatban, Kivitelezésre vár, Kivitelezés folyamatban), mindegyikhez hozzáadott Lat/Lon oszloppal. A korábbi sor-index (row) alapú azonosítás helyett mostantól globálisan egyedi "key" mező köti össze a térkép-pineket, az oldalsó listát és az útvonal-választókat, hogy az 5 forrás sosem ütközzön. ÚJ: koordináta-eltolódás elleni védelem – a 4 CRM-blokknál a script mostantól egy rejtett "Koordinata_Cache" munkalapon, az ügyfél stabil "Adatlap: Azonosító" mezője alapján tartja nyilván a koordinátákat, és minden frissítéskor ez alapján írja vissza a Lat/Lon cellákat – így ha a MiniCRM-lista újrarendeződik (pl. új ügyfél kerül középre), a koordináták NEM csúsznak el a rossz ügyfélhez, csak a ténylegesen új/megváltozott című sorok geokódolódnak újra. ÚJ: 4 külön "🔄 [blokk neve]" gomb a Térképek "Útvonal" panelen, ami blokkonként kényszeríti a MiniCRM ImportData-formula azonnali újralekérdezését (a felhasználó eddigi kézi trükkjét – cella törlése majd visszaillesztése – váltja ki automatikusan), mert a MiniCRM-adatok egyébként csak kb. óránként frissülnek maguktól. A "🏭 Telephely" és "🧭 Útvonal" (v2.78) funkciók változatlanul megvannak, mostantól a térkép saját Google Maps API-kulcsát használják útvonaltervezéshez (külön Google-kulcs megadása nélkül is), az OpenRouteService továbbra is választható alternatív szolgáltató. FONTOS: ehhez a Code.gs-ben egy jelentősen bővített Ugyfelek-kezelő logika és egy új "action=refreshCrmBlock" végpont szükséges – lásd a chatben külön elküldött kódot –, valamint egy Google Maps API-kulcs beillesztése az arazo.html elején (GOOGLE_MAPS_API_KEY konstans).',
 'v2.78 (2026-09-18): Térképek – új "🧭 Útvonal" panel: Honnan/Hova legördülőkkel (Telephely + bármelyik geokódolt ügyfél) kiszámolja két pont közötti autós útvonalat (km + becsült idő), és berajzolja a térképre. Ingyenes OpenRouteService-t vagy (opcionálisan) Google Maps Directions-t is lehet szolgáltatóként beállítani egy API-kulccsal; szolgáltató-kulcs nélkül is működik, ilyenkor légvonalbeli (Haversine) távolságot mutat. Új "🏭 Telephely" beállítás (cím → automatikus koordináta az Apps Script geokódolóval), amit egy külön, mindig látható marker jelöl a térképen. A beállítások (telephely, szolgáltató, kulcsok) a Sheets "Beallitasok" lapján tárolódnak, így az egész csapatnak közösek. Ehhez egy új Apps Script végpont (action=geocodeAddress) szükséges a szerveren – lásd a chatben küldött kódot.',
 'v2.77 (2026-09-18): Bejelentkezés – a Google Sheets "Felhasználók" lap D oszlopában ("Látható kalkulátorok") mostantól a szám-kalkulátorok mellett a "terkepek" kulcsszó is megadható, ami CSAK a Térképek fülhöz ad jogot (Árazó/Megtérülés nélkül) – így felvehető egy olyan felhasználó, aki kizárólag az ügyfél-térképet látja. Bejelentkezéskor a felső navigáció automatikusan csak az elérhető füleket mutatja, és egy csak-térképes felhasználó egyenesen a Térképek fülre kerül. Admin oldalon a felhasználó-táblázat és a súgószöveg is frissült ehhez. Az Apps Script "Felhasználók" beolvasó függvényét (getUsersFromSheet) is frissíteni kell a szerveren, hogy a "terkepek" szót ne dobja el – lásd a chatben küldött kódot.',
 'v2.76 (2026-09-18): Térképek – minden státusz-chip mellé egyéni színválasztó került (natív színválasztó pötty a checkbox mellett), így bárki tetszőlegesen élénkebb/eltérő színekre állíthatja a státuszokat a térképi pineken, buborékokban és az oldalsó listán. A választott színek böngészőnként (localStorage) mentődnek, nem íródnak vissza a Sheetbe. "↺ Színek visszaállítása" gomb jelenik meg, ha van egyéni felülírás.',
@@ -6797,14 +6806,19 @@ startSession();
 // csak a már elmentett lat/lon-t olvassa – nem geokódol minden betöltéskor.
 // ============================================================
 // A térkép megjelenítése Leaflet.js + OpenStreetMap csempékkel – teljesen
-// ingyenes, nem kell hozzá se API-kulcs, se Google Cloud Console beállítás.
-// A geokódolás (cím → koordináta) továbbra is az Apps Script beépített,
-// szintén kulcs nélküli Maps.geocode() szolgáltatásával történik a szerveren.
+// ingyenes, kulcs nélküli Maps.geocode() szolgáltatásával történik a szerveren.
+// 8 lehetséges státusz: 4 a kézi táblából (Bővítésre vár / Bővítés folyamatban /
+// Javításra vár / Javításra folyamatban), 4 a CRM-blokkokból (Felmérésre vár /
+// Felmérés folyamatban / Kivitelezésre vár / Kivitelezés folyamatban).
 const TERKEP_STATUS_COLORS = {
-'Felmérésre vár': '#f7a600',
-'Kivitelezésre vár': '#2e6da4',
+'Bővítésre vár': '#f7a600',
+'Bővítés folyamatban': '#d97706',
 'Javításra vár': '#dc2626',
-'Kész': '#16a34a',
+'Javításra folyamatban': '#991b1b',
+'Felmérésre vár': '#7c3aed',
+'Felmérés folyamatban': '#a855f7',
+'Kivitelezésre vár': '#2e6da4',
+'Kivitelezés folyamatban': '#16a34a',
 };
 const TERKEP_DEFAULT_COLOR = '#94a3b8';
 // Egyénileg felülírt státusz-színek (böngészőnként eltérhet, ki-ki tetszés szerint
@@ -6828,64 +6842,82 @@ terkep_renderLegend();
 terkep_renderMarkers();
 terkep_renderSidebarList();
 }
+// ============================================================
+// FIGYELEM: ide kell egy Google Maps JavaScript API kulcs (Google Cloud Console
+// → "Maps JavaScript API" engedélyezése → API-kulcs létrehozása; érdemes a
+// domain-re korlátozni: arazo.naposelet.hu/*). A koordináta-generálás (cím →
+// lat/lon) EZTŐL FÜGGETLEN, azt a szerver oldali, kulcs nélküli Apps Script
+// Maps.geocode() végzi – ez a kulcs kizárólag a térkép kirajzolásához kell.
+// Ha az "🧭 Útvonal" panelben a Google szolgáltatót választod, ahhoz még az
+// "Directions API"-t is engedélyezni kell ugyanabban a Cloud Console projektben.
+// ============================================================
+const GOOGLE_MAPS_API_KEY = 'AIzaSyCSV8FJhC4fFFHiJhZZ7MYMO07O-MRKwEw';
 let terkep_map = null;
 let terkep_markers = [];
-let terkep_markerByRow = {};
+let terkep_markerByKey = {};
+let terkep_activeInfoWindow = null;
 let terkep_ugyfelek = [];
 let terkep_activeStatuses = new Set();
-let terkep_leafletLoaded = false;
-let terkep_leafletLoading = false;
+let terkep_googleMapsLoaded = false;
+let terkep_googleMapsLoading = false;
 let terkep_dataLoadedOnce = false;
 let terkep_searchTerm = '';
 // Telephely (bázispont) + útvonal-szolgáltató beállítások – a Sheets "Beallitasok"
 // lapjáról töltődnek be (SHARED_SETTINGS.terkep_telephely / .terkep_routing), így
 // az egész csapatnak közösek, nem csak böngészőnként eltérők.
 let terkep_telephely = null; // { nev, cim, lat, lon }
-let terkep_routing = { provider: 'ors', orsKey: '', googleKey: '' };
+let terkep_routing = { provider: 'google', orsKey: '' };
 let terkep_telephelyMarker = null;
 let terkep_routeLayer = null;
-let terkep_googleLoaded = false;
-let terkep_googleLoading = false;
+// A 4 CRM-forrás (a Sheet-ben már meglévő ImportData-blokkok) – a kulcsok
+// pontosan meg kell egyezzenek a Code.gs TERKEP_CRM_BLOCKS "key" mezőivel.
+const TERKEP_CRM_BLOCKS_CLIENT = [
+{ key: 'felmeresre_var', label: 'Felmérésre vár' },
+{ key: 'felmeres_folyamatban', label: 'Felmérés folyamatban' },
+{ key: 'kivitelezesre_var', label: 'Kivitelezésre vár' },
+{ key: 'kivitelezes_folyamatban', label: 'Kivitelezés folyamatban' },
+];
 function terkep_esc(s) {
 return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
-// A Leaflet CSS+JS betöltése (cdnjs-ről, ugyanúgy mint a Chart.js), csak akkor,
-// amikor először megnyitják a Térképek fület.
-function terkep_ensureLeafletLoaded(callback) {
-if (terkep_leafletLoaded && typeof L !== 'undefined') { callback(); return; }
+// A Google Maps JS script betöltése csak akkor, amikor először megnyitják a
+// Térképek fület (nem terheli feleslegesen az oldalt, ha valaki nem is használja).
+function terkep_ensureGoogleMapsLoaded(callback) {
+if (terkep_googleMapsLoaded && typeof google !== 'undefined' && google.maps) { callback(); return; }
 const statusEl = document.getElementById('terkep-status');
-if (terkep_leafletLoading) return;
-terkep_leafletLoading = true;
-if (statusEl) statusEl.textContent = '⏳ Térkép betöltése...';
-if (!document.getElementById('terkep-leaflet-css')) {
-const link = document.createElement('link');
-link.id = 'terkep-leaflet-css';
-link.rel = 'stylesheet';
-link.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
-document.head.appendChild(link);
+const emptyEl = document.getElementById('terkep-empty');
+if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY.indexOf('IDE_') === 0) {
+if (statusEl) statusEl.textContent = '⚠️ Nincs beállítva Google Maps API-kulcs';
+if (emptyEl) {
+emptyEl.style.display = 'block';
+emptyEl.innerHTML = '⚠️ A térkép megjelenítéséhez Google Maps JavaScript API-kulcs szükséges.<br>Ezt a fejlesztőnek kell beállítania a kódban (<code>GOOGLE_MAPS_API_KEY</code>).';
 }
-const script = document.createElement('script');
-script.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
-script.async = true;
-script.onload = () => {
-terkep_leafletLoaded = true;
-terkep_leafletLoading = false;
+return;
+}
+if (terkep_googleMapsLoading) return;
+terkep_googleMapsLoading = true;
+if (statusEl) statusEl.textContent = '⏳ Térkép betöltése...';
+window.__terkepGoogleMapsReady = function () {
+terkep_googleMapsLoaded = true;
+terkep_googleMapsLoading = false;
 callback();
 };
+const script = document.createElement('script');
+script.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(GOOGLE_MAPS_API_KEY) + '&callback=__terkepGoogleMapsReady';
+script.async = true;
 script.onerror = () => {
-terkep_leafletLoading = false;
-if (statusEl) statusEl.textContent = '⚠️ A térkép betöltése nem sikerült (Leaflet).';
+terkep_googleMapsLoading = false;
+if (statusEl) statusEl.textContent = '⚠️ A Google Maps API betöltése nem sikerült (ellenőrizd a kulcsot).';
 };
 document.head.appendChild(script);
 }
 function terkep_initMap() {
 const el = document.getElementById('terkep-map');
-if (!el || terkep_map || typeof L === 'undefined') return;
-terkep_map = L.map(el).setView([47.1625, 19.5033], 7); // Magyarország nagyjábóli közepe
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
-maxZoom: 19,
-}).addTo(terkep_map);
+if (!el || terkep_map || typeof google === 'undefined') return;
+terkep_map = new google.maps.Map(el, {
+center: { lat: 47.1625, lng: 19.5033 }, // Magyarország nagyjábóli közepe
+zoom: 7,
+});
 }
 // Ügyfelek lekérdezése a Sheets-ből (ugyanaz a JSONP-minta, mint a PRODUCTS/preload).
 function terkep_fetchUgyfelek() {
@@ -6962,51 +6994,74 @@ return hay.indexOf(terkep_searchTerm) !== -1;
 function terkep_visibleList() {
 return terkep_ugyfelek.filter(u => terkep_activeStatuses.has(u.statusz || 'Ismeretlen') && terkep_matchesSearch(u));
 }
+// Az "extra" mezőket (blokk-specifikus adatok: Teendő/Dátum, Felmérés időpontja,
+// Napelem/Inverter/Akkumulátor stb.) egységesen, kulcs-érték listaként jeleníti meg.
+function terkep_extraHtml(extra) {
+if (!extra) return '';
+const rows = Object.entries(extra).filter(([, v]) => v !== '' && v != null);
+if (rows.length === 0) return '';
+return `<div style="font-size:0.76rem;color:#555;margin-bottom:0.3rem;line-height:1.5">` +
+rows.map(([k, v]) => `<div><strong>${terkep_esc(k)}:</strong> ${terkep_esc(v)}</div>`).join('') + `</div>`;
+}
 function terkep_popupHtml(u, color, statusz) {
-return `<div style="min-width:180px">
+return `<div style="min-width:190px;max-width:260px">
 <div style="font-weight:700;margin-bottom:0.2rem">${terkep_esc(u.nev || '—')}</div>
 <div style="font-size:0.82rem;color:#555;margin-bottom:0.3rem">${terkep_esc(u.cim || '—')}</div>
 <div style="font-size:0.78rem;margin-bottom:0.4rem"><span style="background:${color}22;color:${color};padding:2px 8px;border-radius:10px;font-weight:600">${terkep_esc(statusz)}</span></div>
+${terkep_extraHtml(u.extra)}
 ${u.crmLink ? `<a href="${terkep_esc(u.crmLink)}" target="_blank" rel="noopener" style="font-size:0.8rem;color:#2e6da4;font-weight:600">🔗 CRM megnyitása</a>` : ''}
 </div>`;
 }
 function terkep_renderMarkers() {
-if (!terkep_map || typeof L === 'undefined') return;
-terkep_markers.forEach(m => terkep_map.removeLayer(m));
+if (!terkep_map || typeof google === 'undefined') return;
+terkep_markers.forEach(m => m.setMap(null));
 terkep_markers = [];
-terkep_markerByRow = {};
-const pts = [];
+terkep_markerByKey = {};
+const bounds = new google.maps.LatLngBounds();
+let shown = 0;
 terkep_visibleList().forEach(u => {
 const lat = parseFloat(u.lat), lon = parseFloat(u.lon);
 if (!lat || !lon || isNaN(lat) || isNaN(lon)) return;
 const statusz = u.statusz || 'Ismeretlen';
 const color = terkep_getColor(statusz);
-const marker = L.circleMarker([lat, lon], {
-radius: 9, fillColor: color, fillOpacity: 1, color: '#fff', weight: 2,
-}).addTo(terkep_map);
-marker.bindPopup(terkep_popupHtml(u, color, statusz));
-marker.on('click', () => terkep_highlightListItem(u.row));
-terkep_markers.push(marker);
-terkep_markerByRow[u.row] = marker;
-pts.push([lat, lon]);
+const marker = new google.maps.Marker({
+position: { lat, lng: lon },
+map: terkep_map,
+title: u.nev || '',
+icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: color, fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 },
 });
-if (pts.length > 0) terkep_map.fitBounds(pts, { padding: [30, 30], maxZoom: 14 });
+const info = new google.maps.InfoWindow({ content: terkep_popupHtml(u, color, statusz) });
+marker.addListener('click', () => {
+if (terkep_activeInfoWindow) terkep_activeInfoWindow.close();
+info.open(terkep_map, marker);
+terkep_activeInfoWindow = info;
+terkep_highlightListItem(u.key);
+});
+terkep_markers.push(marker);
+terkep_markerByKey[u.key] = { marker, info };
+bounds.extend(marker.getPosition());
+shown++;
+});
+if (shown > 0) terkep_map.fitBounds(bounds);
 }
 // Kattintásra a listaelemre – középre pásztázza a térképet és megnyitja a popupot.
-function terkep_focusItem(row) {
-const marker = terkep_markerByRow[row];
-if (!marker || !terkep_map) return;
-terkep_map.setView(marker.getLatLng(), Math.max(terkep_map.getZoom(), 13));
-marker.openPopup();
-terkep_highlightListItem(row);
+function terkep_focusItem(key) {
+const entry = terkep_markerByKey[key];
+if (!entry || !terkep_map) return;
+terkep_map.panTo(entry.marker.getPosition());
+if (terkep_map.getZoom() < 13) terkep_map.setZoom(13);
+if (terkep_activeInfoWindow) terkep_activeInfoWindow.close();
+entry.info.open(terkep_map, entry.marker);
+terkep_activeInfoWindow = entry.info;
+terkep_highlightListItem(key);
 }
 // Térkép-pin kattintásra a megfelelő lista-kártya kiemelése.
-function terkep_highlightListItem(row) {
+function terkep_highlightListItem(key) {
 document.querySelectorAll('.terkep-list-item').forEach(el => {
-el.style.background = el.dataset.row === String(row) ? 'var(--surface)' : 'transparent';
-el.style.borderColor = el.dataset.row === String(row) ? 'var(--sun)' : 'var(--border)';
+el.style.background = el.dataset.key === String(key) ? 'var(--surface)' : 'transparent';
+el.style.borderColor = el.dataset.key === String(key) ? 'var(--sun)' : 'var(--border)';
 });
-const el = document.querySelector(`.terkep-list-item[data-row="${row}"]`);
+const el = document.querySelector(`.terkep-list-item[data-key="${CSS.escape(String(key))}"]`);
 if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 // Bal oldali kártyalista – a térképpel szinkronban (kereséssel/státusszal szűrve).
@@ -7024,7 +7079,8 @@ listEl.innerHTML = list.map(u => {
 const statusz = u.statusz || 'Ismeretlen';
 const color = terkep_getColor(statusz);
 const hasCoord = u.lat && u.lon;
-return `<div class="terkep-list-item" data-row="${u.row}" onclick="terkep_focusItem(${u.row})"
+const keyEsc = terkep_esc(u.key).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+return `<div class="terkep-list-item" data-key="${keyEsc}" onclick="terkep_focusItem('${keyEsc}')"
 style="padding:0.55rem 0.75rem;border-bottom:1px solid var(--border);border-left:3px solid var(--border);cursor:pointer;transition:background 0.15s">
 <div style="font-weight:700;font-size:0.8rem;display:flex;align-items:center;gap:0.35rem">
 <span style="width:0.6rem;height:0.6rem;border-radius:50%;background:${color};display:inline-block;flex:none"></span>
@@ -7046,15 +7102,27 @@ ${u.crmLink ? `<a href="${terkep_esc(u.crmLink)}" target="_blank" rel="noopener"
 // jelöli a térképen, a normál ügyfél-pinektől eltérően, és nem esik a
 // státusz-szűrés alá – mindig látszik, ha be van állítva.
 function terkep_renderTelephelyMarker() {
-if (!terkep_map || typeof L === 'undefined') return;
-if (terkep_telephelyMarker) { terkep_map.removeLayer(terkep_telephelyMarker); terkep_telephelyMarker = null; }
+if (!terkep_map || typeof google === 'undefined') return;
+if (terkep_telephelyMarker) { terkep_telephelyMarker.setMap(null); terkep_telephelyMarker = null; }
 if (!terkep_telephely || !terkep_telephely.lat || !terkep_telephely.lon) return;
-const icon = L.divIcon({
-html: '<div style="width:1.4rem;height:1.4rem;border-radius:0.3rem;background:#111827;border:2px solid #fff;box-shadow:0 0 0 2px #111827;display:flex;align-items:center;justify-content:center;font-size:0.8rem">🏭</div>',
-className: '', iconSize: [22, 22], iconAnchor: [11, 11],
+const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28">'
++ '<rect x="2" y="2" width="24" height="24" rx="5" fill="#111827" stroke="white" stroke-width="2"/>'
++ '<text x="14" y="19" font-size="14" text-anchor="middle">🏭</text></svg>';
+terkep_telephelyMarker = new google.maps.Marker({
+position: { lat: terkep_telephely.lat, lng: terkep_telephely.lon },
+map: terkep_map,
+title: terkep_telephely.nev || 'Telephely',
+icon: { url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg), scaledSize: new google.maps.Size(28, 28) },
+zIndex: 1000,
 });
-terkep_telephelyMarker = L.marker([terkep_telephely.lat, terkep_telephely.lon], { icon, zIndexOffset: 1000 }).addTo(terkep_map);
-terkep_telephelyMarker.bindPopup(`<div style="min-width:160px"><div style="font-weight:700;margin-bottom:0.2rem">🏭 ${terkep_esc(terkep_telephely.nev || 'Telephely')}</div><div style="font-size:0.82rem;color:#555">${terkep_esc(terkep_telephely.cim || '')}</div></div>`);
+const info = new google.maps.InfoWindow({
+content: `<div style="min-width:160px"><div style="font-weight:700;margin-bottom:0.2rem">🏭 ${terkep_esc(terkep_telephely.nev || 'Telephely')}</div><div style="font-size:0.82rem;color:#555">${terkep_esc(terkep_telephely.cim || '')}</div></div>`,
+});
+terkep_telephelyMarker.addListener('click', () => {
+if (terkep_activeInfoWindow) terkep_activeInfoWindow.close();
+info.open(terkep_map, terkep_telephelyMarker);
+terkep_activeInfoWindow = info;
+});
 }
 // Telephely-cím beállítása – szerver oldali geokódolással (Apps Script Maps.geocode,
 // ugyanaz a kulcs nélküli szolgáltatás, mint az ügyfeleknél), majd elmentve a Sheets
@@ -7096,7 +7164,21 @@ const panel = document.getElementById('terkep-route-panel');
 if (!panel) return;
 const show = panel.style.display === 'none';
 panel.style.display = show ? 'block' : 'none';
-if (show) { terkep_populateRouteSelects(); updateStickyOffsets(); } else { updateStickyOffsets(); }
+if (show) { terkep_populateRouteSelects(); terkep_renderCrmRefreshButtons(); updateStickyOffsets(); } else { updateStickyOffsets(); }
+}
+// A 4 CRM-forrás "🔄 CRM frissítés" gombjai – egyszer épülnek fel, dinamikusan a
+// TERKEP_CRM_BLOCKS_CLIENT listából (nem kell 4x kézzel karbantartani a HTML-t).
+function terkep_renderCrmRefreshButtons() {
+const wrap = document.getElementById('terkep-crm-refresh-buttons');
+if (!wrap || wrap.children.length > 0) return;
+TERKEP_CRM_BLOCKS_CLIENT.forEach(block => {
+const btn = document.createElement('button');
+btn.textContent = '🔄 ' + block.label;
+btn.title = 'A(z) "' + block.label + '" CRM-blokk kényszerített újra-lekérdezése';
+btn.style.cssText = 'background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.4rem;padding:0.3rem 0.55rem;font-size:0.72rem;cursor:pointer';
+btn.onclick = () => terkep_refreshCrmBlock(block.key, btn);
+wrap.appendChild(btn);
+});
 }
 // A Honnan/Hova legördülők feltöltése: Telephely (ha van) + minden koordinátával
 // rendelkező ügyfél.
@@ -7106,17 +7188,17 @@ const toSel = document.getElementById('terkep-route-to');
 if (!fromSel || !toSel) return;
 const opts = [];
 if (terkep_telephely && terkep_telephely.lat) opts.push({ key: 'telephely', label: '🏭 ' + (terkep_telephely.nev || 'Telephely') });
-terkep_ugyfelek.filter(u => u.lat && u.lon).forEach(u => opts.push({ key: 'row:' + u.row, label: u.nev || u.cim || ('Ügyfél #' + u.row) }));
+terkep_ugyfelek.filter(u => u.lat && u.lon).forEach(u => opts.push({ key: 'u:' + u.key, label: u.nev || u.cim || u.key }));
 const html = opts.map(o => `<option value="${terkep_esc(o.key)}">${terkep_esc(o.label)}</option>`).join('');
 [fromSel, toSel].forEach(sel => { const prev = sel.value; sel.innerHTML = html; if ([...sel.options].some(o => o.value === prev)) sel.value = prev; });
 if (toSel.value === fromSel.value && toSel.options.length > 1) toSel.selectedIndex = 1;
 }
-function terkep_getPointByKey(key) {
-if (!key) return null;
-if (key === 'telephely') return terkep_telephely ? { lat: terkep_telephely.lat, lon: terkep_telephely.lon, nev: terkep_telephely.nev || 'Telephely' } : null;
-if (key.indexOf('row:') === 0) {
-const row = parseInt(key.slice(4));
-const u = terkep_ugyfelek.find(x => x.row === row);
+function terkep_getPointByKey(selectKey) {
+if (!selectKey) return null;
+if (selectKey === 'telephely') return terkep_telephely ? { lat: terkep_telephely.lat, lon: terkep_telephely.lon, nev: terkep_telephely.nev || 'Telephely' } : null;
+if (selectKey.indexOf('u:') === 0) {
+const ugyfelKey = selectKey.slice(2);
+const u = terkep_ugyfelek.find(x => x.key === ugyfelKey);
 return u ? { lat: parseFloat(u.lat), lon: parseFloat(u.lon), nev: u.nev || u.cim } : null;
 }
 return null;
@@ -7131,15 +7213,19 @@ const s = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * Math.PI / 180) * Math.cos(b
 return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
 }
 function terkep_clearRoute() {
-if (terkep_routeLayer && terkep_map) { terkep_map.removeLayer(terkep_routeLayer); terkep_routeLayer = null; }
+if (terkep_routeLayer) { terkep_routeLayer.setMap(null); terkep_routeLayer = null; }
 const resultEl = document.getElementById('terkep-route-result');
 if (resultEl) resultEl.textContent = '';
 }
 function terkep_drawRouteLine(latlngs) {
-if (!terkep_map || typeof L === 'undefined' || !latlngs || latlngs.length < 2) return;
-if (terkep_routeLayer) terkep_map.removeLayer(terkep_routeLayer);
-terkep_routeLayer = L.polyline(latlngs, { color: '#f7a600', weight: 4, opacity: 0.85 }).addTo(terkep_map);
-terkep_map.fitBounds(terkep_routeLayer.getBounds(), { padding: [40, 40] });
+if (!terkep_map || typeof google === 'undefined' || !latlngs || latlngs.length < 2) return;
+if (terkep_routeLayer) terkep_routeLayer.setMap(null);
+const path = latlngs.map(p => ({ lat: p[0], lng: p[1] }));
+terkep_routeLayer = new google.maps.Polyline({ path, strokeColor: '#f7a600', strokeWeight: 4, strokeOpacity: 0.85 });
+terkep_routeLayer.setMap(terkep_map);
+const bounds = new google.maps.LatLngBounds();
+path.forEach(p => bounds.extend(p));
+terkep_map.fitBounds(bounds, 40);
 }
 // Fő belépési pont – a Honnan/Hova választás alapján kiszámítja és kijelzi a
 // távolságot/időt, a beállított szolgáltatóval (vagy légvonalbeli fallback-kel).
@@ -7153,8 +7239,8 @@ if (!origin || !dest) { if (resultEl) resultEl.textContent = '⚠️ Válassz ki
 if (resultEl) resultEl.textContent = '⏳ Számítás...';
 try {
 let route = null;
-if (terkep_routing.provider === 'google' && terkep_routing.googleKey) {
-route = await terkep_routeViaGoogle(origin, dest, terkep_routing.googleKey);
+if (terkep_routing.provider === 'google') {
+route = await terkep_routeViaGoogle(origin, dest);
 } else if (terkep_routing.provider === 'ors' && terkep_routing.orsKey) {
 route = await terkep_routeViaORS(origin, dest, terkep_routing.orsKey);
 }
@@ -7188,29 +7274,13 @@ const summary = feature.properties.summary;
 const path = feature.geometry.coordinates.map(c => [c[1], c[0]]); // [lon,lat] -> [lat,lon]
 return { distanceM: summary.distance, durationS: summary.duration, path };
 }
-// Google Directions – a hivatalos, CORS-barát megoldás a google.maps.DirectionsService
-// (a nyers REST Directions API-t a böngésző nem hívhatja közvetlenül CORS miatt).
-// A Google Maps JS-t csak akkor töltjük be, ha valóban a Google szolgáltatót
-// választották és van kulcs megadva – alapból (ORS/légvonal esetén) egyáltalán nem.
-function terkep_ensureGoogleLoaded(apiKey) {
-return new Promise((resolve, reject) => {
-if (terkep_googleLoaded && typeof google !== 'undefined' && google.maps?.DirectionsService) { resolve(); return; }
-if (terkep_googleLoading) {
-const check = setInterval(() => { if (terkep_googleLoaded) { clearInterval(check); resolve(); } }, 200);
-setTimeout(() => { clearInterval(check); if (!terkep_googleLoaded) reject(new Error('timeout')); }, 15000);
-return;
+// Google Directions – a google.maps.DirectionsService-t használja, ami már be van
+// töltve (ugyanaz a script adja a térkép csempéit is), külön kulcs/betöltés nem kell
+// hozzá – de a Cloud Console projektben a "Directions API"-t is engedélyezni kell.
+async function terkep_routeViaGoogle(origin, dest) {
+if (typeof google === 'undefined' || !google.maps) {
+await new Promise((resolve, reject) => terkep_ensureGoogleMapsLoaded(resolve));
 }
-terkep_googleLoading = true;
-window.__terkepGoogleReady = () => { terkep_googleLoaded = true; terkep_googleLoading = false; resolve(); };
-const script = document.createElement('script');
-script.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(apiKey) + '&libraries=&callback=__terkepGoogleReady';
-script.async = true;
-script.onerror = () => { terkep_googleLoading = false; reject(new Error('Google Maps script hiba')); };
-document.head.appendChild(script);
-});
-}
-async function terkep_routeViaGoogle(origin, dest, apiKey) {
-await terkep_ensureGoogleLoaded(apiKey);
 return new Promise((resolve, reject) => {
 const svc = new google.maps.DirectionsService();
 svc.route({
@@ -7230,18 +7300,15 @@ function terkep_applySettingsToUI() {
 const cimInput = document.getElementById('terkep-telephely-cim');
 if (cimInput && terkep_telephely?.cim && !cimInput.value) cimInput.value = terkep_telephely.cim;
 const provSel = document.getElementById('terkep-routing-provider');
-if (provSel) provSel.value = terkep_routing.provider || 'ors';
+if (provSel) provSel.value = terkep_routing.provider || 'google';
 const orsInput = document.getElementById('terkep-ors-key');
 if (orsInput && terkep_routing.orsKey) orsInput.value = terkep_routing.orsKey;
-const googleInput = document.getElementById('terkep-google-key');
-if (googleInput && terkep_routing.googleKey) googleInput.value = terkep_routing.googleKey;
 if (terkep_map) terkep_renderTelephelyMarker();
 }
 function terkep_saveRoutingSettings() {
-const provider = document.getElementById('terkep-routing-provider')?.value || 'ors';
+const provider = document.getElementById('terkep-routing-provider')?.value || 'google';
 const orsKey = document.getElementById('terkep-ors-key')?.value.trim() || '';
-const googleKey = document.getElementById('terkep-google-key')?.value.trim() || '';
-terkep_routing = { provider, orsKey, googleKey };
+terkep_routing = { provider, orsKey };
 saveSettingToSheets('terkep_routing', terkep_routing);
 const statusEl = document.getElementById('terkep-status');
 if (statusEl) statusEl.textContent = '✅ Útvonal-beállítások mentve.';
@@ -7264,8 +7331,9 @@ script.onerror = () => { clearTimeout(timeout); reject(new Error('error')); };
 document.head.appendChild(script);
 });
 const okCount = data && typeof data.geocoded === 'number' ? data.geocoded : 0;
+const cachedCount = data && typeof data.cached === 'number' ? data.cached : 0;
 const failedList = data && Array.isArray(data.failedList) ? data.failedList : [];
-if (statusEl) statusEl.textContent = `✅ ${okCount} cím geokódolva` + (failedList.length > 0 ? `, ${failedList.length} sikertelen: ${failedList.join(', ')}` : '.');
+if (statusEl) statusEl.textContent = `✅ ${okCount} cím újonnan geokódolva` + (cachedCount > 0 ? `, ${cachedCount} a gyorsítótárból` : '') + (failedList.length > 0 ? `, ${failedList.length} sikertelen: ${failedList.join(', ')}` : '.');
 await terkep_loadUgyfelek(false);
 } catch (e) {
 if (statusEl) statusEl.textContent = '⚠️ A koordináták frissítése nem sikerült.';
@@ -7273,12 +7341,42 @@ if (statusEl) statusEl.textContent = '⚠️ A koordináták frissítése nem si
 if (btn) btn.disabled = false;
 }
 }
+// Egy adott CRM-forrás (Felmérésre vár / Felmérés folyamatban / Kivitelezésre vár /
+// Kivitelezés folyamatban) "kényszerített" frissítése – a szerver törli, majd
+// visszaírja az ImportData képletet (ugyanaz, mint kézzel: kimásol → töröl →
+// visszamásol → Enter), majd rögtön frissíti az adott blokk koordinátáit is.
+async function terkep_refreshCrmBlock(blockKey, btnEl) {
+const statusEl = document.getElementById('terkep-status');
+if (btnEl) { btnEl.disabled = true; btnEl.dataset.origText = btnEl.textContent; btnEl.textContent = '⏳ Frissítés...'; }
+if (statusEl) statusEl.textContent = '⏳ CRM adatok frissítése (' + blockKey + ') – ez akár fél percig is eltarthat...';
+try {
+const data = await new Promise((resolve, reject) => {
+const cbName = 'sfcrm_' + Date.now();
+const script = document.createElement('script');
+const timeout = setTimeout(() => { delete window[cbName]; script.remove(); reject(new Error('timeout')); }, 60000);
+window[cbName] = (d) => { clearTimeout(timeout); delete window[cbName]; script.remove(); resolve(d); };
+script.src = SHEETS_API + '?action=refreshCrmBlock&block=' + encodeURIComponent(blockKey) + '&callback=' + cbName + '&t=' + Date.now();
+script.onerror = () => { clearTimeout(timeout); reject(new Error('error')); };
+document.head.appendChild(script);
+});
+if (!data || !data.success) {
+if (statusEl) statusEl.textContent = '⚠️ CRM frissítés sikertelen: ' + (data?.error || 'ismeretlen hiba');
+return;
+}
+if (statusEl) statusEl.textContent = `✅ Frissítve (${data.rowCount} sor), ${data.geocoded} új koordináta, ${data.cached} a gyorsítótárból.`;
+await terkep_loadUgyfelek(false);
+} catch (e) {
+if (statusEl) statusEl.textContent = '⚠️ A CRM frissítés nem sikerült (időtúllépés vagy hálózati hiba).';
+} finally {
+if (btnEl) { btnEl.disabled = false; if (btnEl.dataset.origText) btnEl.textContent = btnEl.dataset.origText; }
+}
+}
 // A Térképek fül aktiválásakor hívódik (switchMainTab). Első megnyitáskor
-// betölti a Leaflet könyvtárat + az ügyfeleket; utána csak frissíti a nézetet.
+// betölti a Google Maps JS-t + az ügyfeleket; utána csak frissíti a nézetet.
 function terkep_activate() {
-terkep_ensureLeafletLoaded(() => {
+terkep_ensureGoogleMapsLoaded(() => {
 terkep_initMap();
-if (terkep_map) { setTimeout(() => terkep_map.invalidateSize(), 50); terkep_renderTelephelyMarker(); }
+if (terkep_map) terkep_renderTelephelyMarker();
 terkep_loadUgyfelek(true);
 });
 }
