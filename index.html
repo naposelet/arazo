@@ -1532,8 +1532,9 @@ renderCalcSettings();
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.75 – 2026-09-18';
+const APP_VERSION = 'v2.76 – 2026-09-18';
 const APP_VERSION_HISTORY = [
+'v2.76 (2026-09-18): Térképek – minden státusz-chip mellé egyéni színválasztó került (natív színválasztó pötty a checkbox mellett), így bárki tetszőlegesen élénkebb/eltérő színekre állíthatja a státuszokat a térképi pineken, buborékokban és az oldalsó listán. A választott színek böngészőnként (localStorage) mentődnek, nem íródnak vissza a Sheetbe. "↺ Színek visszaállítása" gomb jelenik meg, ha van egyéni felülírás.',
 'v2.75 (2026-09-18): Térképek fül átírva Leaflet.js + OpenStreetMap alapra – ingyenes, NEM kell hozzá se Google Maps API-kulcs, se Google Cloud Console beállítás (a v2.74-ben ez még hiányzott). Emellett új kereső mező (név/cím/CRM link szerint szűr) és bal oldali kártyalista az ügyfelekről, a térképpel kétirányban szinkronban (lista-kártyára kattintva a térkép odaugrik és megnyitja a buborékot; pin-re kattintva a lista kiemeli a megfelelő kártyát). A geokódolás (cím → koordináta) változatlanul a szerver oldali, kulcs nélküli Apps Script Maps.geocode()-dal történik. Az Apps Script végpontok (action=ugyfelek, action=geocodeUgyfelek) élesítése a Code.gs-ben és az "Ugyfelek" Sheets-fül létrehozása még hátravan.',
 'v2.74 (2026-09-18): Új "🗺️ Térképek" fő fül – ügyfelek megjelenítése Google Maps-en egy Sheets "Ügyfelek" fül (Név/Cím/Státusz/CRM link, +Lat/Lon koordináta-cache) alapján, státuszonként ki/bekapcsolható réteggel (checkbox chip-ek, dinamikusan a ténylegesen előforduló státuszokból). "📍 Koordináták frissítése" gomb hiányzó koordinátájú ügyfelek geokódolásához (szerver oldali Apps Script Maps.geocode). Kliens-oldalon minden kész; az Apps Script végpontok (action=ugyfelek, action=geocodeUgyfelek) és a Google Maps JavaScript API-kulcs beállítása még hátravan.',
 'v2.73 (2026-09-18): Megtérülés – a rendszer-fülek (Alap/Prémium) és a gyorsgombok (Ár frissítése, SofarCloud, PVGIS, Riport/PDF, Mi vs. piac) most egyetlen kompakt, végig rögzített (sticky) sorba kerültek a korábbi 2 külön sor helyett – rövidebb feliratok, kisebb gombok, a checkbox a jobb szélre igazítva. A "PDF tartalom" szegmens-kapcsolók továbbra is alapból összecsukva maradnak, hogy ne foglaljanak helyet.',
@@ -6719,6 +6720,27 @@ const TERKEP_STATUS_COLORS = {
 'Kész': '#16a34a',
 };
 const TERKEP_DEFAULT_COLOR = '#94a3b8';
+// Egyénileg felülírt státusz-színek (böngészőnként eltérhet, ki-ki tetszés szerint
+// élénkítheti) – localStorage-ban tárolva, nem kerül vissza a Sheetbe.
+let terkep_customColors = {};
+try { terkep_customColors = JSON.parse(localStorage.getItem('terkep_custom_colors') || '{}'); } catch (e) { terkep_customColors = {}; }
+function terkep_getColor(status) {
+return terkep_customColors[status] || TERKEP_STATUS_COLORS[status] || TERKEP_DEFAULT_COLOR;
+}
+function terkep_setCustomColor(status, color) {
+terkep_customColors[status] = color;
+try { localStorage.setItem('terkep_custom_colors', JSON.stringify(terkep_customColors)); } catch (e) {}
+if (!document.getElementById('terkep-legend')?.querySelector('button')) terkep_renderLegend();
+terkep_renderMarkers();
+terkep_renderSidebarList();
+}
+function terkep_resetColors() {
+terkep_customColors = {};
+try { localStorage.removeItem('terkep_custom_colors'); } catch (e) {}
+terkep_renderLegend();
+terkep_renderMarkers();
+terkep_renderSidebarList();
+}
 let terkep_map = null;
 let terkep_markers = [];
 let terkep_markerByRow = {};
@@ -6808,15 +6830,19 @@ if (!wrap) return;
 const statuses = [...new Set(terkep_ugyfelek.map(u => u.statusz || 'Ismeretlen'))];
 if (terkep_activeStatuses.size === 0) statuses.forEach(s => terkep_activeStatuses.add(s));
 wrap.innerHTML = statuses.map(s => {
-const color = TERKEP_STATUS_COLORS[s] || TERKEP_DEFAULT_COLOR;
+const color = terkep_getColor(s);
 const checked = terkep_activeStatuses.has(s) ? 'checked' : '';
 const count = terkep_ugyfelek.filter(u => (u.statusz || 'Ismeretlen') === s).length;
+const sEsc = terkep_esc(s).replace(/'/g, "\\'");
 return `<label style="display:flex;align-items:center;gap:0.3rem;font-size:0.74rem;cursor:pointer;background:var(--bg);border:1px solid var(--border);border-radius:0.5rem;padding:0.3rem 0.55rem;white-space:nowrap">
-<input type="checkbox" ${checked} onchange="terkep_toggleStatus('${terkep_esc(s).replace(/'/g, "\\'")}', this.checked)" style="margin:0">
-<span style="width:0.6rem;height:0.6rem;border-radius:50%;background:${color};display:inline-block"></span>
+<input type="checkbox" ${checked} onchange="terkep_toggleStatus('${sEsc}', this.checked)" style="margin:0">
+<input type="color" value="${color}" title="Szín testreszabása ehhez a státuszhoz" onclick="event.stopPropagation()" onchange="terkep_setCustomColor('${sEsc}', this.value)"
+style="width:1.1rem;height:1.1rem;padding:0;border:none;border-radius:50%;overflow:hidden;cursor:pointer;background:none;flex:none">
 ${terkep_esc(s)} (${count})
 </label>`;
-}).join('');
+}).join('') + (Object.keys(terkep_customColors).length > 0
+? `<button onclick="terkep_resetColors()" title="Alapértelmezett színek visszaállítása" style="background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);border-radius:0.5rem;padding:0.3rem 0.55rem;font-size:0.7rem;cursor:pointer;white-space:nowrap">↺ Színek visszaállítása</button>`
+: '');
 }
 function terkep_toggleStatus(status, on) {
 if (on) terkep_activeStatuses.add(status); else terkep_activeStatuses.delete(status);
@@ -6856,7 +6882,7 @@ terkep_visibleList().forEach(u => {
 const lat = parseFloat(u.lat), lon = parseFloat(u.lon);
 if (!lat || !lon || isNaN(lat) || isNaN(lon)) return;
 const statusz = u.statusz || 'Ismeretlen';
-const color = TERKEP_STATUS_COLORS[statusz] || TERKEP_DEFAULT_COLOR;
+const color = terkep_getColor(statusz);
 const marker = L.circleMarker([lat, lon], {
 radius: 9, fillColor: color, fillOpacity: 1, color: '#fff', weight: 2,
 }).addTo(terkep_map);
@@ -6898,7 +6924,7 @@ return;
 }
 listEl.innerHTML = list.map(u => {
 const statusz = u.statusz || 'Ismeretlen';
-const color = TERKEP_STATUS_COLORS[statusz] || TERKEP_DEFAULT_COLOR;
+const color = terkep_getColor(statusz);
 const hasCoord = u.lat && u.lon;
 return `<div class="terkep-list-item" data-row="${u.row}" onclick="terkep_focusItem(${u.row})"
 style="padding:0.55rem 0.75rem;border-bottom:1px solid var(--border);border-left:3px solid var(--border);cursor:pointer;transition:background 0.15s">
