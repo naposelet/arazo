@@ -515,6 +515,21 @@ margin-bottom: 1rem;
 .sofar-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); }
 .sofar-dot.connected { background: var(--green); animation: pulse-dot 2s infinite; }
 @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.4} }
+/* Info tooltip ikon – ⓘ, natív title tooltippel */
+.sf-info {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.1em; height: 1.1em; border-radius: 50%;
+  font-size: 0.72em; line-height: 1; font-weight: 700;
+  color: var(--text-muted); border: 1px solid var(--border);
+  cursor: help; vertical-align: middle; margin-left: 0.35rem;
+  user-select: none;
+}
+.sf-info:hover { color: var(--sun); border-color: var(--sun); }
+/* Kötelező, de még üres mezők jelölése a Megtérülés varázslóban */
+.sf-required-missing {
+  border-color: #dc2626 !important;
+  background: rgba(220,38,38,0.08) !important;
+}
 /* ADMIN TABS */
 .admin-tab {
 border: 1px solid var(--border); background: var(--bg); color: var(--text-muted);
@@ -809,7 +824,11 @@ style="background:var(--green);color:#fff;border:none;border-radius:0.5rem;paddi
      sorban (a fülek csak akkor látszanak, ha az Árazóban 1-nél több rendszer
      van összeállítva; addig a gombsor egyedül tölti ki a sort). -->
 <div id="mt-sticky-header" style="padding:0.45rem 0.75rem;display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;row-gap:0.35rem">
-<div id="mt-system-tabs" style="display:none;gap:0.3rem;flex-wrap:wrap;padding-right:0.5rem;margin-right:0.15rem;border-right:1px solid var(--border)"></div>
+<button onclick="mt_wizardRestart()" title="Töröl minden jelenlegi megtérülés-adatot, és elölről indítja a varázslót"
+style="background:linear-gradient(135deg,#7c2d12,#c2410c);color:#fff;border:none;border-radius:0.5rem;padding:0.35rem 0.55rem;font-weight:700;font-size:0.72rem;cursor:pointer;display:flex;align-items:center;gap:0.3rem;white-space:nowrap">
+🔄 Új megtérülés indítása
+</button>
+<div id="mt-system-tabs" title="Az Árazóban összeállított párhuzamos rendszerek (pl. Alap / Prémium) – köztük válthatsz, mindegyiknek saját ügyfél/PVGIS/fogyasztás adata van" style="display:none;gap:0.3rem;flex-wrap:wrap;padding-right:0.5rem;margin-right:0.15rem;border-right:1px solid var(--border)"></div>
 <button onclick="mtImportActiveSystemFromArazo(true)" title="Ár frissítése az Árazóból"
 style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.5rem;padding:0.35rem 0.55rem;font-size:0.72rem;cursor:pointer;display:flex;align-items:center;gap:0.3rem;white-space:nowrap">
 🔄 Ár frissítése
@@ -831,38 +850,15 @@ style="background:linear-gradient(135deg,#166534,#16a34a);color:#fff;border:none
 📄 Riport / PDF
 </button>
 </div>
-<!-- PDF TARTALOM – melyik riport-szegmens kerüljön bele a generált PDF-be.
-     Alapból minden bepipálva (visszafelé kompatibilis); ha egy szegmens
-     hibásan jelenne meg, ideiglenesen kivehető innen javításig. Alapból
-     összecsukva, hogy ne foglaljon helyet – csak igény esetén nyílik le. -->
-<details style="margin:0 0.75rem 0.6rem;background:var(--bg);border:1px solid var(--border);border-radius:0.5rem;padding:0.4rem 0.75rem">
-<summary style="cursor:pointer;font-size:0.74rem;font-weight:700;color:var(--sun)">📑 PDF tartalom – szegmensek ki/bekapcsolása</summary>
-<div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.65rem">
-<label style="display:flex;align-items:center;gap:0.35rem;font-size:0.76rem;cursor:pointer"><input type="checkbox" id="pdfsec-offer" checked> MiniCRM ajánlat tételei</label>
-<label id="pdfsec-itemcompare-row" style="display:none;align-items:center;gap:0.35rem;font-size:0.76rem;cursor:pointer"><input type="checkbox" id="pdfsec-itemcompare" checked> Rendszer-összehasonlítás (tételek)</label>
-<label style="display:flex;align-items:center;gap:0.35rem;font-size:0.76rem;cursor:pointer"><input type="checkbox" id="pdfsec-kpi" checked> Kulcsmutatók</label>
-<label style="display:flex;align-items:center;gap:0.35rem;font-size:0.76rem;cursor:pointer"><input type="checkbox" id="pdfsec-co2" checked> Környezeti hatás (CO₂)</label>
-<label style="display:flex;align-items:center;gap:0.35rem;font-size:0.76rem;cursor:pointer"><input type="checkbox" id="pdfsec-pvgis" checked> PVGIS helyszíni elemzés</label>
-<label style="display:flex;align-items:center;gap:0.35rem;font-size:0.76rem;cursor:pointer"><input type="checkbox" id="pdfsec-havitabla" checked> Havi termelési adatok (tábla)</label>
-<label style="display:flex;align-items:center;gap:0.35rem;font-size:0.76rem;cursor:pointer"><input type="checkbox" id="pdfsec-havigrafikon" checked> Havi termelési grafikon</label>
-<label style="display:flex;align-items:center;gap:0.35rem;font-size:0.76rem;cursor:pointer"><input type="checkbox" id="pdfsec-negyedeves" checked> Negyedéves összesítő</label>
-<label style="display:flex;align-items:center;gap:0.35rem;font-size:0.76rem;cursor:pointer"><input type="checkbox" id="pdfsec-cashflow" checked> Megtérülési elemzés (éves cashflow)</label>
-<label style="display:flex;align-items:center;gap:0.35rem;font-size:0.76rem;cursor:pointer"><input type="checkbox" id="pdfsec-bovites" checked> Rendszerbővítés (jelenlegi vs. bővítéssel)</label>
-</div>
-<div id="pdfsec-cashflow-scope-row" style="display:none;align-items:center;gap:0.5rem;margin-top:0.6rem;font-size:0.76rem;flex-wrap:wrap">
-<span style="color:var(--text-muted)">Cashflow tábla, ha több rendszer van:</span>
-<select id="pdfsec-cashflow-scope" onchange="mt_updatePdfSectionControls()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.4rem;padding:0.25rem 0.5rem;font-size:0.76rem">
-<option value="all">Minden összehasonlított rendszer</option>
-<option value="one">Csak egy kiválasztott rendszer</option>
-</select>
-<span id="pdfsec-cashflow-system-wrap" style="display:none">
-<select id="pdfsec-cashflow-system" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.4rem;padding:0.25rem 0.5rem;font-size:0.76rem"></select>
-</span>
-</div>
-</details>
+<!-- MEGTÉRÜLÉS VARÁZSLÓ – amíg nincs lezárt varázsló-munkamenet (mt_wizard.completed),
+     ez az egyetlen belépési pont; a lenti (korábban szabad kitöltésű) kalkulátor-UI
+     #mt-calc-body-ben rejtve marad. -->
+<div id="mt-wizard-panel" class="mt-card" style="border:2px solid var(--sun);display:none"></div>
+<!-- A tényleges Megtérülés-kalkulátor UI – csak lezárt varázsló-munkamenet után látszik -->
+<div id="mt-calc-body" style="display:none">
 <!-- MINICRM AJÁNLAT LEKÉRDEZÉSE + ADATFORRÁS VÁLASZTÓ -->
 <div class="mt-card" style="border:1px solid #2e6da4">
-<h3>🔗 MiniCRM ajánlat lekérdezése</h3>
+<h3>🔗 MiniCRM ajánlat lekérdezése <span class="sf-info" title="Egy már kiállított MiniCRM ajánlat száma alapján automatikusan kitölti a kWp-t, a rendszer árát és az ügyfél nevét/címét a tételekből – nem kell kézzel átírni.">ⓘ</span></h3>
 <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.75rem">
 Add meg a MiniCRM-ben kiállított ajánlat számát (pl. <code>AJ2026-E/01543</code>) – a kWp-t és a rendszer árát automatikusan a tételekből számoljuk, az ügyfél nevét/címét is átvesszük. Csak már <strong>ténylegesen kiállított</strong> (nem "Kiállítandó" státuszú) ajánlatoknál működik.
 </div>
@@ -879,6 +875,7 @@ style="background:#2e6da4;color:#fff;border:none;border-radius:0.6rem;padding:0.
 </button>
 </div>
 <div id="minicrm-status" style="font-size:0.78rem;color:var(--text-muted);margin-top:0.5rem"></div>
+<label style="display:flex;align-items:center;gap:0.35rem;font-size:0.72rem;cursor:pointer;margin-top:0.5rem;color:var(--text-muted)"><input type="checkbox" id="pdfsec-offer" checked> Szerepeljen a riportban (MiniCRM ajánlat tételei)</label>
 <!-- Adatforrás választó: Árazó vagy MiniCRM adatai alapján számoljon -->
 <div style="margin-top:0.85rem;padding-top:0.85rem;border-top:1px solid var(--border)">
 <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:0.04em">Számítás adatforrása (kWp + rendszerár)</div>
@@ -888,9 +885,11 @@ style="background:#2e6da4;color:#fff;border:none;border-radius:0.6rem;padding:0.
 </div>
 </div>
 </div>
-<!-- Tényleges termelési adatok – Excel import -->
+<!-- Tényleges termelési adatok – SofarCloud. A varázsló 5. lépése (csak bővítés esetén
+     kérdezett "kell-e tényleges termelési adat?") vezérli a láthatóságát: mt_wizardApplySofarVisibility(). -->
+<div id="mt-sofar-wrap">
 <div class="sofar-panel" id="sofar-panel">
-<h3>📂 Tényleges termelési adatok (SofarCloud export)</h3>
+<h3>📂 Tényleges termelési adatok (SofarCloud export) <span class="sf-info" title="Egy meglévő rendszer korábbi éveinek TÉNYLEGES havi termelését tölti be Excel export alapján – ez pontosít a PVGIS becsléshez képest, elsősorban bővítés-számításnál hasznos.">ⓘ</span></h3>
 <div style="font-size:0.78rem;color:#4da6ff;margin-bottom:0.75rem">
 SofarCloud → Device → inverter → History → Year → <strong>Export Report</strong> → tallózd be (több év egyszerre is)
 </div>
@@ -912,7 +911,7 @@ style="display:none" onchange="sofar_loadExcels(this.files)">
 </div>
 <!-- SofarCloud API panel -->
 <div class="sofar-panel" id="sofar-api-panel" style="margin-top:0.75rem">
-<h3>📡 SofarCloud API – automatikus lekérés</h3>
+<h3>📡 SofarCloud API – automatikus lekérés <span class="sf-info" title="Bejelentkezett SofarCloud fiókból közvetlenül lekéri egy meglévő ügyfél rendszerének havi termelését és GPS koordinátáit – nincs szükség kézi Excel exportra.">ⓘ</span></h3>
 <div style="font-size:0.78rem;color:#4da6ff;margin-bottom:0.75rem">
 Meglévő ügyfél bővítésekor: válaszd ki a rendszert és kérd le a tényleges termelési adatokat
 </div>
@@ -940,6 +939,7 @@ style="background:linear-gradient(135deg,#1a3a5c,#2e6da4);color:#fff;border:none
 <div id="sofar-api-fetch-status" style="font-size:0.78rem;color:var(--text-muted);margin-top:0.4rem"></div>
 </div>
 </div>
+</div><!-- /mt-sofar-wrap -->
 <!-- Reszponzív rács a beállító kártyáknak széles képernyőn -->
 <div class="mt-setup-grid">
 <!-- Jelenlegi rendszer (SofarCloud) -->
@@ -965,18 +965,15 @@ A fajlagos hozam a SofarCloud legalább 10 hónapos adattal rendelkező teljes �
 </div>
 <!-- Ügyfél típus -->
 <div class="mt-card">
-<h3>👤 Ügyfél és rendszer adatok</h3>
+<h3>👤 Ügyfél és rendszer adatok <span class="sf-info" title="A megadott cím alapján keresi ki a GPS-koordinátákat, ezekre épül a PVGIS napsugárzás-lekérdezés és a teljes megtérülés-számítás.">ⓘ</span></h3>
 <div class="mt-grid" style="margin-bottom:0.75rem">
 <div class="mt-field">
 <label>Ügyfél neve</label>
 <input type="text" id="mt-ugyfel-nev" placeholder="Kovács János">
 </div>
-<div class="mt-field">
-<label>Helyszín / Cím</label>
-<input type="text" id="mt-helyszin" placeholder="Budapest, Napelem u. 1.">
 </div>
-</div>
-<!-- Helyszín keresés -->
+<!-- Helyszín keresés (a korábbi külön "Helyszín / Cím" szabadszöveges mező megszűnt –
+     mostantól kizárólag ez, a geokódolt keresőmező tárolja a címet, ld. mt_wizard) -->
 <div class="mt-field" style="margin-bottom:0.75rem">
 <label>🔍 Helyszín keresés (város, cím)</label>
 <div style="display:flex;gap:0.5rem">
@@ -1019,6 +1016,7 @@ style="background:var(--sun);color:#000;border:none;border-radius:0.6rem;padding
 <div id="pvgis-inline-status" style="font-size:0.8rem;color:var(--text-muted)">
 Add meg a koordinátákat vagy keress városnév alapján
 </div>
+<label style="display:flex;align-items:center;gap:0.3rem;font-size:0.72rem;cursor:pointer;color:var(--text-muted);margin-left:auto"><input type="checkbox" id="pdfsec-pvgis" checked> Szerepeljen a riportban</label>
 </div>
 <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">
 <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.04em">Rendszer adatok (árazóból automatikus vagy kézi)</div>
@@ -1148,6 +1146,11 @@ onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)
 <div id="mt-bovites-infobar" style="display:none;background:rgba(247,166,0,0.08);border:1px solid var(--sun);border-radius:0.75rem;padding:0.6rem 1rem;margin-bottom:1rem;font-size:0.8rem;color:var(--sun);line-height:1.6">
 </div>
 <!-- KPI kártyák -->
+<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.4rem">
+<span style="font-size:0.8rem;font-weight:700;color:var(--text-muted)">📈 Kulcsmutatók <span class="sf-info" title="A megtérülési idő, az éves és teljes élettartam alatti megtakarítás, valamint a várható termelés – mind a fenti PVGIS/fogyasztás/ár adatokból számolva.">ⓘ</span></span>
+<label style="display:flex;align-items:center;gap:0.3rem;font-size:0.72rem;cursor:pointer;color:var(--text-muted)"><input type="checkbox" id="pdfsec-kpi" checked> Kulcsmutatók a riportban</label>
+<label style="display:flex;align-items:center;gap:0.3rem;font-size:0.72rem;cursor:pointer;color:var(--text-muted)"><input type="checkbox" id="pdfsec-co2" checked> CO₂ megtakarítás a riportban</label>
+</div>
 <div class="mt-result-grid">
 <div class="mt-kpi highlight">
 <div class="mt-kpi-label" id="mt-res-megterules-label">Megtérülési idő</div>
@@ -1183,13 +1186,19 @@ onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)
 <!-- Jelenlegi vs bővítéssel termelés (csak bővítés-módban) -->
 <div class="mt-card" id="bovites-termeles-chart-card" style="display:none">
 <h3>📊 Éves termelés: jelenlegi rendszer vs. bővítéssel</h3>
+<label style="display:flex;align-items:center;gap:0.3rem;font-size:0.72rem;cursor:pointer;color:var(--text-muted);margin-bottom:0.5rem"><input type="checkbox" id="pdfsec-bovites" checked> Szerepeljen a riportban</label>
 <div class="mt-chart-wrap">
 <canvas id="mt-chart-bovites-termeles"></canvas>
 </div>
 </div>
 <!-- Havi termelés grafikon -->
 <div class="mt-card">
-<h3 id="chart-havi-title">📅 Várható havi termelés (PVGIS)</h3>
+<h3 id="chart-havi-title">📅 Várható havi termelés (PVGIS) <span class="sf-info" title="A PVGIS európai napsugárzás-adatbázis havi bontású becslése erre a helyszínre, tetődőlésszögre és tájolásra – ha van SofarCloud tényadat, azzal együtt jelenik meg.">ⓘ</span></h3>
+<div style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-bottom:0.4rem">
+<label style="display:flex;align-items:center;gap:0.3rem;font-size:0.72rem;cursor:pointer;color:var(--text-muted)"><input type="checkbox" id="pdfsec-havitabla" checked> Havi táblázat a riportban</label>
+<label style="display:flex;align-items:center;gap:0.3rem;font-size:0.72rem;cursor:pointer;color:var(--text-muted)"><input type="checkbox" id="pdfsec-havigrafikon" checked> Havi grafikon a riportban</label>
+<label style="display:flex;align-items:center;gap:0.3rem;font-size:0.72rem;cursor:pointer;color:var(--text-muted)"><input type="checkbox" id="pdfsec-negyedeves" checked> Negyedéves összesítő a riportban</label>
+</div>
 <div class="mt-chart-wrap">
 <canvas id="mt-chart-havi"></canvas>
 </div>
@@ -1197,6 +1206,18 @@ onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)
 <!-- Éves cashflow táblázat -->
 <div class="mt-card">
 <h3 id="mt-cashflow-title">📋 Éves megtakarítás táblázat</h3>
+<span class="sf-info" title="Évről évre végigszámolja a megtakarítást a rendszer teljes élettartamára, a panel-degradációt és az áramár-emelkedést is figyelembe véve – ebből adódik a megtérülési idő.">ⓘ</span>
+<label style="display:flex;align-items:center;gap:0.3rem;font-size:0.72rem;cursor:pointer;color:var(--text-muted);margin:0.35rem 0 0.5rem"><input type="checkbox" id="pdfsec-cashflow" checked> Szerepeljen a riportban</label>
+<div id="pdfsec-cashflow-scope-row" style="display:none;align-items:center;gap:0.5rem;margin-bottom:0.6rem;font-size:0.76rem;flex-wrap:wrap">
+<span style="color:var(--text-muted)">Cashflow tábla, ha több rendszer van:</span>
+<select id="pdfsec-cashflow-scope" onchange="mt_updatePdfSectionControls()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.4rem;padding:0.25rem 0.5rem;font-size:0.76rem">
+<option value="all">Minden összehasonlított rendszer</option>
+<option value="one">Csak egy kiválasztott rendszer</option>
+</select>
+<span id="pdfsec-cashflow-system-wrap" style="display:none">
+<select id="pdfsec-cashflow-system" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.4rem;padding:0.25rem 0.5rem;font-size:0.76rem"></select>
+</span>
+</div>
 <div style="overflow-x:auto">
 <table class="mt-table" id="mt-cashflow-table">
 <thead id="mt-cashflow-thead">
@@ -1217,12 +1238,13 @@ onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)
      rendszer van összeállítva az Árazóban (napelem/inverter/kW, valamint a
      minden rendszernél azonos telepítés/engedélyeztetés tételek). -->
 <div class="mt-card" id="item-compare-card" style="display:none;border:1px solid var(--border)">
-<h3>📊 Rendszerek összehasonlítása – összetevők</h3>
+<h3>📊 Rendszerek összehasonlítása – összetevők <span class="sf-info" title="Ha az Árazóban 1-nél több párhuzamos rendszert (pl. Alap / Prémium) állítottál össze, itt tételről tételre láthatod, miben térnek el (napelem, inverter, tartószerkezet stb.).">ⓘ</span></h3>
+<label id="pdfsec-itemcompare-row" style="display:none;align-items:center;gap:0.3rem;font-size:0.72rem;cursor:pointer;color:var(--text-muted);margin-bottom:0.5rem"><input type="checkbox" id="pdfsec-itemcompare" checked> Szerepeljen a riportban</label>
 <div style="overflow-x:auto" id="item-compare-table-wrap"></div>
 </div>
 <!-- Mi vs. a piac – csak Új rendszer módban -->
 <div class="mt-card" id="verseny-card" style="display:none;border:1px solid var(--sun)">
-<h3>🆚 Mi vs. a piac – 18 éves összehasonlítás</h3>
+<h3>🆚 Mi vs. a piac – 18 éves összehasonlítás <span class="sf-info" title="Bemutatja, hogy egy nálunk olcsóbb, idegen kivitelezésű rendszerhez képest a karbantartási költségek és rövidebb garancia miatt hosszú távon mennyivel jobban jár az ügyfél a Solar Future rendszerével.">ⓘ</span></h3>
 <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.78rem;color:var(--sun);cursor:pointer;margin-bottom:0.75rem;background:var(--bg);border:1px solid var(--border);border-radius:0.5rem;padding:0.5rem 0.75rem;width:fit-content">
 <input type="checkbox" id="verseny-pdf-include" checked>
 📄 Szerepeljen a PDF riportban
@@ -1284,6 +1306,7 @@ Bemutatja, hogy egy nálunk olcsóbb, idegen cég által telepített rendszerhez
 <div style="font-size:1rem;margin-bottom:0.5rem">Töltsd ki a paramétereket a megtérülési kalkuláció elindításához</div>
 <div style="font-size:0.8rem">A kWp és a rendszer ára az árazóból automatikusan átvehető</div>
 </div>
+</div><!-- /mt-calc-body -->
 </div><!-- /megterules-view -->
 <!-- TÉRKÉPEK -->
 <div id="terkepek-view" style="display:none">
@@ -1400,6 +1423,10 @@ A <strong>„Látható kalkulátorok"</strong> oszlopba (D) vesszővel elválasz
 kalkulátor-sorszámok (pl. <code>1,2,3</code>) az Árazóhoz/Megtérüléshez, és/vagy a speciális
 <code>terkepek</code> szó a Térképek fülhöz. Például <code>terkepek</code> = csak Térképek, semmi más;
 <code>1,2,terkepek</code> = Árazó (2 kalkulátor) + Megtérülés + Térképek is.<br><br>
+Az <strong>„Sales szint"</strong> oszlopba (F) írd be, hogy <code>senior</code>, <code>junior</code> vagy
+<code>kulsos</code> – ez szabályozza, hogy a Célár eredménynél ki milyen ár-bontást láthat (ld. lentebb,
+„Célárazó – ár-láthatóság" admin fül). Adminoknál (E oszlop = „igen") ez a mező figyelmen kívül marad,
+ők mindig mindent látnak.<br><br>
 Változtatás után kattints a 🔄 gombra az app tetején a frissítéshez.
 </p>
 <a href="https://docs.google.com/spreadsheets/d/1jB1bYn9r6VgjxnX1oCMgyW29fCS45nE5EkjZsiqxbfA/edit#gid=0"
@@ -1592,8 +1619,9 @@ renderCalcSettings();
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.80 – 2026-09-18';
+const APP_VERSION = 'v2.90 – 2026-09-25';
 const APP_VERSION_HISTORY = [
+'v2.90 (2026-09-25): NAGY FRISSÍTÉS – Árazó jogosultságok + Megtérülés varázsló. (1) ÁRAZÓ: új "Sales szint" mező (Felhasználók lap F oszlopa: senior/junior/kulsos) szabályozza, ki milyen árat lát a Célárazó eredménynél – alapból mindenki (admin kivételével) csak a Célárat (bruttó+nettó) látja; egy új "🔒 Egyedül vagyok" kapcsoló bepipálásával senior sales-nél megjelenik a Minimum ár + a teljes bontás (NAPRA LEVETÍTVE: napi kivitelezési/admin díj × napok, az éves/havi célértékek nélkül), junior sales-nél csak a Minimum ár száma (bontás nélkül), külsős sales-nél sosem jelenik meg több a Célárnál. A kalkulátoronkénti admin "Sales kolléga is lássa a bontást" kapcsoló megmarad kivételes felülbírálásként (ha be van kapcsolva, mindenki látja, a sales-szinttől függetlenül). (2) A felső kalkulátor-választó sáv mostantól csak akkor látszik, ha valakinek 2+ kalkulátorhoz van jogosultsága – 1 kalkulátoros usereknél automatikusan rejtve marad. (3) MEGTÉRÜLÉS – teljes varázsló-alapú újratervezés: a szabad kitöltés megszűnt, helyette "🔄 Új megtérülés indítása" gombbal induló, lépésenkénti kérdéssor (Új rendszer/Bővítés → MiniCRM ajánlat/Árazó adatok → ügyfél-adatok/cím/fogyasztás, kötelező mezőknél piros kerettel). MiniCRM-ajánlatszám mező előre kitöltve "AJ-2026-E/00000" sablonnal (fókuszban csak az utolsó 5 számjegy van kijelölve). Sikeres MiniCRM-lekérdezésnél a cím automatikusan geokódolódik és lekéri a PVGIS adatokat. Nincs megadott cím esetén választható "Dunaújváros (átlagos hazai besugárzás)" – ilyenkor a PDF riportba bekerül egy megjegyzés erről. A varázsló végén az alapadatok zárolásra kerülnek (új megtérülés indítása szükséges a módosításukhoz), a grafikonok mögötti finomhangoló adatok viszont továbbra is szabadon szerkeszthetők. A duplikált "Helyszín / Cím" mező megszűnt, mindenre a "Helyszín keresés" mezőt használjuk. A központi "📑 PDF tartalom" panel megszűnt – minden táblázat/grafikon mellett saját "Szerepeljen a riportban" kapcsoló van. A SofarCloud tényleges termelési adatok szekció csak Bővítés esetén (és csak ha a varázslóban igent mondunk rá) jelenik meg, új rendszernél sosem. (4) Új "ⓘ" infó-ikonok kerültek a fontosabb Árazó és Megtérülés szegmensek fejléce mellé, hover/tap tooltippel elmagyarázva az adott rész funkcióját. Ehhez a Code.gs-ben is szükséges egy kis bővítés (Sales szint oszlop beolvasása) – lásd a chatben küldött kódot.',
 'v2.80 (2026-09-18): Beillesztve a Google Maps JavaScript API-kulcs (GOOGLE_MAPS_API_KEY) – a Térképek fül mostantól ténylegesen meg tudja jeleníteni a Google térképet (korábban csak a "IDE_ÍRD_A..." helykitöltő szerepelt, ami figyelmeztető üzenetet mutatott).',
 'v2.79 (2026-09-18): Térképek – ENGINE-VÁLTÁS: a térkép mostantól Google Maps JavaScript API-t használ (Leaflet/OpenStreetMap helyett; a v2.75-ben bevezetett Leaflet-motort ez váltja le). A geokódolás (cím→koordináta) változatlanul a szerver oldali, kulcs nélküli Apps Script Maps.geocode()-dal történik, ehhez NEM kell API-kulcs – kizárólag a térkép MEGJELENÍTÉSÉHEZ kell egy Google Maps API-kulcs (Google Cloud Console, "Maps JavaScript API" + útvonaltervezéshez "Directions API"). Az "Ugyfelek" adatmodell mostantól 5 forrásból áll össze: (1) egy kézzel tölthető A-I oszlopos tábla (Név/Irányítószám/Cím/Teendő/Dátum/Státusz/CRM link/Lat/Lon) a "Bővítésre vár", "Bővítés folyamatban", "Javításra vár", "Javításra folyamatban" ügyfeleknek, (2)-(5) a 4 meglévő MiniCRM ImportData-blokk (Felmérésre vár, Felmérés folyamatban, Kivitelezésre vár, Kivitelezés folyamatban), mindegyikhez hozzáadott Lat/Lon oszloppal. A korábbi sor-index (row) alapú azonosítás helyett mostantól globálisan egyedi "key" mező köti össze a térkép-pineket, az oldalsó listát és az útvonal-választókat, hogy az 5 forrás sosem ütközzön. ÚJ: koordináta-eltolódás elleni védelem – a 4 CRM-blokknál a script mostantól egy rejtett "Koordinata_Cache" munkalapon, az ügyfél stabil "Adatlap: Azonosító" mezője alapján tartja nyilván a koordinátákat, és minden frissítéskor ez alapján írja vissza a Lat/Lon cellákat – így ha a MiniCRM-lista újrarendeződik (pl. új ügyfél kerül középre), a koordináták NEM csúsznak el a rossz ügyfélhez, csak a ténylegesen új/megváltozott című sorok geokódolódnak újra. ÚJ: 4 külön "🔄 [blokk neve]" gomb a Térképek "Útvonal" panelen, ami blokkonként kényszeríti a MiniCRM ImportData-formula azonnali újralekérdezését (a felhasználó eddigi kézi trükkjét – cella törlése majd visszaillesztése – váltja ki automatikusan), mert a MiniCRM-adatok egyébként csak kb. óránként frissülnek maguktól. A "🏭 Telephely" és "🧭 Útvonal" (v2.78) funkciók változatlanul megvannak, mostantól a térkép saját Google Maps API-kulcsát használják útvonaltervezéshez (külön Google-kulcs megadása nélkül is), az OpenRouteService továbbra is választható alternatív szolgáltató. FONTOS: ehhez a Code.gs-ben egy jelentősen bővített Ugyfelek-kezelő logika és egy új "action=refreshCrmBlock" végpont szükséges – lásd a chatben külön elküldött kódot –, valamint egy Google Maps API-kulcs beillesztése az arazo.html elején (GOOGLE_MAPS_API_KEY konstans).',
 'v2.78 (2026-09-18): Térképek – új "🧭 Útvonal" panel: Honnan/Hova legördülőkkel (Telephely + bármelyik geokódolt ügyfél) kiszámolja két pont közötti autós útvonalat (km + becsült idő), és berajzolja a térképre. Ingyenes OpenRouteService-t vagy (opcionálisan) Google Maps Directions-t is lehet szolgáltatóként beállítani egy API-kulccsal; szolgáltató-kulcs nélkül is működik, ilyenkor légvonalbeli (Haversine) távolságot mutat. Új "🏭 Telephely" beállítás (cím → automatikus koordináta az Apps Script geokódolóval), amit egy külön, mindig látható marker jelöl a térképen. A beállítások (telephely, szolgáltató, kulcsok) a Sheets "Beallitasok" lapján tárolódnak, így az egész csapatnak közösek. Ehhez egy új Apps Script végpont (action=geocodeAddress) szükséges a szerveren – lásd a chatben küldött kódot.',
@@ -1921,6 +1949,41 @@ v[calcNum] = checked;
 saveCelarazoBontasLathato(v);
 if (calcNum === activeCalc) calculate();
 }
+// ============================================================
+// CÉLÁRAZÓ – SALES-SZINT ALAPÚ ÁRLÁTÁS (a Felhasználók lap "Sales szint" (F)
+// oszlopa alapján). Ez a személyenkénti szabály EGÉSZÍTI KI a fenti,
+// kalkulátoronkénti "Sales kolléga is lássa a bontást" admin-kapcsolót:
+// ha bármelyik engedi, a bontás látszik.
+//   - Admin: mindig mindent lát.
+//   - Senior sales: alapból csak Célár (bruttó+nettó); ha bepipálja, hogy
+//     egyedül van, felbukkan a Minimum ár + a teljes, NAPRA LEVETÍTETT bontás
+//     (napi kivitelezési/admin díj × napok – nem az éves/havi célértékek).
+//   - Junior sales: alapból csak Célár (bruttó+nettó); ha egyedül van, csak
+//     a Minimum ár SZÁMA jelenik meg, számolás/bontás nélkül.
+//   - Külsős sales (vagy nincs beállítva sales-szint): mindig csak Célár
+//     (bruttó+nettó), az "Egyedül vagyok" kapcsoló sem jelenik meg neki.
+// ============================================================
+let sfAlonePriceMode = false; // "🔒 Egyedül vagyok" – munkamenetenkénti, nem mentett kapcsoló
+function toggleAlonePriceMode(checked) {
+sfAlonePriceMode = checked;
+calculate();
+}
+function getPriceVisibilityForUser() {
+const isAdminUser = currentUser && currentUser.isAdmin;
+if (isAdminUser) return { showMinimum: true, showBreakdown: true, showAloneCheckbox: false, isJuniorMinimumOnly: false };
+const level = getUserSalesLevel(currentUser);
+const calcForcedBontas = !!getCelarazoBontasLathato()[activeCalc]; // admin-kapcsoló kalkulátoronként, mindenkinek megmutatja
+if (level === 'senior') {
+const showExtra = sfAlonePriceMode || calcForcedBontas;
+return { showMinimum: showExtra, showBreakdown: showExtra, showAloneCheckbox: true, isJuniorMinimumOnly: false };
+}
+if (level === 'junior') {
+const showExtra = sfAlonePriceMode || calcForcedBontas;
+return { showMinimum: showExtra, showBreakdown: calcForcedBontas, showAloneCheckbox: true, isJuniorMinimumOnly: showExtra && !calcForcedBontas };
+}
+// "kulsos" vagy nincs beállítva sales-szint → a legszűkebb jogosultság, amíg admin be nem állítja
+return { showMinimum: calcForcedBontas, showBreakdown: calcForcedBontas, showAloneCheckbox: false, isJuniorMinimumOnly: false };
+}
 // Kiszámolja mindhárom árat (nettó/kedvezményes nettó/áfa/bruttó/kW-ár) egy adott
 // anyagköltség + működési költség (munkadíj) párosból. A visszaadott tömb mindig
 // mindhárom szintet tartalmazza – a megjelenítésnél kell szűrni getActiveArVis() szerint.
@@ -1985,6 +2048,17 @@ if (!user) return { canArazo: false, canTerkepek: false, calcIds: [] };
 if (user.isAdmin) return { canArazo: true, canTerkepek: true, calcIds: [1, 2, 3, 4, 5, 6] };
 const { calcIds, hasTerkepek } = parseUserCalcs(user.calcs);
 return { canArazo: calcIds.length > 0, canTerkepek: hasTerkepek, calcIds };
+}
+// ============================================================
+// SALES-SZINT (Felhasználók lap F oszlopa: "senior" / "junior" / "kulsos") –
+// szabályozza, ki milyen árszintet lát a Célár eredménynél (ld. AR_VISIBILITY_RULES).
+// Admin (isAdmin=igen) mindig mindent lát, a szinttől függetlenül.
+// ============================================================
+const SALES_LEVEL_LABELS = { senior: 'Senior sales', junior: 'Junior sales', kulsos: 'Külsős sales' };
+function getUserSalesLevel(user) {
+if (!user) return '';
+const v = String(user.salesLevel || '').trim().toLowerCase();
+return ['senior', 'junior', 'kulsos'].includes(v) ? v : '';
 }
 // A jelenlegi kalkulátor "fő" (kiemelt) bruttó ára – a Megtérülés tab ebből importálja
 // az árat. A régi res-brutto DOM elem a 3 szintű árazással megszűnt, ezért ezt a globális
@@ -2078,6 +2152,9 @@ const tabs = document.getElementById('calc-tabs');
 const names = getCalcNames();
 const calcs = getUserAccess(currentUser).calcIds;
 tabs.innerHTML = '';
+// Ha valakinek csak 1 kalkulátorhoz van jogosultsága, nincs mit választani –
+// a sávot elrejtjük, hogy ne lássa, milyen egyéb kalkulátorok is léteznek a rendszerben.
+tabs.style.display = calcs.length > 1 ? '' : 'none';
 calcs.forEach((c, i) => {
 const btn = document.createElement('button');
 btn.className = 'calc-tab' + (i === 0 ? ' active' : '');
@@ -3051,39 +3128,74 @@ LAST_CALC_BRUTTO = bruttoKedv;
 const cs = CALC_SETTINGS;
 const xCelszam = cs.celarazo_havi_kivitelezesi_celszam.value || 1;
 const napArany = tenylegNap / xCelszam;
-const kivitelezesiResz = cs.celarazo_havi_kivitelezesi_dij.value * napArany;
-const adminResz = cs.celarazo_havi_admin_dij.value * napArany;
+const napiKivitelezesiDij = cs.celarazo_havi_kivitelezesi_dij.value / xCelszam;
+const napiAdminDij = cs.celarazo_havi_admin_dij.value / xCelszam;
+const kivitelezesiResz = napiKivitelezesiDij * tenylegNap;
+const adminResz = napiAdminDij * tenylegNap;
 const celResz = (cs.celarazo_eves_celszam.value / 12) * napArany;
-const netto = anyagok + kivitelezesiResz + adminResz + celResz;
+const minimumNetto = anyagok + kivitelezesiResz + adminResz; // célRész (haszon) nélkül
+const netto = minimumNetto + celResz;
 const nettoKedv = netto * (1 - discount / 100);
+const minimumNettoKedv = minimumNetto * (1 - discount / 100);
 const afaKedv = nettoKedv * AFA_KULCS;
 const bruttoKedv = nettoKedv * (1 + AFA_KULCS);
+const minimumBruttoKedv = minimumNettoKedv * (1 + AFA_KULCS);
 const kwNetKedv = rendszerKw > 0 ? nettoKedv / rendszerKw : 0;
 const kwGrossKedv = rendszerKw > 0 ? bruttoKedv / rendszerKw : 0;
-const isAdminUser = currentUser && currentUser.isAdmin;
-const showBontas = isAdminUser || !!getCelarazoBontasLathato()[activeCalc];
+const arVis = getPriceVisibilityForUser();
 mainHtml = `
 <div class="rbar-item">
-<div class="rbar-label">Célár (bruttó)</div>
+<div class="rbar-label">Célár (bruttó) <span class="sf-info" title="A Célárazó módban számolt ajánlati ár: anyagköltség + kivitelezési rész + admin rész + célhaszon rész, a kivitelezési napok / havi célszám (X) arányában szétosztva.">ⓘ</span></div>
 <div class="rbar-val brutto">${fmt(bruttoKedv)}</div>
+</div>
+<div class="rbar-item">
+<div class="rbar-label">Célár (nettó)</div>
+<div class="rbar-val">${fmt(nettoKedv)}</div>
 </div>`;
-if (showBontas) {
+if (arVis.showMinimum) {
 mainHtml += `
 <div class="rbar-item">
-<div class="rbar-label">Anyagköltség (nettó)</div>
+<div class="rbar-label">Minimum ár (bruttó)</div>
+<div class="rbar-val">${fmt(minimumBruttoKedv)}</div>
+</div>
+<div class="rbar-item">
+<div class="rbar-label">Minimum ár (nettó)</div>
+<div class="rbar-val">${fmt(minimumNettoKedv)}</div>
+</div>`;
+}
+if (arVis.showBreakdown) {
+mainHtml += `
+<div class="rbar-item">
+<div class="rbar-label">Anyagköltség (nettó) <span class="sf-info" title="A Célárazó teljes bontása: anyagköltség + a kivitelezési napok arányában szétosztott kivitelezési/admin (és adminnak/engedélyezett sales-nek: célhaszon) rész.">ⓘ</span></div>
 <div class="rbar-val">${fmt(anyagok)}</div>
 </div>
 <div class="rbar-item">
-<div class="rbar-label">Kivitelezési rész</div>
+<div class="rbar-label">Kivitelezési rész (${fmt(napiKivitelezesiDij)}/nap × ${tenylegNap} nap)</div>
 <div class="rbar-val">${fmt(kivitelezesiResz)}</div>
 </div>
 <div class="rbar-item">
-<div class="rbar-label">Admin rész</div>
+<div class="rbar-label">Admin rész (${fmt(napiAdminDij)}/nap × ${tenylegNap} nap)</div>
 <div class="rbar-val">${fmt(adminResz)}</div>
-</div>
+</div>`;
+if (currentUser && (currentUser.isAdmin || !!getCelarazoBontasLathato()[activeCalc])) {
+// A "Cél (haszon) rész" és az éves/havi célértékek csak adminnak vagy a
+// kalkulátoronként explicit engedélyezett esetben látszanak – senior sales
+// "egyedül" módban ezt SOSEM látja, csak a napra levetített kivitelezési/
+// admin díjat (ld. fent), az éves célszám bizalmas marad.
+mainHtml += `
 <div class="rbar-item">
 <div class="rbar-label">Cél (haszon) rész</div>
 <div class="rbar-val">${fmt(celResz)}</div>
+</div>`;
+}
+}
+if (arVis.showAloneCheckbox) {
+mainHtml += `
+<div class="rbar-item" style="grid-column:1/-1">
+<label style="display:flex;align-items:center;gap:0.4rem;font-size:0.78rem;color:var(--text-muted);cursor:pointer">
+<input type="checkbox" ${sfAlonePriceMode ? 'checked' : ''} onchange="toggleAlonePriceMode(this.checked)">
+🔒 Egyedül vagyok (senki más nem látja a képernyőt)
+</label>
 </div>`;
 }
 mainHtml += `
@@ -3504,15 +3616,18 @@ bruttoKedv = netto * (1 - discount/100) * (1 + AFA_KULCS);
 const cs = CALC_SETTINGS;
 const x = cs.celarazo_havi_kivitelezesi_celszam.value || 1;
 const napArany = napok / x;
-const kivitelezesiResz = cs.celarazo_havi_kivitelezesi_dij.value * napArany;
-const adminResz = cs.celarazo_havi_admin_dij.value * napArany;
+const napiKivitelezesiDij = cs.celarazo_havi_kivitelezesi_dij.value / x;
+const napiAdminDij = cs.celarazo_havi_admin_dij.value / x;
+const kivitelezesiResz = napiKivitelezesiDij * napok;
+const adminResz = napiAdminDij * napok;
 const celResz = (cs.celarazo_eves_celszam.value / 12) * napArany;
-const netto = anyagok + kivitelezesiResz + adminResz + celResz;
+const minimumNetto = anyagok + kivitelezesiResz + adminResz;
+const netto = minimumNetto + celResz;
 bruttoKedv = netto * (1 - discount/100) * (1 + AFA_KULCS);
-const isAdminUser = currentUser && currentUser.isAdmin;
-const showBontas = isAdminUser || !!getCelarazoBontasLathato()[activeCalc];
-if (showBontas) {
-breakdownHtml = `<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.4rem">Anyag: ${fmt(anyagok)} | Kivitelezés: ${fmt(kivitelezesiResz)} | Admin: ${fmt(adminResz)} | Cél: ${fmt(celResz)} | ${napok} nap</div>`;
+const minimumBrutto = minimumNetto * (1 - discount/100) * (1 + AFA_KULCS);
+const arVis = getPriceVisibilityForUser();
+if (arVis.showMinimum) {
+breakdownHtml = `<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.4rem">Minimum ár (bruttó): ${fmt(minimumBrutto)}${arVis.showBreakdown ? ` | Anyag: ${fmt(anyagok)} | Kivitelezés (${fmt(napiKivitelezesiDij)}/nap): ${fmt(kivitelezesiResz)} | Admin (${fmt(napiAdminDij)}/nap): ${fmt(adminResz)}` : ''} | ${napok} nap</div>`;
 }
 } else {
 const napi = CALC_SETTINGS.napi_munkadij.value;
@@ -3666,10 +3781,14 @@ calcsStr = calcIds.map(c => `<span class="badge">${names[c] || 'K'+c}</span>`).j
 + (hasTerkepek ? ' <span class="badge">🗺️ Térképek</span>' : '');
 if (!calcsStr) calcsStr = '<span class="badge" style="opacity:0.6">– nincs jogosultság –</span>';
 }
+const level = getUserSalesLevel(u);
+const szerepStr = u.isAdmin
+  ? '<span class="badge admin">Admin</span>'
+  : (level ? `<span class="badge">${SALES_LEVEL_LABELS[level]}</span>` : '<span class="badge" style="opacity:0.6">Értékesítő (nincs sales-szint beállítva)</span>');
 tbody.innerHTML += `<tr>
 <td><div>${u.name || ''}</div><div style="color:var(--text-muted);font-size:0.75rem">${u.email}</div></td>
 <td>${calcsStr}</td>
-<td>${u.isAdmin ? '<span class="badge admin">Admin</span>' : '<span class="badge">Értékesítő</span>'}</td>
+<td>${szerepStr}</td>
 <td>${i > 0 ? `<button class="btn-icon" onclick="deleteUser(${i})" title="Törlés">🗑️</button>` : ''}</td>
 </tr>`;
 });
@@ -3841,7 +3960,7 @@ style="padding:0.25rem 0.75rem;border:none;cursor:pointer;font-size:0.75rem;${m=
 });
 modeHtml += '</div></div>';
 // Per-calculator ár-láthatóság (melyik kalkulátor melyik árat láthatja)
-let arVisHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--sun);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">🎯 Kalkulátorok – Célárazó bontás láthatósága</div><div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:0.5rem">Admin mindig látja a teljes bontást (anyag/kivitelezés/admin/cél rész). Itt kalkulátoronként állítható, hogy a sales kolléga is lássa-e ezt a bontást, vagy csak a végső Célárat.</div><div style="display:grid;gap:0.5rem">';
+let arVisHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--sun);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">🎯 Kalkulátorok – Célárazó bontás láthatósága</div><div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:0.5rem">Admin mindig látja a teljes bontást. A tényleges árlátást elsősorban a Felhasználók lap „Sales szint" oszlopa (senior/junior/kulsos) szabályozza – ld. „Felhasználók kezelése" fül. Az itt bekapcsolt kalkulátoroknál MINDENKI látja a bontást/minimum árat, a sales-szinttől függetlenül is – ezt csak kivételes esetben használd (pl. teszteléshez).</div><div style="display:grid;gap:0.5rem">';
 [1,2,3,4,5,6].forEach(c => {
 const showBontas = !!celBontas[c];
 arVisHtml += `<div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg);border:1px solid var(--border);border-radius:0.75rem;padding:0.6rem 1rem;flex-wrap:wrap;gap:0.5rem">
@@ -4152,6 +4271,9 @@ if (resultBar) resultBar.classList.remove('visible');
 // Átveszi az árazó értékeit (az aktuálisan megjelenített rendszer-fülre)
 mtRenderSystemTabs();
 mtImportActiveSystemFromArazo();
+// A Megtérülés varázsló kapuja – amíg nincs lezárt munkamenet, csak a
+// varázsló látszik, a szabad kitöltésű UI (#mt-calc-body) rejtve marad.
+if (typeof mt_wizardInit === 'function') mt_wizardInit();
 }
 updateStickyOffsets();
 }
@@ -4203,6 +4325,358 @@ let mt_miniCrmOfferData = null; // { minicrmOffer: {...} } vagy { minicrmError: 
 let mt_arazoAdatok = { kwp: null, ar: null }; // az Árazóból importált értékek cache-je
 let mt_minicrmAdatok = { kwp: null, ar: null, ugyfelNev: null, helyszin: null }; // a MiniCRM-ből számolt/átvett értékek
 let mt_adatforras = 'arazo'; // 'arazo' vagy 'minicrm' – melyik adatforrás tölti ki ténylegesen a mt-kwp/mt-rendszer-ar mezőket
+// ============================================================
+// MEGTÉRÜLÉS VARÁZSLÓ – lépésenkénti, kötelező belépési pont a Megtérülés
+// kalkulátorba. Amíg mt_wizard.completed nem true, a #mt-calc-body (a korábbi,
+// szabad kitöltésű UI) rejtve marad, és csak a #mt-wizard-panel látszik.
+// A varázsló SOSEM másolja/duplikálja a meglévő logikát (mt_geocode,
+// mt_fetchMiniCrmOffer, mt_importFromArazo, setUgyfelTipus, mt_fetchPvgis) –
+// mindig ezeket a meglévő függvényeket hívja a saját (wz-*) mezőiből.
+// ============================================================
+const DUNAUJVAROS_LAT = 46.9619, DUNAUJVAROS_LON = 18.9355;
+let mt_wizard = { step: 0, tipus: null, adatforras: null, kellSofar: null, atlagBesugarzas: false, cim: null, completed: false };
+// Az összes "kötelező, ha üres → piros keret" mezőt itt tartjuk nyilván (id → élő
+// input elem lekérdezés élőben történik, nem cache-eljük az elemet magát).
+function mt_wizardCheckRequired(id) {
+const el = document.getElementById(id);
+if (!el) return;
+if (!String(el.value || '').trim()) el.classList.add('sf-required-missing');
+else el.classList.remove('sf-required-missing');
+}
+function mt_wizardClearRequired(id) {
+const el = document.getElementById(id);
+if (el) el.classList.remove('sf-required-missing');
+}
+function mt_wizardWireRequired(id) {
+const el = document.getElementById(id);
+if (!el || el._sfReqWired) return;
+el._sfReqWired = true;
+el.addEventListener('input', () => mt_wizardCheckRequired(id));
+el.addEventListener('change', () => mt_wizardCheckRequired(id));
+}
+// "🔄 Új megtérülés indítása" – megerősítés után teljesen nullázza a Megtérülés
+// állapotát (mt_* globálisok + a mezők tartalma), és a varázslót 1. lépéstől indítja.
+function mt_wizardRestart() {
+const vanAdat = mt_wizard.completed || mt_wizard.step > 0;
+if (vanAdat && !confirm('Biztosan új megtérülést indítasz? A jelenlegi adatok elvesznek.')) return;
+// mt_* állapot nullázása
+mt_miniCrmOfferData = null;
+mt_arazoAdatok = { kwp: null, ar: null };
+mt_minicrmAdatok = { kwp: null, ar: null, ugyfelNev: null, helyszin: null };
+mt_adatforras = 'arazo';
+mt_pvgisData = null;
+mt_ugyfelTipus = 'lakossagi';
+if (typeof mtApplyFields === 'function') mtApplyFields(MT_FIELD_DEFAULTS);
+const lockedIds = ['mt-ugyfel-nev','mt-helyszin-kereses','mt-fogyasztas-ertek','mt-ceges-fogyasztas','minicrm-ajanlatszam'];
+lockedIds.forEach(id => { const el = document.getElementById(id); if (el) el.disabled = false; });
+document.querySelectorAll('.sf-locked-note').forEach(n => n.remove());
+const resultsEl = document.getElementById('mt-results');
+const emptyEl = document.getElementById('mt-empty');
+if (resultsEl) resultsEl.style.display = 'none';
+if (emptyEl) emptyEl.style.display = 'block';
+mt_wizard = { step: 1, tipus: null, adatforras: null, kellSofar: null, atlagBesugarzas: false, cim: null, completed: false };
+mt_wizardShowGate();
+mt_wizardRenderStep();
+}
+// A tab megnyitásakor (switchMainTab('megterules')) hívódik: eldönti, hogy a
+// varázslót vagy a kész kalkulátort mutassa.
+function mt_wizardInit() {
+if (mt_wizard.completed) {
+mt_wizardShowCalc();
+} else {
+if (mt_wizard.step < 1) mt_wizard.step = 1;
+mt_wizardShowGate();
+mt_wizardRenderStep();
+}
+}
+function mt_wizardShowGate() {
+const panel = document.getElementById('mt-wizard-panel');
+const body = document.getElementById('mt-calc-body');
+if (panel) panel.style.display = 'block';
+if (body) body.style.display = 'none';
+}
+function mt_wizardShowCalc() {
+const panel = document.getElementById('mt-wizard-panel');
+const body = document.getElementById('mt-calc-body');
+if (panel) panel.style.display = 'none';
+if (body) body.style.display = 'block';
+mt_wizardApplySofarVisibility();
+mt_wizardLockFields();
+}
+// tipus === 'uj': a SofarCloud szekció SOSEM látszik (még nincs meglévő termelés).
+// tipus === 'bovites': csak akkor látszik, ha a varázsló 5. lépésében igent mondtak.
+function mt_wizardApplySofarVisibility() {
+const wrap = document.getElementById('mt-sofar-wrap');
+if (!wrap) return;
+const show = mt_wizard.tipus === 'bovites' && mt_wizard.kellSofar === true;
+wrap.style.display = show ? '' : 'none';
+}
+// A varázsló által összegyűjtött intake-mezőket (ügyfélnév, cím, fogyasztás,
+// céges/lakossági, MiniCRM ajánlatszám, "nincs pontos cím" jelölő) zárolja –
+// a grafikonok/PVGIS finomhangolás/cashflow-paraméterek alatti mezők NEM zárolódnak.
+function mt_wizardLockFields() {
+const lockedIds = ['mt-ugyfel-nev','mt-helyszin-kereses','mt-fogyasztas-ertek','mt-ceges-fogyasztas','minicrm-ajanlatszam'];
+lockedIds.forEach(id => {
+const el = document.getElementById(id);
+if (!el) return;
+el.disabled = true;
+if (el.parentElement && !el.parentElement.querySelector('.sf-locked-note')) {
+const note = document.createElement('div');
+note.className = 'sf-locked-note';
+note.style.cssText = 'font-size:0.68rem;color:var(--text-muted);margin-top:0.2rem';
+note.textContent = '🔒 Rögzítve – indíts új megtérülést a módosításhoz';
+el.parentElement.appendChild(note);
+}
+});
+}
+function mt_wizardBack() {
+if (mt_wizard.step > 1) { mt_wizard.step--; mt_wizardRenderStep(); }
+}
+function mt_wizardStepLabel(n, total) {
+return `<div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">Megtérülés varázsló – ${n}/${total}. lépés</div>`;
+}
+// ---- 1. lépés: Új rendszer vagy Bővítés? ----
+function mt_wizardStep1Html() {
+return mt_wizardStepLabel(1, 5) + `
+<h3>Milyen megtérülést számolunk? <span class="sf-info" title="Ez a választás dönti el, hogy a lenti kalkulátor kér-e meglévő rendszerre vonatkozó (SofarCloud) tényadatokat, és hogyan címkézi a riportot.">ⓘ</span></h3>
+<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.75rem">
+<button onclick="mt_wizardChooseTipus('uj')" style="flex:1;min-width:200px;background:linear-gradient(135deg,#1a3a5c,#2e6da4);color:#fff;border:none;border-radius:0.75rem;padding:1.25rem;font-weight:700;font-size:1rem;cursor:pointer">🆕 Új rendszer</button>
+<button onclick="mt_wizardChooseTipus('bovites')" style="flex:1;min-width:200px;background:linear-gradient(135deg,#166534,#16a34a);color:#fff;border:none;border-radius:0.75rem;padding:1.25rem;font-weight:700;font-size:1rem;cursor:pointer">🔧 Bővítés</button>
+</div>`;
+}
+function mt_wizardChooseTipus(t) {
+mt_wizard.tipus = t;
+mt_wizard.step = 2;
+mt_wizardRenderStep();
+}
+// ---- 2. lépés: Milyen árral számolunk? ----
+function mt_wizardStep2Html() {
+return mt_wizardStepLabel(2, 5) + `
+<h3>Milyen árral számolunk? <span class="sf-info" title="MiniCRM: egy már kiállított ajánlat tételeiből veszi a kWp-t/árat/ügyfeladatokat. Árazó: az imént az Árazó fülön összeállított rendszer kWp-jét/árát veszi át.">ⓘ</span></h3>
+<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.75rem">
+<button onclick="mt_wizardChooseAdatforras('minicrm')" style="flex:1;min-width:200px;background:#2e6da4;color:#fff;border:none;border-radius:0.75rem;padding:1.25rem;font-weight:700;font-size:1rem;cursor:pointer">🔗 MiniCRM ajánlattal</button>
+<button onclick="mt_wizardChooseAdatforras('arazo')" style="flex:1;min-width:200px;background:var(--sun);color:#000;border:none;border-radius:0.75rem;padding:1.25rem;font-weight:700;font-size:1rem;cursor:pointer">🧮 Itt helyben, az Árazóval</button>
+</div>
+<div style="margin-top:1rem"><button onclick="mt_wizardBack()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.5rem;padding:0.5rem 1rem;font-size:0.8rem;cursor:pointer">← Vissza</button></div>`;
+}
+function mt_wizardChooseAdatforras(a) {
+mt_wizard.adatforras = a;
+if (a === 'minicrm') {
+mt_wizard.step = 3;
+mt_wizardRenderStep();
+} else {
+mt_setAdatforras('arazo');
+mt_importFromArazo(true);
+mt_wizard.step = 4;
+mt_wizardRenderStep();
+}
+}
+// ---- 3. lépés (csak MiniCRM ág): ajánlatszám bekérése ----
+function mt_wizardStep3Html() {
+return mt_wizardStepLabel(3, 5) + `
+<h3>MiniCRM ajánlatszám <span class="sf-info" title="Csak már ténylegesen kiállított (nem 'Kiállítandó' státuszú) ajánlatnál működik.">ⓘ</span></h3>
+<div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;margin-top:0.75rem">
+<input type="text" id="wz-minicrm-num" value="AJ-2026-E/00000"
+onfocus="this.setSelectionRange(this.value.length-5, this.value.length)"
+style="flex:1;min-width:220px;background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.6rem 0.75rem;color:var(--text);font-size:0.9rem;outline:none"
+onkeydown="if(event.key==='Enter')mt_wizardMinicrmLookup()">
+<button onclick="mt_wizardMinicrmLookup()" style="background:#2e6da4;color:#fff;border:none;border-radius:0.6rem;padding:0.6rem 1.1rem;font-weight:700;font-size:0.85rem;cursor:pointer">🔍 Lekérdezés</button>
+</div>
+<div id="wz-minicrm-status" style="font-size:0.78rem;color:var(--text-muted);margin-top:0.5rem"></div>
+<div style="margin-top:1rem"><button onclick="mt_wizardBack()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.5rem;padding:0.5rem 1rem;font-size:0.8rem;cursor:pointer">← Vissza</button></div>`;
+}
+async function mt_wizardMinicrmLookup() {
+const numEl = document.getElementById('wz-minicrm-num');
+const statusEl = document.getElementById('wz-minicrm-status');
+const realNumEl = document.getElementById('minicrm-ajanlatszam');
+const num = numEl?.value?.trim();
+if (!num || num === 'AJ-2026-E/00000') {
+if (statusEl) { statusEl.textContent = '⚠️ Írd át az ajánlatszám végét a sajátodra!'; statusEl.style.color = 'var(--red)'; }
+return;
+}
+if (realNumEl) realNumEl.value = num;
+if (statusEl) { statusEl.textContent = '⏳ Lekérdezés...'; statusEl.style.color = 'var(--sun)'; }
+await mt_fetchMiniCrmOffer();
+if (!mt_miniCrmOfferData || mt_miniCrmOfferData.minicrmError) {
+if (statusEl) { statusEl.textContent = '❌ ' + (mt_miniCrmOfferData?.minicrmError || 'Lekérdezési hiba – ellenőrizd az ajánlatszámot.'); statusEl.style.color = 'var(--red)'; }
+return;
+}
+if (statusEl) { statusEl.textContent = '✅ Ajánlat betöltve.'; statusEl.style.color = 'var(--green)'; }
+mt_setAdatforras('minicrm');
+// Ha van cím az ajánlaton, betöltjük a keresőmezőbe és automatikusan geokódolunk
+if (mt_minicrmAdatok.helyszin) {
+const keresEl = document.getElementById('mt-helyszin-kereses');
+if (keresEl) keresEl.value = mt_minicrmAdatok.helyszin;
+mt_wizard.cim = mt_minicrmAdatok.helyszin;
+await mt_geocode();
+// Sikeres cím + kWp/ár esetén elég a fogyasztást kérdezni (4. lépés)
+mt_wizard.step = 4;
+mt_wizardRenderStep();
+} else {
+// Nincs cím az ajánlaton – a 4. lépésben a teljes ügyféladat-blokk kérdezendő
+mt_wizard.step = 4;
+mt_wizardRenderStep();
+}
+}
+// ---- 4. lépés: ügyféladatok (név, cím vagy Dunaújváros-alapértelmezés,
+//      fogyasztás, lakossági/céges) ----
+function mt_wizardStep4Html() {
+const nev = document.getElementById('mt-ugyfel-nev')?.value || '';
+const cim = document.getElementById('mt-helyszin-kereses')?.value || '';
+const vanCim = !!cim;
+return mt_wizardStepLabel(4, mt_wizard.tipus === 'bovites' ? 5 : 4) + `
+<h3>Ügyféladatok <span class="sf-info" title="Név, helyszín (a PVGIS napsugárzás-becsléshez) és havi fogyasztás – ezekből számol a Megtérülés kalkulátor.">ⓘ</span></h3>
+<div class="mt-grid" style="margin-top:0.75rem">
+<div class="mt-field">
+<label>Ügyfél neve</label>
+<input type="text" id="wz-nev" value="${nev.replace(/"/g,'&quot;')}" placeholder="Kovács János">
+</div>
+</div>
+<div class="mt-field" style="margin-top:0.5rem" id="wz-cim-field">
+<label>🔍 Helyszín keresés (város, cím) *</label>
+<div style="display:flex;gap:0.5rem">
+<input type="text" id="wz-cim" value="${cim.replace(/"/g,'&quot;')}" placeholder="pl. Dunaújváros, Vasmű út 1."
+style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.6rem 0.75rem;color:var(--text);font-size:0.9rem;outline:none">
+</div>
+</div>
+<label style="display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;cursor:pointer;margin-top:0.5rem">
+<input type="checkbox" id="wz-nincs-cim" onchange="mt_wizardToggleNincsCim(this.checked)" ${mt_wizard.atlagBesugarzas ? 'checked' : ''}>
+Nincs pontos cím megadva → Dunaújváros (átlagos hazai besugárzás)
+</label>
+<div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">
+<div class="mt-toggle" id="wz-ugyfel-toggle">
+<button class="${mt_ugyfelTipus === 'lakossagi' ? 'active' : ''}" onclick="mt_wizardSetUgyfelTipus('lakossagi')">🏠 Lakossági</button>
+<button class="${mt_ugyfelTipus === 'ceges' ? 'active' : ''}" onclick="mt_wizardSetUgyfelTipus('ceges')">🏢 Céges</button>
+</div>
+</div>
+<div id="wz-fogyasztas-lakossagi" style="display:${mt_ugyfelTipus === 'lakossagi' ? 'block' : 'none'};margin-top:0.5rem">
+<div class="mt-field">
+<label>Havi fogyasztás (kWh) *</label>
+<input type="number" id="wz-fogyasztas" value="${document.getElementById('mt-fogyasztas-ertek')?.value || ''}" placeholder="300">
+</div>
+</div>
+<div id="wz-fogyasztas-ceges" style="display:${mt_ugyfelTipus === 'ceges' ? 'block' : 'none'};margin-top:0.5rem">
+<div class="mt-grid">
+<div class="mt-field">
+<label>Havi fogyasztás (kWh) *</label>
+<input type="number" id="wz-ceges-fogyasztas" value="${document.getElementById('mt-ceges-fogyasztas')?.value || ''}" placeholder="800">
+</div>
+<div class="mt-field">
+<label>Céges áram ár (Ft/kWh) *</label>
+<input type="number" id="wz-ar-ceges" value="${document.getElementById('mt-ar-ceges')?.value || 120}" placeholder="120">
+</div>
+</div>
+</div>
+<div id="wz-step4-status" style="font-size:0.78rem;color:var(--text-muted);margin-top:0.5rem"></div>
+<div style="margin-top:1rem;display:flex;gap:0.5rem">
+<button onclick="mt_wizardBack()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.5rem;padding:0.5rem 1rem;font-size:0.8rem;cursor:pointer">← Vissza</button>
+<button onclick="mt_wizardStep4Submit()" style="background:var(--sun);color:#000;border:none;border-radius:0.5rem;padding:0.5rem 1.25rem;font-weight:700;font-size:0.85rem;cursor:pointer;margin-left:auto">Tovább →</button>
+</div>`;
+}
+function mt_wizardToggleNincsCim(checked) {
+const cimField = document.getElementById('wz-cim-field');
+if (cimField) cimField.style.display = checked ? 'none' : '';
+}
+function mt_wizardSetUgyfelTipus(tipus) {
+setUgyfelTipus(tipus);
+const lak = document.getElementById('wz-fogyasztas-lakossagi');
+const ceg = document.getElementById('wz-fogyasztas-ceges');
+if (lak) lak.style.display = tipus === 'lakossagi' ? 'block' : 'none';
+if (ceg) ceg.style.display = tipus === 'ceges' ? 'block' : 'none';
+document.querySelectorAll('#wz-ugyfel-toggle button').forEach((b, i) => {
+b.classList.toggle('active', (i === 0 && tipus === 'lakossagi') || (i === 1 && tipus === 'ceges'));
+});
+}
+async function mt_wizardStep4Submit() {
+const statusEl = document.getElementById('wz-step4-status');
+const nevEl = document.getElementById('wz-nev');
+const cimEl = document.getElementById('wz-cim');
+const nincsCim = document.getElementById('wz-nincs-cim')?.checked;
+const realNev = document.getElementById('mt-ugyfel-nev');
+const realCim = document.getElementById('mt-helyszin-kereses');
+if (realNev) realNev.value = nevEl?.value || '';
+// Kötelező mezők ellenőrzése
+let hibas = false;
+if (!nincsCim && !(cimEl?.value || '').trim()) { cimEl?.classList.add('sf-required-missing'); hibas = true; } else cimEl?.classList.remove('sf-required-missing');
+if (mt_ugyfelTipus === 'lakossagi') {
+const f = document.getElementById('wz-fogyasztas');
+if (!(f?.value || '').trim()) { f?.classList.add('sf-required-missing'); hibas = true; } else { f?.classList.remove('sf-required-missing'); const real = document.getElementById('mt-fogyasztas-ertek'); if (real) real.value = f.value; }
+} else {
+const f = document.getElementById('wz-ceges-fogyasztas');
+const ar = document.getElementById('wz-ar-ceges');
+if (!(f?.value || '').trim()) { f?.classList.add('sf-required-missing'); hibas = true; } else { f?.classList.remove('sf-required-missing'); const real = document.getElementById('mt-ceges-fogyasztas'); if (real) real.value = f.value; }
+if (!(ar?.value || '').trim()) { ar?.classList.add('sf-required-missing'); hibas = true; } else { ar?.classList.remove('sf-required-missing'); const real = document.getElementById('mt-ar-ceges'); if (real) real.value = ar.value; }
+}
+if (hibas) {
+if (statusEl) { statusEl.textContent = '⚠️ Tölts ki minden kötelező (piros keretes) mezőt!'; statusEl.style.color = 'var(--red)'; }
+return;
+}
+if (statusEl) { statusEl.textContent = '⏳ Helyszín feldolgozása...'; statusEl.style.color = 'var(--sun)'; }
+if (nincsCim) {
+mt_wizard.atlagBesugarzas = true;
+const latEl = document.getElementById('mt-lat'), lonEl = document.getElementById('mt-lon');
+if (latEl) latEl.value = DUNAUJVAROS_LAT;
+if (lonEl) lonEl.value = DUNAUJVAROS_LON;
+if (realCim) realCim.value = '';
+await mt_pvgisManual();
+} else {
+mt_wizard.atlagBesugarzas = false;
+if (realCim) realCim.value = cimEl.value;
+await mt_geocode();
+await mt_pvgisManual();
+}
+mt_wizard.cim = realCim?.value || null;
+mt_recalculate();
+if (mt_wizard.tipus === 'bovites') {
+mt_wizard.step = 5;
+mt_wizardRenderStep();
+} else {
+mt_wizardFinish();
+}
+}
+// A cím-keresés (mt_geocode) sikeres visszatérése után, ha épp a 4. lépésben
+// vagyunk, automatikusan PVGIS-t is kérünk – nincs szükség külön kattintásra.
+async function mt_wizardAutoPvgisAfterAddress() {
+if (document.getElementById('mt-kwp')?.value) await mt_pvgisManual();
+}
+// ---- 5. lépés (csak bővítés): kell-e SofarCloud tényadat? ----
+function mt_wizardStep5Html() {
+return mt_wizardStepLabel(5, 5) + `
+<h3>Szükség van tényleges termelési adatokra (SofarCloud)? <span class="sf-info" title="Ha a meglévő rendszer eddigi tényleges termelése (SofarCloud export vagy API) pontosítja a becslést, itt kapcsolható be – ha nincs ilyen adat, kihagyható.">ⓘ</span></h3>
+<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.75rem">
+<button onclick="mt_wizardFinishBovites(true)" style="flex:1;min-width:150px;background:#166534;color:#fff;border:none;border-radius:0.75rem;padding:1.25rem;font-weight:700;font-size:1rem;cursor:pointer">✅ Igen</button>
+<button onclick="mt_wizardFinishBovites(false)" style="flex:1;min-width:150px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.75rem;padding:1.25rem;font-weight:700;font-size:1rem;cursor:pointer">❌ Nem</button>
+</div>
+<div style="margin-top:1rem"><button onclick="mt_wizardBack()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.5rem;padding:0.5rem 1rem;font-size:0.8rem;cursor:pointer">← Vissza</button></div>`;
+}
+function mt_wizardFinishBovites(kell) {
+mt_wizard.kellSofar = kell;
+mt_wizardFinish();
+}
+function mt_wizardFinish() {
+mt_wizard.completed = true;
+mt_wizardShowCalc();
+mt_recalculate();
+}
+function mt_wizardRenderStep() {
+const panel = document.getElementById('mt-wizard-panel');
+if (!panel) return;
+let html;
+switch (mt_wizard.step) {
+case 1: html = mt_wizardStep1Html(); break;
+case 2: html = mt_wizardStep2Html(); break;
+case 3: html = mt_wizardStep3Html(); break;
+case 4: html = mt_wizardStep4Html(); break;
+case 5: html = mt_wizardStep5Html(); break;
+default: html = mt_wizardStep1Html();
+}
+panel.innerHTML = html;
+// Élő "kötelező mező üres → piros keret" figyelés a step4 mezőire
+['wz-cim','wz-fogyasztas','wz-ceges-fogyasztas','wz-ar-ceges'].forEach(id => {
+const el = document.getElementById(id);
+if (el) { el.addEventListener('input', () => el.classList.remove('sf-required-missing')); }
+});
+}
 // Napelem-tételek kWp-jének kiszámítása egy MiniCRM ajánlat tételei alapján:
 // a tétel nevéből kiolvassuk a wattszámot (pl. "...450W") és megszorozzuk a mennyiséggel.
 // Ha több különböző napelem-tétel is szerepel, mindet összeadjuk.
@@ -4302,7 +4776,7 @@ if (minicrmBtn) minicrmBtn.classList.toggle('active', forras === 'minicrm');
 const kwpEl = document.getElementById('mt-kwp');
 const arEl = document.getElementById('mt-rendszer-ar');
 const nevEl = document.getElementById('mt-ugyfel-nev');
-const helyEl = document.getElementById('mt-helyszin');
+const helyEl = document.getElementById('mt-helyszin-kereses');
 if (forras === 'minicrm') {
 if (kwpEl && mt_minicrmAdatok.kwp != null) kwpEl.value = mt_minicrmAdatok.kwp.toFixed(2);
 if (arEl && mt_minicrmAdatok.ar != null) arEl.value = Math.round(mt_minicrmAdatok.ar);
@@ -4325,7 +4799,7 @@ mt_recalculate();
 let mtActiveSystem = 1;
 const mtSystemStates = { 1: null, 2: null, 3: null };
 const MT_FIELD_DEFAULTS = {
-'mt-ugyfel-nev': '', 'mt-helyszin': '', 'mt-lat': '', 'mt-lon': '',
+'mt-ugyfel-nev': '', 'mt-helyszin-kereses': '', 'mt-lat': '', 'mt-lon': '',
 'mt-tilt': '35', 'mt-azimut': '0',
 'mt-kwp': '', 'mt-rendszer-ar': '',
 'mt-kvota': '2500', 'mt-ar-alap': '40', 'mt-ar-magas': '70',
@@ -4651,11 +5125,9 @@ const lat = parseFloat(r.lat).toFixed(4);
 const lon = parseFloat(r.lon).toFixed(4);
 document.getElementById('mt-lat').value = lat;
 document.getElementById('mt-lon').value = lon;
-// Ha az ügyfél neve/helyszín mező üres, töltsük ki
-const helyszinEl = document.getElementById('mt-helyszin');
-if (helyszinEl && !helyszinEl.value) {
-helyszinEl.value = r.display_name.split(',').slice(0,3).join(',').trim();
-}
+// (A cím már a mt-helyszin-kereses mezőben van – nincs külön "Helyszín / Cím" mező többé.)
+if (typeof mt_wizardClearRequired === 'function') mt_wizardClearRequired('mt-helyszin-kereses');
+if (typeof mt_wizardAutoPvgisAfterAddress === 'function' && typeof mt_wizard !== 'undefined' && mt_wizard && mt_wizard.step === 4) mt_wizardAutoPvgisAfterAddress();
 if (statusEl) {
 statusEl.style.color = 'var(--green)';
 // Ha több találat van, listázzuk
@@ -5704,9 +6176,7 @@ document.getElementById('sofar-api-fetch-wrap').style.display = 'block';
 const nevEl = document.getElementById('mt-ugyfel-nev');
 if (nevEl && !nevEl.value || nevEl.value === 'Kovács János')
 nevEl.value = station.stationName || '';
-const helyszinEl = document.getElementById('mt-helyszin');
-if (helyszinEl)
-helyszinEl.value = station.stationAddress || '';
+// (A cím a lenti mt-helyszin-kereses mezőbe kerül – nincs külön "Helyszín / Cím" mező.)
 // GPS koordináták kitöltése
 const latEl = document.getElementById('mt-lat');
 const lonEl = document.getElementById('mt-lon');
@@ -5845,7 +6315,7 @@ mt_recalculate();
 // ============================================================
 function mt_generateReport() {
 const ugyfelNev = document.getElementById('mt-ugyfel-nev')?.value || '—';
-const helyszin = document.getElementById('mt-helyszin')?.value || '—';
+const helyszin = document.getElementById('mt-helyszin-kereses')?.value || '—';
 const lat = document.getElementById('mt-lat')?.value || '—';
 const lon = document.getElementById('mt-lon')?.value || '—';
 const kwp = parseFloat(document.getElementById('mt-kwp')?.value) || 0;
@@ -6359,6 +6829,7 @@ ${(pdfSecOn('pdfsec-pvgis') && mt_pvgisData) ? `<div class="section">
 <div style="white-space:nowrap"><span style="color:#888">Helyszín (lat/lon):</span> <strong>${lat}°N, ${lon}°E</strong></div>
 <div style="white-space:nowrap"><span style="color:#888">Dőlésszög / Azimut:</span> <strong>${tilt}° / ${azimut}°</strong></div>
 </div>
+${(typeof mt_wizard !== 'undefined' && mt_wizard && mt_wizard.atlagBesugarzas) ? `<div style="font-size:0.78rem;color:#888;margin-bottom:0.75rem">Pontos helyszín hiányában magyar átlag besugárzással (Dunaújváros térsége) számoltunk.</div>` : ''}
 <div class="chart-wrap"><canvas id="chart-pvgis"></canvas></div>
 </div>` : ''}
 <!-- HAVI TERMELÉSI ADATOK -->
@@ -6811,14 +7282,14 @@ startSession();
 // Javításra vár / Javításra folyamatban), 4 a CRM-blokkokból (Felmérésre vár /
 // Felmérés folyamatban / Kivitelezésre vár / Kivitelezés folyamatban).
 const TERKEP_STATUS_COLORS = {
-'Bővítésre vár': '#bdd6ff',
-'Bővítés folyamatban': '#1100ff',
-'Javításra vár': '#c800ff',
-'Javításra folyamatban': '#ff00bb',
-'Felmérésre vár': '#ff0000',
-'Felmérés folyamatban': '#ffa200',
-'Kivitelezésre vár': '#2ca300',
-'Kivitelezés folyamatban': '#80ff66',
+'Bővítésre vár': '#f7a600',
+'Bővítés folyamatban': '#d97706',
+'Javításra vár': '#dc2626',
+'Javításra folyamatban': '#991b1b',
+'Felmérésre vár': '#7c3aed',
+'Felmérés folyamatban': '#a855f7',
+'Kivitelezésre vár': '#2e6da4',
+'Kivitelezés folyamatban': '#16a34a',
 };
 const TERKEP_DEFAULT_COLOR = '#94a3b8';
 // Egyénileg felülírt státusz-színek (böngészőnként eltérhet, ki-ki tetszés szerint
