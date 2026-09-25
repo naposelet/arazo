@@ -802,9 +802,9 @@ A fajlagos hozam a SofarCloud legalább 10 hónapos adattal rendelkező teljes �
      mostantól kizárólag ez, a geokódolt keresőmező tárolja a címet, ld. mt_wizard) -->
 <div class="mt-field" style="margin-bottom:0.75rem">
 <label>🔍 Helyszín keresés (város, cím)</label>
-<div style="display:flex;gap:0.5rem">
+<div style="display:flex;gap:0.5rem;flex-wrap:wrap">
 <input type="text" id="mt-helyszin-kereses" placeholder="pl. Dunaújváros, Vasmű út 1."
-style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.6rem 0.75rem;color:var(--text);font-size:0.9rem;outline:none"
+style="flex:1;min-width:200px;background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.6rem 0.75rem;color:var(--text);font-size:0.9rem;outline:none"
 onkeydown="if(event.key==='Enter')mt_geocode()">
 <button onclick="mt_geocode()"
 style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.6rem;padding:0.6rem 1rem;cursor:pointer;font-size:0.85rem;white-space:nowrap">
@@ -4942,6 +4942,25 @@ statusEl.textContent = `✅ PVGIS kész: ${Math.round(mt_pvgisData.yearly).toLoc
 statusEl.style.color = 'var(--green)';
 }
 }
+// Ha a teljes cím (irányítószám + város + utca/házszám) nem ismerhető fel a
+// geokódoló szolgáltatásnál (pl. MiniCRM-ből átvett, rövidített formátum,
+// mint "9011, Győr, Váci M. u. 88."), egyre kevésbé pontos, de nagyobb eséllyel
+// felismerhető változatokkal próbálkozunk: 1) a teljes szöveg, 2) irányítószám
+// (önálló 4 jegyű szám) nélkül, 3) csak a városnév – amit onnan ismerünk fel,
+// hogy a vesszővel tagolt részek közül az(ok) a település(rész)ek, amikben
+// NINCS szám (a házszámos/utcás és az irányítószám-résznek mindig van benne).
+function mt_geocodeAttempts(q) {
+const attempts = [q];
+const noZip = q.replace(/\b\d{4}\b/g, '').replace(/\s*,\s*,/g, ',').replace(/^\s*,\s*|\s*,\s*$/g, '').trim();
+if (noZip && noZip !== q) attempts.push(noZip);
+const parts = q.split(',').map(s => s.trim()).filter(Boolean);
+const varosJelolt = parts.filter(p => p && !/\d/.test(p));
+if (varosJelolt.length) {
+const varos = varosJelolt[varosJelolt.length - 1] + ', Magyarország';
+if (!attempts.includes(varos)) attempts.push(varos);
+}
+return attempts;
+}
 async function mt_geocode() {
 const q = document.getElementById('mt-helyszin-kereses')?.value?.trim();
 const statusEl = document.getElementById('mt-geocode-status');
@@ -4951,10 +4970,15 @@ statusEl.textContent = '⏳ Keresés...';
 statusEl.style.color = 'var(--sun)';
 }
 try {
-const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=3&countrycodes=hu,at,sk,ro,hr,si,de`;
+const attempts = mt_geocodeAttempts(q);
+let results = null, usedQuery = q;
+for (const attempt of attempts) {
+const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(attempt)}&format=json&limit=3&countrycodes=hu,at,sk,ro,hr,si,de`;
 const resp = await fetch(url, { headers: { 'Accept-Language': 'hu', 'User-Agent': 'SolarFuture-Arazo/2.4' } });
-const results = await resp.json();
-if (!results || results.length === 0) {
+const r = await resp.json();
+if (r && r.length > 0) { results = r; usedQuery = attempt; break; }
+}
+if (!results) {
 if (statusEl) {
 statusEl.textContent = '❌ Nem található – próbálj pontosabb nevet';
 statusEl.style.color = 'var(--red)';
@@ -4970,16 +4994,17 @@ document.getElementById('mt-lon').value = lon;
 // (A cím már a mt-helyszin-kereses mezőben van – nincs külön "Helyszín / Cím" mező többé.)
 if (typeof mt_wizardClearRequired === 'function') mt_wizardClearRequired('mt-helyszin-kereses');
 if (typeof mt_wizardAutoPvgisAfterAddress === 'function' && typeof mt_wizard !== 'undefined' && mt_wizard && mt_wizard.step === 4) mt_wizardAutoPvgisAfterAddress();
+const pontatlanabb = usedQuery !== q ? ' <span style="color:var(--sun)">(a teljes cím nem volt beazonosítható, csak közelítő – település szintű – pontossággal)</span>' : '';
 if (statusEl) {
 statusEl.style.color = 'var(--green)';
 // Ha több találat van, listázzuk
 if (results.length > 1) {
-statusEl.innerHTML = `✅ <strong>${r.display_name.split(',').slice(0,3).join(', ')}</strong> (${lat}, ${lon})
+statusEl.innerHTML = `✅ <strong>${r.display_name.split(',').slice(0,3).join(', ')}</strong> (${lat}, ${lon})${pontatlanabb}
 <br><span style="color:var(--text-muted)">Más találatok:
 ${results.slice(1).map((x,i) => `<a href="#" onclick="mt_selectGeoResult(${parseFloat(x.lat).toFixed(4)},${parseFloat(x.lon).toFixed(4)},'${x.display_name.split(',').slice(0,3).join(', ').replace(/'/g,"\\'")}');return false" style="color:var(--sun)">${x.display_name.split(',').slice(0,3).join(', ')}</a>`).join(' | ')}
 </span>`;
 } else {
-statusEl.textContent = `✅ ${r.display_name.split(',').slice(0,3).join(', ')} (${lat}, ${lon})`;
+statusEl.innerHTML = `✅ ${r.display_name.split(',').slice(0,3).join(', ')} (${lat}, ${lon})${pontatlanabb}`;
 }
 }
 } catch(err) {
