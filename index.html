@@ -833,20 +833,8 @@ style="background:linear-gradient(135deg,#7c2d12,#c2410c);color:#fff;border:none
 style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:0.5rem;padding:0.35rem 0.55rem;font-size:0.72rem;cursor:pointer;display:flex;align-items:center;gap:0.3rem;white-space:nowrap">
 🔄 Ár frissítése
 </button>
-<button onclick="sofar_apiLoadStations()" title="SofarCloud rendszerek betöltése"
-style="background:var(--sun);color:#000;border:none;border-radius:0.5rem;padding:0.35rem 0.55rem;font-weight:700;font-size:0.72rem;cursor:pointer;display:flex;align-items:center;gap:0.3rem;white-space:nowrap">
-📋 SofarCloud
-</button>
-<button onclick="mt_pvgisManual()" title="PVGIS lekérése"
-style="background:linear-gradient(135deg,#1a3a5c,#2e6da4);color:#fff;border:none;border-radius:0.5rem;padding:0.35rem 0.55rem;font-weight:700;font-size:0.72rem;cursor:pointer;display:flex;align-items:center;gap:0.3rem;white-space:nowrap">
-🛰️ PVGIS
-</button>
-<label title="Mi vs. piac szerepeljen a PDF riportban" style="display:flex;align-items:center;gap:0.3rem;font-size:0.7rem;color:var(--sun);cursor:pointer;background:var(--bg);border:1px solid var(--border);border-radius:0.5rem;padding:0.35rem 0.55rem;white-space:nowrap;margin-left:auto">
-<input type="checkbox" id="verseny-pdf-include-top" checked onchange="mt_syncVersenyPdfToggle(this.checked, 'top')" style="margin:0">
-Mi/piac PDF
-</label>
 <button onclick="mt_generateReport()" title="Riport / PDF generálása"
-style="background:linear-gradient(135deg,#166534,#16a34a);color:#fff;border:none;border-radius:0.5rem;padding:0.35rem 0.7rem;font-weight:700;font-size:0.72rem;cursor:pointer;display:flex;align-items:center;gap:0.3rem;white-space:nowrap">
+style="background:linear-gradient(135deg,#166534,#16a34a);color:#fff;border:none;border-radius:0.5rem;padding:0.35rem 0.7rem;font-weight:700;font-size:0.72rem;cursor:pointer;display:flex;align-items:center;gap:0.3rem;white-space:nowrap;margin-left:auto">
 📄 Riport / PDF
 </button>
 </div>
@@ -1619,8 +1607,9 @@ renderCalcSettings();
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.91 – 2026-09-25';
+const APP_VERSION = 'v2.92 – 2026-09-25';
 const APP_VERSION_HISTORY = [
+'v2.92 (2026-09-25): Megtérülés varázsló finomítások. (1) MiniCRM ajánlatszám sablon kötőjel nélkül: "AJ2026-E/00000" (eddig "AJ-2026-E/00000" volt). (2) HIBAJAVÍTÁS – ha egy MiniCRM ajánlat sikeresen lekérdezésre került, de a tételek nevéből nem sikerült kiszámolni a kWp-t (pl. nem "…450W…" mintájú a tételnév), a rendszer eddig teljes egészében visszaváltott Árazó-adatforrásra, és sem az ügyfél nevét, sem a rendszer árát NEM vette át az ajánlatból. Mostantól a kWp-számítás sikertelensége nem akadályozza a többi adat (ár, ügyfél neve, cím) átvételét – a kWp-t ilyenkor egyszerűen kézzel kell megadni, minden más automatikusan töltődik. (3) A "Mi vs. a piac" riportba-kerülés kapcsoló eddig két helyen (felső gombsor + a "Mi vs. a piac" kártya) volt jelen, egymással szinkronizálva – most csak egy helyen van, magánál a "Mi vs. a piac" szegmensnél. (4) A Megtérülés felső gyorsgomb-sorából eltávolítva a "📋 SofarCloud" és "🛰️ PVGIS" gomb – ezek automatikusan lefutnak a varázslóban, illetve megvannak a saját szegmensüknél is, a felső sorban feleslegesek voltak.',
 'v2.91 (2026-09-25): HIBAJAVÍTÁS – a napelemes kiegészítők (akku, garancia, extra tételek) inverterhez való KOMPATIBILITÁSI LISTÁJA eddig egyszer, régen be volt égetve az arazo.html-be (const COMPAT_MAP), és soha nem frissült, még akkor sem, ha a Sheets "kompatibilitas" lapján bepipáltál egy új párosítást (pl. Deye 6K-20K inverterek + új AKKU Deye SE-F5/F12/F16 fűthető akkuk) – ezért a nemrég hozzáadott, ténylegesen kompatibilis kombinációk pirosnak (nem kompatibilisnek) tűntek a kalkulátorban. Mostantól a kompatibilitási lista is ÉLŐBEN töltődik be minden bejelentkezéskor / 🔄 frissítéskor a Sheets "kompatibilitas" lapjáról, ugyanúgy, ahogy az árak – ehhez a Code.gs-ben egy új getCompatMapFromSheet() függvény és a doGet válaszának bővítése szükséges, lásd a chatben küldött kódot. A beégetett lista csak vészhelyzeti tartalékként maradt a kódban, arra az esetre, ha a szerver valamiért nem tudna kompatibilitási adatot küldeni.',
 'v2.90 (2026-09-25): NAGY FRISSÍTÉS – Árazó jogosultságok + Megtérülés varázsló. (1) ÁRAZÓ: új "Sales szint" mező (Felhasználók lap F oszlopa: senior/junior/kulsos) szabályozza, ki milyen árat lát a Célárazó eredménynél – alapból mindenki (admin kivételével) csak a Célárat (bruttó+nettó) látja; egy új "🔒 Egyedül vagyok" kapcsoló bepipálásával senior sales-nél megjelenik a Minimum ár + a teljes bontás (NAPRA LEVETÍTVE: napi kivitelezési/admin díj × napok, az éves/havi célértékek nélkül), junior sales-nél csak a Minimum ár száma (bontás nélkül), külsős sales-nél sosem jelenik meg több a Célárnál. A kalkulátoronkénti admin "Sales kolléga is lássa a bontást" kapcsoló megmarad kivételes felülbírálásként (ha be van kapcsolva, mindenki látja, a sales-szinttől függetlenül). (2) A felső kalkulátor-választó sáv mostantól csak akkor látszik, ha valakinek 2+ kalkulátorhoz van jogosultsága – 1 kalkulátoros usereknél automatikusan rejtve marad. (3) MEGTÉRÜLÉS – teljes varázsló-alapú újratervezés: a szabad kitöltés megszűnt, helyette "🔄 Új megtérülés indítása" gombbal induló, lépésenkénti kérdéssor (Új rendszer/Bővítés → MiniCRM ajánlat/Árazó adatok → ügyfél-adatok/cím/fogyasztás, kötelező mezőknél piros kerettel). MiniCRM-ajánlatszám mező előre kitöltve "AJ-2026-E/00000" sablonnal (fókuszban csak az utolsó 5 számjegy van kijelölve). Sikeres MiniCRM-lekérdezésnél a cím automatikusan geokódolódik és lekéri a PVGIS adatokat. Nincs megadott cím esetén választható "Dunaújváros (átlagos hazai besugárzás)" – ilyenkor a PDF riportba bekerül egy megjegyzés erről. A varázsló végén az alapadatok zárolásra kerülnek (új megtérülés indítása szükséges a módosításukhoz), a grafikonok mögötti finomhangoló adatok viszont továbbra is szabadon szerkeszthetők. A duplikált "Helyszín / Cím" mező megszűnt, mindenre a "Helyszín keresés" mezőt használjuk. A központi "📑 PDF tartalom" panel megszűnt – minden táblázat/grafikon mellett saját "Szerepeljen a riportban" kapcsoló van. A SofarCloud tényleges termelési adatok szekció csak Bővítés esetén (és csak ha a varázslóban igent mondunk rá) jelenik meg, új rendszernél sosem. (4) Új "ⓘ" infó-ikonok kerültek a fontosabb Árazó és Megtérülés szegmensek fejléce mellé, hover/tap tooltippel elmagyarázva az adott rész funkcióját. Ehhez a Code.gs-ben is szükséges egy kis bővítés (Sales szint oszlop beolvasása) – lásd a chatben küldött kódot.',
 'v2.80 (2026-09-18): Beillesztve a Google Maps JavaScript API-kulcs (GOOGLE_MAPS_API_KEY) – a Térképek fül mostantól ténylegesen meg tudja jeleníteni a Google térképet (korábban csak a "IDE_ÍRD_A..." helykitöltő szerepelt, ami figyelmeztető üzenetet mutatott).',
@@ -4486,7 +4475,7 @@ function mt_wizardStep3Html() {
 return mt_wizardStepLabel(3, 5) + `
 <h3>MiniCRM ajánlatszám <span class="sf-info" title="Csak már ténylegesen kiállított (nem 'Kiállítandó' státuszú) ajánlatnál működik.">ⓘ</span></h3>
 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;margin-top:0.75rem">
-<input type="text" id="wz-minicrm-num" value="AJ-2026-E/00000"
+<input type="text" id="wz-minicrm-num" value="AJ2026-E/00000"
 onfocus="this.setSelectionRange(this.value.length-5, this.value.length)"
 style="flex:1;min-width:220px;background:var(--bg);border:1px solid var(--border);border-radius:0.6rem;padding:0.6rem 0.75rem;color:var(--text);font-size:0.9rem;outline:none"
 onkeydown="if(event.key==='Enter')mt_wizardMinicrmLookup()">
@@ -4500,7 +4489,7 @@ const numEl = document.getElementById('wz-minicrm-num');
 const statusEl = document.getElementById('wz-minicrm-status');
 const realNumEl = document.getElementById('minicrm-ajanlatszam');
 const num = numEl?.value?.trim();
-if (!num || num === 'AJ-2026-E/00000') {
+if (!num || num === 'AJ2026-E/00000') {
 if (statusEl) { statusEl.textContent = '⚠️ Írd át az ajánlatszám végét a sajátodra!'; statusEl.style.color = 'var(--red)'; }
 return;
 }
@@ -4771,12 +4760,15 @@ if (clearBtn) clearBtn.style.display = 'none';
 mt_setAdatforras('arazo');
 }
 // Adatforrás váltása: 'arazo' vagy 'minicrm'. Ha a MiniCRM forrást választanák, de
-// még nincs sikeresen lekérdezett ajánlat, marad az Árazó adatforrásnál (nem enged
-// üres/hiányzó adatra váltani).
+// még nincs sikeresen lekérdezett ajánlat (nincs ÁR), marad az Árazó adatforrásnál
+// (nem enged üres/hiányzó adatra váltani). A kWp NEM feltétele a váltásnak: ha a
+// tételek nevéből nem sikerül kiszámolni (nincs bennük pl. "450W" minta), a kWp
+// mező üresen/eddigi értékén marad, és kézzel tölthető – de az ár, név és cím
+// ettől függetlenül mindig átvételre kerül a MiniCRM ajánlatból.
 function mt_setAdatforras(forras) {
 const arazoBtn = document.getElementById('mt-adatforras-arazo-btn');
 const minicrmBtn = document.getElementById('mt-adatforras-minicrm-btn');
-if (forras === 'minicrm' && (mt_minicrmAdatok.kwp == null || mt_minicrmAdatok.ar == null)) {
+if (forras === 'minicrm' && mt_minicrmAdatok.ar == null) {
 showToast('⚠️ Előbb kérdezd le a MiniCRM ajánlatot!');
 forras = 'arazo';
 }
@@ -4788,6 +4780,8 @@ const arEl = document.getElementById('mt-rendszer-ar');
 const nevEl = document.getElementById('mt-ugyfel-nev');
 const helyEl = document.getElementById('mt-helyszin-kereses');
 if (forras === 'minicrm') {
+// A kWp csak akkor íródik felül, ha sikerült kiszámolni a tételekből – ha nem,
+// a mező üresen marad, hogy kézzel be lehessen írni.
 if (kwpEl && mt_minicrmAdatok.kwp != null) kwpEl.value = mt_minicrmAdatok.kwp.toFixed(2);
 if (arEl && mt_minicrmAdatok.ar != null) arEl.value = Math.round(mt_minicrmAdatok.ar);
 if (nevEl && mt_minicrmAdatok.ugyfelNev) nevEl.value = mt_minicrmAdatok.ugyfelNev;
@@ -5244,15 +5238,6 @@ html += `📊 Ügyfél éves fogyasztása: <strong>${fmtN(evesKwh)} kWh</strong>
 }
 infobar.innerHTML = html;
 infobar.style.display = 'block';
-}
-// ============================================================
-// "MI VS. A PIAC" PDF-KAPCSOLÓ SZINKRONIZÁLÁSA (fejléc <-> kártya)
-// ============================================================
-function mt_syncVersenyPdfToggle(checked, source) {
-const top = document.getElementById('verseny-pdf-include-top');
-const card = document.getElementById('verseny-pdf-include-card');
-if (top && source !== 'top') top.checked = checked;
-if (card && source !== 'card') card.checked = checked;
 }
 // ============================================================
 // MI VS. A PIAC – VERSENYTÁRS-ÖSSZEHASONLÍTÁS (csak Új rendszer módban)
@@ -6740,7 +6725,7 @@ ${offer.DocumentUrl ? `<div style="margin-top:0.75rem;font-size:0.82rem"><a href
 </div>`;
 })() : ''}
 <!-- MI VS. A PIAC -->
-${(!isBovites && mt_versenyData && document.getElementById('verseny-pdf-include-top')?.checked !== false) ? `<div class="section">
+${(!isBovites && mt_versenyData && document.getElementById('verseny-pdf-include')?.checked !== false) ? `<div class="section">
 <div class="section-title">Mi vs. a piac – ${mt_versenyData.ciklus} éves összehasonlítás</div>
 <p style="font-size:0.88rem;color:#444;margin-bottom:1rem;line-height:1.6">
 Egy versenytárs rendszere induláskor kb. ${mt_versenyData.kedvezmenyPct}%-kal olcsóbb lehet, ám a legtöbb piaci szereplőnél már a(z) ${mt_versenyData.karbKezdes}. évtől megjelennek az időszakos karbantartási költségek (kb. ${Math.round(mt_versenyData.karbKoltseg).toLocaleString('hu-HU')} Ft alkalmanként, ${mt_versenyData.gap1}-${mt_versenyData.gap2} évente váltakozva).
