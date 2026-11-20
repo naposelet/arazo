@@ -3,17 +3,17 @@
 ============================================================
 Solar Future – Árazó
 Verzió: ld. APP_VERSION állandó a JS elején (egyetlen hely, ahol a verziószámot módosítani kell) – a részletes, verziónkénti változásnapló az APP_VERSION_HISTORY tömbben van, ott böngészhető is az alkalmazásban (ez a fejléc csak egy emberi olvasónak szóló, mindig frissen tartott állapot-összefoglaló, nem teljes napló).
-Utolsó módosítás: 2026-09-25 (Budapest)
+Utolsó módosítás: 2026-11-20 (Budapest)
 
 MI EZ: egyetlen HTML fájlban futó árazó + megtérülés(ROI)-kalkulátor a Solar Future / Napos Élet napelemes csapatának. Backend: Google Sheets + hozzá tartozó Google Apps Script (Code.gs, ez a fájl külön kezelt, nem itt van) – JSONP-vel GET, no-cors fetch-csel POST. Bejelentkezés Sheets "Felhasználók" lap alapján (e-mail+jelszó, kalkulátor-jogosultságok, admin flag, sales-szint).
 
-ÁRAZÓ TAB: 1-6 db önálló kalkulátor, mindegyikben napelem+inverter+tartószerkezet+opcionális kiegészítők (optimalizátor, akku, extra tételek) kiválasztása, élő kompatibilitás-ellenőrzéssel (inverter↔kiegészítők párosítás a Sheets "kompatibilitas" lapjáról töltődik be minden bejelentkezéskor/frissítéskor, nem beégetett lista). Régi / Új / Bővítés számítási mód kalkulátoronként; Új módban 3 szintű árazás (Bekerülési anyagköltség / Minimum ár / Ajánlott ár = Célár). Az eredménynél ki milyen árat lát, azt a Felhasználók lap "Sales szint" oszlopa (senior/junior/kulsos) szabályozza: alapból mindenki csak a Célárat látja, a "🔒 Egyedül vagyok" kapcsolóval senior a teljes (napra levetített) bontást is, junior csak a Minimum ár számát. Kalkulátoronként 1-3 párhuzamos rendszer állítható össze és hasonlítható össze, ajánlatmentéskor mindegyik külön sorként kerül a Sheets "Ajánlatok" lapjára.
+ÁRAZÓ TAB: 1-6 db önálló kalkulátor, mindegyikben napelem+inverter+tartószerkezet+opcionális kiegészítők (optimalizátor, akku, extra tételek) kiválasztása, élő kompatibilitás-ellenőrzéssel (inverter↔kiegészítők párosítás a Sheets "kompatibilitas" lapjáról töltődik be minden bejelentkezéskor/frissítéskor, nem beégetett lista). Egyetlen árazási módszer van: a Célárazó (Nettó = Anyagköltség + (2 csapat havi költsége/32 + irodaköltség/32 + éves haszoncél/(32·12)) × Y, Y = az anyagköltség / éves átlagos anyagköltség); az anyagköltség panelenkénti/inverterenkénti szerelési anyagot, akku-felárat és puffert tartalmaz, minden paraméter az admin felületen állítható. A kW-ból számolt napok csak becsült kivitelezési idő. Az eredménynél ki milyen árat lát, azt a Felhasználók lap "Sales szint" oszlopa (senior/junior/kulsos) és az admin felület szintenkénti ár-láthatóság táblája szabályozza (alapból mindenki csak a Célárat látja; a "🔒 Egyedül vagyok" kapcsolóval senior a Minimum árat és a bontást, junior csak a Minimum árat). Kalkulátoronként 1-3 párhuzamos rendszer állítható össze és hasonlítható össze, ajánlatmentéskor mindegyik külön sorként kerül a Sheets "Ajánlatok" lapjára.
 
 MEGTÉRÜLÉS TAB: varázsló-alapú indítás ("🔄 Új megtérülés indítása" gomb) – lépésenként kérdez rá, hogy Új rendszer vagy Bővítés kalkulációról van-e szó, majd hogy MiniCRM ajánlatszám vagy az Árazóban összeállított adatok legyenek-e a forrás. MiniCRM-ajánlatszám alapján a rendszer automatikusan lekéri az ajánlat tételeit és összegét a MiniCRM API-n (Code.gs, Script Properties-ben tárolt kulccsal) keresztül, ebből az árat és – ha a tételnevekben van kiolvasható wattszám – a kWp-t is átveszi, az ügyfél nevét/címét szintén; ha a kWp nem számolható automatikusan, azt kézzel kell megadni. Sikeres cím esetén automatikusan geokódol és lekéri a PVGIS napsugárzás-adatokat; cím hiányában választható a Dunaújváros-alapú országos átlag-besugárzás (ez esetben a PDF riportba egy erre figyelmeztető megjegyzés kerül). Bővítés módban opcionálisan bekapcsolható a SofarCloud tényleges termelési adatok felhasználása (API vagy Excel-export). A varázsló végén az alapadatok zárolásra kerülnek (új megtérülés indítása kell az újrakezdéshez), a grafikonok finomhangoló paraméterei viszont utólag is szabadon módosíthatók. A "Mi vs. a piac" összehasonlítás (saját szervízgaranciás rendszer vs. olcsóbb idegen kivitelezés hosszú távú költségei) csak Új rendszer módban jelenik meg. A PDF riport szekciónként külön-külön ki/bekapcsolható "Szerepeljen a riportban" jelölőnégyzetekkel állítható össze.
 
 TÉRKÉPEK TAB: ügyféllista térképen (Leaflet/OpenStreetMap + saját Google Maps réteg), 5 forrásból összefésülve egy Sheets "Ugyfelek" lapról (1 kézi tábla + 4 MiniCRM ImportData-blokk), állapotonként ki/bekapcsolható réteggel, kereséssel, útvonaltervezéssel a telephelyhez képest, és egy külön rejtett "Koordinata_Cache" laphoz kötött, azonosító-alapú geokód-gyorsítótárral (hogy egy CRM-lista-újrarendeződés ne csúsztassa el a koordinátákat).
 
-ADMIN FELÜLET: felhasználók kezelése (jogosultságok, sales-szint, admin flag), haszonkulcs/munkadíj-paraméterek, kalkulátoronkénti Régi/Új/Bővítés mód és ár-láthatóság, "Mi vs. a piac" alapértékek, marketing szöveg (12 év szervízgarancia PDF-szekció), kalkulátor-elnevezések – minden beállítás a Sheets "Beallitasok" lapján tárolódik, tehát mindenkinek közös, nem böngészőnkénti localStorage.
+ADMIN FELÜLET: felhasználók kezelése (jogosultságok, sales-szint, admin flag), Célárazó paraméterek (csapat- és irodaköltség, haszoncél, havi kivitelezésszám, átlagos anyagköltség, szerelési anyag felárak, puffer), szintenkénti (senior/junior/külsős) ár-láthatóság, "Mi vs. a piac" alapértékek, marketing szöveg (12 év szervízgarancia PDF-szekció), kalkulátor-elnevezések – minden beállítás a Sheets "Beallitasok" lapján tárolódik, tehát mindenkinek közös, nem böngészőnkénti localStorage.
 ============================================================
 -->
 <html lang="hu">
@@ -486,37 +486,17 @@ border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.3rem; margin-top: 0
 <div id="sync-bar" style="background:var(--surface);border-bottom:1px solid var(--border);padding:0.3rem 1rem;display:flex;align-items:center;justify-content:space-between;font-size:0.75rem;flex-wrap:wrap;gap:0.5rem;">
 <span id="sync-indicator" style="color:var(--text-muted)">⏳ Adatok betöltése...</span>
 <div style="display:flex;align-items:center;gap:0.75rem">
-<div id="mode-toggle" style="display:flex;background:var(--bg);border:1px solid var(--border);border-radius:0.5rem;overflow:hidden;font-size:0.75rem">
-<button id="mode-cel-btn" onclick="setCalcMode('cel')" style="padding:0.2rem 0.7rem;border:none;cursor:pointer;font-size:0.75rem;transition:all 0.2s">🎯 Célár</button>
-<button id="mode-regi-btn" onclick="setCalcMode('regi')" style="padding:0.2rem 0.7rem;border:none;cursor:pointer;font-size:0.75rem;transition:all 0.2s;opacity:0.5">📐 Régi</button>
-<button id="mode-uj-btn" onclick="setCalcMode('uj')" style="padding:0.2rem 0.7rem;border:none;cursor:pointer;font-size:0.75rem;transition:all 0.2s;opacity:0.5">🆕 Új</button>
-</div>
-<label style="display:flex;align-items:center;gap:0.35rem;font-size:0.75rem;color:var(--text-muted);cursor:pointer;white-space:nowrap"
-title="Bepipálva: nincs szerelési munkadíj, az anyagköltséget egy admin által állítható szorzóval (alap: 1.5×) szorozzuk. Meglévő rendszer bővítéséhez.">
-<input type="checkbox" id="bovites-kalk-checkbox" onchange="setBovitesKalkulacio(this.checked)">
-📦 Bővítés kalkuláció
-</label>
 <span style="color:var(--text-muted)">EUR: <strong id="eur-rate" style="color:var(--sun)">—</strong> &nbsp;|&nbsp; Frissítve: <span id="sync-time">—</span></span>
 </div>
 </div>
-<!-- ÚJ MÓD: napok manuális beállítása -->
+<!-- BECSÜLT KIVITELEZÉSI IDŐ (csak tájékoztató megjegyzés, nem számít bele az árba) -->
 <div id="uj-nap-bar" style="display:none;background:var(--surface2);border-bottom:1px solid var(--border);padding:0.4rem 1rem;font-size:0.8rem;align-items:center;gap:1rem;flex-wrap:wrap">
-<span style="color:var(--text-muted)">⏱️ Javasolt napok: <strong id="javasolt-nap" style="color:var(--sun)">—</strong></span>
+<span style="color:var(--text-muted)">⏱️ Becsült kivitelezési idő: <strong id="javasolt-nap" style="color:var(--sun)">—</strong> <span style="font-size:0.72rem">(tájékoztató, az árat nem befolyásolja)</span></span>
 <span style="color:var(--text-muted)">Felülírás:</span>
 <input type="number" id="manual-nap" min="1" max="30" value="" placeholder="auto"
 style="width:60px;background:var(--bg);border:1px solid var(--border);border-radius:0.4rem;padding:0.2rem 0.4rem;color:var(--text);font-size:0.8rem;text-align:center"
 onchange="calculate()">
-<span style="color:var(--text-muted)">nap &nbsp;|&nbsp; Munkadíj felár:</span>
-<select id="munkadij-pct-sel" onchange="updateMunkadijPct(this.value)"
-style="background:var(--bg);border:1px solid var(--border);border-radius:0.4rem;padding:0.2rem 0.4rem;color:var(--text);font-size:0.8rem">
-<option value="0">0%</option>
-<option value="5">+5%</option>
-<option value="10">+10%</option>
-<option value="15">+15%</option>
-<option value="20">+20%</option>
-<option value="25">+25%</option>
-<option value="30">+30%</option>
-</select>
+<span style="color:var(--text-muted)">nap</span>
 </div>
 <!-- KALKULATOR -->
 <div class="main" id="calc-view">
@@ -642,8 +622,7 @@ A fenti összeállítás az 1. (alap) rendszer. Add meg a nevét, és opcionáli
 </div>
 <div class="rbar-state-full" id="rbar-full" style="display:none">
 <div class="rbar-main" id="rbar-main">
-<!-- JS tölti fel dinamikusan (calculate()): 1-3 ártétel + MÉRET, a kalkulátor
-admin-beállított ár-láthatósága szerint (getActiveArVis()) -->
+<!-- JS tölti fel dinamikusan (calculate()): Célár + jogosultság szerinti tételek + MÉRET -->
 </div>
 <div class="rbar-sub" style="display:flex;align-items:center;justify-content:center;gap:1rem;flex-wrap:wrap">
 <span id="res-kw-sub">—</span>
@@ -1398,8 +1377,7 @@ const SHEETS_API = 'https://script.google.com/macros/s/AKfycbwcELD2MLNn3-9Odjsc8
 // ============================================================
 // MEGOSZTOTT (SHEETS-ALAPÚ) BEÁLLÍTÁSOK
 // ============================================================
-// Az admin beállítások (haszonkulcs, kalkulátor módok, "Bővítés kalkuláció"
-// checkbox, ár-láthatóság, kalkulátor-nevek) korábban csak localStorage-ban
+// Az admin beállítások (Célárazó paraméterek, ár-láthatóság, kalkulátor-nevek) korábban csak localStorage-ban
 // éltek – ez azt jelentette, hogy egy másik gépen/böngészőben megnyitva az
 // alkalmazást MÁS beállításokat látott mindenki. Mostantól ezek a Google
 // Sheets "Beallitasok" munkalapjáról töltődnek be (loadFromSheets()-en
@@ -1445,8 +1423,9 @@ renderCalcSettings();
 // VERZIÓSZÁM – EZ AZ EGYETLEN HELY, AHOL A VERZIÓT MÓDOSÍTANI KELL!
 // (a login oldal, a topbar badge és a PDF riport lábléce is innen veszi)
 // ============================================================
-const APP_VERSION = 'v2.93 – 2026-10-02';
+const APP_VERSION = 'v2.94 – 2026-11-20';
 const APP_VERSION_HISTORY = [
+'v2.94 (2026-11-20): CÉLÁRAZÓ ÁTALAKÍTÁS – a Célárazó lett az egyetlen árazási módszer: a Régi és az Új (3 szintű) számítás, a módválasztó (admin + felület) és az Árazó „Bővítés kalkuláció” jelölőnégyzete/szorzója kikerült. ÚJ KÉPLET: Nettó = Anyagköltség + (2 csapat havi költsége/32 + bővített irodaköltség/32 + éves haszoncél/(32·12)) × Y, ahol Y = az adott kivitelezés anyagköltsége / éves átlagos anyagköltség (alap 1,9 M Ft). ÚJ ANYAGKÖLTSÉG: panel + szerelési anyag/panel (tetőtípus szerint: cserepes/trapéz 7 500, lapostető 15 000, föld 28 000 Ft) + inverter + 75 000 Ft/inverter + optimalizáló (felár nélkül) + egyéb tételek + akkumulátor szerelés 30 000 Ft egyszer + 50 000 Ft puffer. A kW-ból számolt napok csak becsült kivitelezési időként látszanak (az árat nem befolyásolják). Minden paraméter az admin felületen állítható. Új: szintenként (senior/junior/külsős) állítható, ki lát Minimum árat / bontást / haszon részt (normál és „Egyedül vagyok” állapotban). A 2. és 3. rendszer ugyanezzel a képlettel, saját Y-nal számol. Sheets mentés: a régi mezők kompatibilisen maradnak (Code.gs nem változik).',
 'v2.93 (2026-10-02): Árazó – a fixált eredménysáv (Célár/Minimum ár/bontás tételei) jobban szét lett húzva (nagyobb oszlop-/sortávolság, szélesebb tételek), és a sáv alatti helykitöltő mostantól automatikusan a sáv tényleges, tartalomtól függő magasságához igazodik (ResizeObserver) – eddig egy fix 8rem-es helykitöltő volt, ami teljes (7 tételes) bontásnál nem volt elég, és eltakarta a "+ Rendszer hozzáadása" gombot.',
 'v2.92 (2026-09-25): Megtérülés varázsló finomítások. (1) MiniCRM ajánlatszám sablon kötőjel nélkül: "AJ2026-E/00000" (eddig "AJ-2026-E/00000" volt). (2) HIBAJAVÍTÁS – ha egy MiniCRM ajánlat sikeresen lekérdezésre került, de a tételek nevéből nem sikerült kiszámolni a kWp-t (pl. nem "…450W…" mintájú a tételnév), a rendszer eddig teljes egészében visszaváltott Árazó-adatforrásra, és sem az ügyfél nevét, sem a rendszer árát NEM vette át az ajánlatból. Mostantól a kWp-számítás sikertelensége nem akadályozza a többi adat (ár, ügyfél neve, cím) átvételét – a kWp-t ilyenkor egyszerűen kézzel kell megadni, minden más automatikusan töltődik. (3) A "Mi vs. a piac" riportba-kerülés kapcsoló eddig két helyen (felső gombsor + a "Mi vs. a piac" kártya) volt jelen, egymással szinkronizálva – most csak egy helyen van, magánál a "Mi vs. a piac" szegmensnél. (4) A Megtérülés felső gyorsgomb-sorából eltávolítva a "📋 SofarCloud" és "🛰️ PVGIS" gomb – ezek automatikusan lefutnak a varázslóban, illetve megvannak a saját szegmensüknél is, a felső sorban feleslegesek voltak.',
 'v2.91 (2026-09-25): HIBAJAVÍTÁS – a napelemes kiegészítők (akku, garancia, extra tételek) inverterhez való KOMPATIBILITÁSI LISTÁJA eddig egyszer, régen be volt égetve az arazo.html-be (const COMPAT_MAP), és soha nem frissült, még akkor sem, ha a Sheets "kompatibilitas" lapján bepipáltál egy új párosítást (pl. Deye 6K-20K inverterek + új AKKU Deye SE-F5/F12/F16 fűthető akkuk) – ezért a nemrég hozzáadott, ténylegesen kompatibilis kombinációk pirosnak (nem kompatibilisnek) tűntek a kalkulátorban. Mostantól a kompatibilitási lista is ÉLŐBEN töltődik be minden bejelentkezéskor / 🔄 frissítéskor a Sheets "kompatibilitas" lapjáról, ugyanúgy, ahogy az árak – ehhez a Code.gs-ben egy új getCompatMapFromSheet() függvény és a doGet válaszának bővítése szükséges, lásd a chatben küldött kódot. A beégetett lista csak vészhelyzeti tartalékként maradt a kódban, arra az esetre, ha a szerver valamiért nem tudna kompatibilitási adatot küldeni.',
@@ -1505,22 +1484,27 @@ verBadge.title = APP_VERSION_HISTORY.slice(-6).join('\n');
 const CALC_SETTINGS = {
 // KÖZÖS
 afa: { label: 'ÁFA kulcs (%)', value: 27, min: 0, max: 30, step: 1, desc: 'Általános ÁFA kulcs.', mode: 'both' },
-bovites_szorzo: { label: 'Bővítés kalkuláció – anyagköltség szorzó', value: 1.5, min: 1.0, max: 3.0, step: 0.05, desc: 'Bővítés kalkuláció bepipálva: munkadíj nélkül, az anyagköltséget szorozzuk ezzel az értékkel (alap: 1.5×).', mode: 'both' },
-min_ar_szorzo: { label: '2. ár (Minimum ár) – működési költség szorzó – Új', value: 1.0, min: 0.5, max: 3.0, step: 0.05, desc: 'Csak Új módban: Minimum ár = anyagköltség + működési költség × ez a szorzó. Alap: 1.0 (nincs felár a működési költségen).', mode: 'uj' },
-ajanlott_ar_szorzo: { label: '3. ár (Ajánlott ár) – működési költség szorzó – Új', value: 1.2, min: 0.5, max: 3.0, step: 0.05, desc: 'Csak Új módban: Ajánlott ár = anyagköltség + működési költség × ez a szorzó. Alap: 1.2 (+20% felár a működési költségen).', mode: 'uj' },
-// RÉGI MÓD
-haszonkulcs: { label: 'Haszonkulcs – Régi (szorzó)', value: 1.38, min: 1.0, max: 3.0, step: 0.01, desc: '(Anyag + munkadíj) × haszonkulcs = Nettó ár. 1.38 = 38% felár.', mode: 'regi' },
-munkadij_alap: { label: 'Munkadíj 0–5 kW (Ft/kW) – Régi', value: 50000, min: 10000, max: 200000, step: 1000, desc: 'Az első 5 kW-ig kW-onkénti munkadíj.', mode: 'regi' },
-munkadij_extra: { label: 'Munkadíj 5 kW felett (Ft/kW) – Régi', value: 12500, min: 1000, max: 100000, step: 500, desc: '5 kW felett minden kW-ra ennyit számolunk.', mode: 'regi' },
-munkadij_hatar: { label: 'Munkadíj sávhatár (kW) – Régi', value: 5, min: 1, max: 20, step: 0.5, desc: 'Ennyi kW-ig alapdíj, felette extra díj.', mode: 'regi' },
-// ÚJ MÓD
-napi_munkadij: { label: 'Napi kivitelezési költség (Ft) – Új', value: 812500, min: 100000, max: 5000000, step: 12500, desc: 'Egy csapat napi munkadíja. Alap: 812 500 Ft/nap.', mode: 'uj' },
-munkadij_pct: { label: 'Munkadíj felár (%) – Új', value: 0, min: 0, max: 50, step: 5, desc: 'Csak a munkadíjra rakott %-os felár (pl. 20 = +20%).', mode: 'uj' },
-nap_hatar_1: { label: '1 nap kW határ – Új', value: 20, min: 5, max: 50, step: 1, desc: '20 kW-ig 1 nap a kivitelezés.', mode: 'uj' },
-nap_hatar_2: { label: '2 nap kW határ – Új', value: 40.1, min: 10, max: 100, step: 0.1, desc: '40,1 kW-ig 2 nap.', mode: 'uj' },
-nap_hatar_3: { label: '3 nap kW határ – Új', value: 60.1, min: 15, max: 150, step: 0.1, desc: '60,1 kW-ig 3 nap.', mode: 'uj' },
-nap_hatar_4: { label: '4 nap kW határ – Új', value: 80.1, min: 20, max: 200, step: 0.1, desc: '80,1 kW-ig 4 nap.', mode: 'uj' },
-nap_hatar_5: { label: '5 nap kW határ – Új', value: 100.1, min: 25, max: 250, step: 0.1, desc: '100,1 kW-ig 5 nap.', mode: 'uj' },
+// BECSÜLT KIVITELEZÉSI NAPOK (csak tájékoztató megjegyzés az árazóban)
+nap_hatar_1: { label: '1 nap kW határ (becsült napok)', value: 20, min: 5, max: 50, step: 1, desc: '20 kW-ig 1 nap a kivitelezés.', mode: 'nap' },
+nap_hatar_2: { label: '2 nap kW határ (becsült napok)', value: 40.1, min: 10, max: 100, step: 0.1, desc: '40,1 kW-ig 2 nap.', mode: 'nap' },
+nap_hatar_3: { label: '3 nap kW határ (becsült napok)', value: 60.1, min: 15, max: 150, step: 0.1, desc: '60,1 kW-ig 3 nap.', mode: 'nap' },
+nap_hatar_4: { label: '4 nap kW határ (becsült napok)', value: 80.1, min: 20, max: 200, step: 0.1, desc: '80,1 kW-ig 4 nap.', mode: 'nap' },
+nap_hatar_5: { label: '5 nap kW határ (becsült napok)', value: 100.1, min: 25, max: 250, step: 0.1, desc: '100,1 kW-ig 5 nap.', mode: 'nap' },
+// CÉLÁRAZÓ (v2.94 – az egyetlen árazási módszer)
+// Nettó ár = Anyagköltség + (2 csapat havi költsége/32 + irodaköltség/32 + éves haszoncél/(32·12)) × Y
+// Y = az adott kivitelezés anyagköltsége / éves átlagos anyagköltség
+celarazo_ketcsapat_havi_koltseg: { label: 'Célárazó – 2 csapat havi költsége (Ft)', value: 13000000, min: 0, max: 200000000, step: 100000, desc: 'Két kivitelező csapat együttes havi költsége (nettó). A képletben a havi kivitelezésszámmal osztjuk.', mode: 'cel' },
+celarazo_iroda_havi_koltseg: { label: 'Célárazó – Bővített irodaköltség havonta (Ft)', value: 6000000, min: 0, max: 200000000, step: 100000, desc: 'Az iroda / adminisztráció / értékesítés bővített havi költsége (nettó). A havi kivitelezésszámmal osztjuk.', mode: 'cel' },
+celarazo_eves_celszam: { label: 'Célárazó – Éves haszoncél (nettó, Ft)', value: 100000000, min: 0, max: 2000000000, step: 1000000, desc: 'A cég kitűzött éves nettó haszna. A képletben (havi kivitelezésszám × 12)-vel osztjuk.', mode: 'cel' },
+celarazo_havi_kivitelezes_db: { label: 'Célárazó – Tervezett havi kivitelezések száma (db)', value: 32, min: 1, max: 500, step: 1, desc: 'Két csapattal havonta tervezett kivitelezések száma (a képletben a „32").', mode: 'cel' },
+celarazo_eves_atlag_anyag: { label: 'Célárazó – Éves átlagos anyagköltség (nettó, Ft)', value: 1900000, min: 100000, max: 50000000, step: 50000, desc: 'Kivitelezésenkénti átlagos nettó anyagköltség (2025: kb. 1,9 M Ft). Y = aktuális anyagköltség / ez az érték.', mode: 'cel' },
+// ANYAGKÖLTSÉG – szerelési anyag felárak (kábel, tartósín, csavar stb.), nettó
+szereles_panel_cserepes: { label: 'Szerelési anyag – cserepes / trapézlemez tető (Ft/panel)', value: 7500, min: 0, max: 100000, step: 500, desc: 'Panelenként a beszerzési ár fölé jövő szerelési anyagköltség cserepes és trapéz tetőnél.', mode: 'anyag' },
+szereles_panel_lapos: { label: 'Szerelési anyag – lapostető (Ft/panel)', value: 15000, min: 0, max: 100000, step: 500, desc: 'Panelenként a szerelési anyagköltség lapostetős rendszernél.', mode: 'anyag' },
+szereles_panel_fold: { label: 'Szerelési anyag – földre telepített (Ft/panel)', value: 28000, min: 0, max: 100000, step: 500, desc: 'Panelenként a szerelési anyagköltség földre telepített rendszernél.', mode: 'anyag' },
+szereles_inverter: { label: 'Szerelési anyag – inverter (Ft/db)', value: 75000, min: 0, max: 500000, step: 5000, desc: 'Inverterenként a beszerzési ár fölé jövő szerelési anyagköltség (inverter 1 + 2 darabszáma szerint).', mode: 'anyag' },
+szereles_akku: { label: 'Szerelési anyag – akkumulátor (Ft/alkalom)', value: 30000, min: 0, max: 500000, step: 5000, desc: 'Egyszeri költség, ha van akkumulátor a rendszerben (több akksinál nincs érdemi különbség).', mode: 'anyag' },
+anyag_puffer: { label: 'Előre nem látható költségek puffere (Ft)', value: 50000, min: 0, max: 1000000, step: 10000, desc: 'Minden rendszer anyagköltségéhez hozzáadódik.', mode: 'anyag' },
 // PIACI ÖSSZEHASONLÍTÁS (Megtérülés riport – csak Új rendszer módban)
 verseny_kedvezmeny_pct: { label: 'Versenytárs ára – ennyivel olcsóbb (%)', value: 20, min: 0, max: 60, step: 1, desc: 'A "piaci összehasonlítás" grafikonon az idegen cég rendszere ennyi %-kal olcsóbbnak van feltüntetve a saját árunknál.', mode: 'verseny' },
 verseny_karbantartas_kezdes: { label: 'Karbantartási költség kezdete (év)', value: 5, min: 1, max: 15, step: 1, desc: 'Az idegen cég rendszerén ettől az évtől jelenik meg időszakos karbantartási költség (2-3 évente váltakozva).', mode: 'verseny' },
@@ -1528,12 +1512,6 @@ verseny_karbantartas_koltseg: { label: 'Karbantartási költség (Ft/alkalom)', 
 verseny_sajat_garancia_ev: { label: 'Saját szervízgarancia hossza (év)', value: 12, min: 1, max: 20, step: 1, desc: 'Eddig az évig a saját rendszerünkön nincs karbantartási költség (díjmentes szervízgarancia). Utána a saját rendszer is ugyanarra a karbantartási ütemezésre csatlakozik, mint az idegen cégé.', mode: 'verseny' },
 verseny_karb_gyakorisag_1: { label: 'Karbantartási gyakoriság – 1. szám (év)', value: 2, min: 1, max: 10, step: 1, desc: 'A karbantartási évek váltakozva ezzel és a következő számmal adódnak a kezdő évhez (pl. 2 és 3 esetén: kezdés, +2, +3, +2, +3...).', mode: 'verseny' },
 verseny_karb_gyakorisag_2: { label: 'Karbantartási gyakoriság – 2. szám (év)', value: 3, min: 1, max: 10, step: 1, desc: 'Lásd fent – a két szám váltakozva adja a karbantartási évek közötti távolságot.', mode: 'verseny' },
-// CÉLÁRAZÓ (lakossági, 0-20 kW): anyagköltség + kivitelezési rész + admin rész + cél(haszon) rész,
-// mindhárom a kivitelezési napok / havi kivitelezési célszám (X) arányában.
-celarazo_eves_celszam: { label: 'Célárazó – Éves cél (kitűzött nettó haszon, Ft)', value: 100000000, min: 0, max: 1000000000, step: 1000000, desc: 'A cégszintű, éves kitűzött nettó haszon. Havi bontásban (÷12), majd a kivitelezési napok arányában (÷X) oszlik szét az ajánlatokra.', mode: 'cel' },
-celarazo_havi_kivitelezesi_dij: { label: 'Célárazó – Havi kivitelezési csapatköltség (Ft)', value: 6500000, min: 0, max: 100000000, step: 100000, desc: 'Egy kivitelező csapat havi teljes költsége. A kivitelezési napok / havi célszám (X) arányában oszlik szét az ajánlatokra.', mode: 'cel' },
-celarazo_havi_admin_dij: { label: 'Célárazó – Havi adminisztrációs költség (Ft)', value: 4000000, min: 0, max: 100000000, step: 100000, desc: 'A cég havi adminisztrációs működési költsége. A kivitelezési napok / havi célszám (X) arányában oszlik szét az ajánlatokra.', mode: 'cel' },
-celarazo_havi_kivitelezesi_celszam: { label: 'Célárazó – Havi kivitelezési célszám (X, db)', value: 15, min: 1, max: 100, step: 1, desc: 'Hány kivitelezést terveztek havonta. Ez az osztószám (X) mindhárom fenti tételnél.', mode: 'cel' },
 };
 // ============================================================
 // VERSENY-ÖSSZEHASONLÍTÁS (Megtérülés riport – "saját vs. idegen kivitelezés")
@@ -1549,7 +1527,7 @@ karbantartas_koz_2: { label: 'Karbantartási időköz B (év)', value: 3, min: 1
 karbantartas_koltseg: { label: 'Karbantartási költség (Ft/alkalom)', value: 250000, min: 0, max: 2000000, step: 10000, desc: 'Egy-egy karbantartási esemény becsült költsége.' },
 sajat_garancia_ev: { label: 'Saját rendszer díjmentes szervizgarancia (év)', value: 12, min: 1, max: 20, step: 1, desc: 'Eddig az évig a mi rendszerünknél nincs karbantartási költség. Utána ugyanarra az ütemezésre áll rá, mint az idegen rendszer.' },
 };
-// Napok számítása az Új módban
+// Becsült kivitelezési napok (CSAK tájékoztató megjegyzés – az árat nem befolyásolja)
 function calcDaysForKw(kw) {
 const s = CALC_SETTINGS;
 if (kw <= 0) return 0;
@@ -1634,56 +1612,6 @@ if (!SHARED_SETTINGS) SHARED_SETTINGS = {};
 SHARED_SETTINGS.marketing_text = m;
 saveSettingToSheets('marketing_text', m); // megosztott mentés – minden gép ezt fogja látni
 }
-const DEFAULT_CALC_MODES = { 1:'cel', 2:'cel', 3:'cel', 4:'cel', 5:'cel', 6:'cel' };
-function getCalcModes() {
-if (SHARED_SETTINGS && SHARED_SETTINGS.calc_modes) {
-return { ...DEFAULT_CALC_MODES, ...SHARED_SETTINGS.calc_modes };
-}
-try { return JSON.parse(localStorage.getItem('sf_calc_modes') || 'null') || {...DEFAULT_CALC_MODES}; } catch { return {...DEFAULT_CALC_MODES}; }
-}
-function saveCalcModes(m) {
-localStorage.setItem('sf_calc_modes', JSON.stringify(m)); // gyors helyi cache
-if (!SHARED_SETTINGS) SHARED_SETTINGS = {};
-SHARED_SETTINGS.calc_modes = m;
-saveSettingToSheets('calc_modes', m); // megosztott mentés – minden gép ezt fogja látni
-}
-function getActiveMode() {
-const modes = getCalcModes();
-return modes[activeCalc] || 'regi';
-}
-// ============================================================
-// BŐVÍTÉS KALKULÁCIÓ (kalkulátoronként bepipálható; ld. setBovitesKalkulacio)
-// ============================================================
-const DEFAULT_CALC_BOVITES = { 1:false, 2:false, 3:false, 4:false, 5:false, 6:false };
-function getCalcBovites() {
-if (SHARED_SETTINGS && SHARED_SETTINGS.calc_bovites) {
-return { ...DEFAULT_CALC_BOVITES, ...SHARED_SETTINGS.calc_bovites };
-}
-try { return JSON.parse(localStorage.getItem('sf_calc_bovites') || 'null') || {...DEFAULT_CALC_BOVITES}; } catch { return {...DEFAULT_CALC_BOVITES}; }
-}
-function saveCalcBovitesData(b) {
-localStorage.setItem('sf_calc_bovites', JSON.stringify(b)); // gyors helyi cache
-if (!SHARED_SETTINGS) SHARED_SETTINGS = {};
-SHARED_SETTINGS.calc_bovites = b;
-saveSettingToSheets('calc_bovites', b); // megosztott mentés
-}
-function isBovitesKalkulacio() {
-const b = getCalcBovites();
-return !!b[activeCalc];
-}
-function setBovitesKalkulacio(checked) {
-const b = getCalcBovites();
-b[activeCalc] = !!checked;
-saveCalcBovitesData(b);
-const ujMódSor = document.getElementById('mode-toggle');
-if (ujMódSor) ujMódSor.style.opacity = checked ? '0.4' : '1';
-const ujBar = document.getElementById('uj-nap-bar');
-if (ujBar && checked) ujBar.style.display = 'none';
-else if (ujBar && !checked && getActiveMode() === 'uj') ujBar.style.display = 'flex';
-calculate();
-refreshDetail();
-updateStickyOffsets();
-}
 // Van-e BÁRMILYEN termék kiválasztva (napelem, inverter, optimalizátor vagy egyéb tétel)?
 // Enélkül korábban üresen maradt a kalkuláció, ha valaki csak invertert/akkut/egyebet vett fel napelem nélkül.
 function hasAnyProductSelected() {
@@ -1703,49 +1631,6 @@ return !!(
 (optiSel && optiQty > 0) ||
 hasExtra
 );
-}
-// ============================================================
-// 3 SZINTŰ ÁRAZÁS (Bekerülési anyagköltség / Minimum ár / Ajánlott ár)
-// ============================================================
-// A "működési költség" (munkadíj) kiszámítása változatlan – a jelenlegi Régi/Új/Bővítés
-// mód logikája adja (ld. calculate()/refreshDetail()/saveAjanlat()). Ez a 3 ár csak ennek
-// a munkadíjnak a felhasználásában térnek el egymástól.
-const AR_TIER_DEFS = [
-{ key: 'ar1', label: '1. Bekerülési anyagköltség' },
-{ key: 'ar2', label: '2. Minimum ár' },
-{ key: 'ar3', label: '3. Ajánlott ár' },
-];
-const DEFAULT_CALC_AR_VIS = { 1:{ar1:true,ar2:true,ar3:true}, 2:{ar1:true,ar2:true,ar3:true}, 3:{ar1:true,ar2:true,ar3:true}, 4:{ar1:true,ar2:true,ar3:true}, 5:{ar1:true,ar2:true,ar3:true}, 6:{ar1:true,ar2:true,ar3:true} };
-function getCalcArVis() {
-if (SHARED_SETTINGS && SHARED_SETTINGS.calc_ar_vis) {
-const stored = SHARED_SETTINGS.calc_ar_vis;
-[1,2,3,4,5,6].forEach(c => { if (!stored[c]) stored[c] = { ar1:true, ar2:true, ar3:true }; });
-return stored;
-}
-try {
-const stored = JSON.parse(localStorage.getItem('sf_calc_ar_vis') || 'null');
-if (!stored) return JSON.parse(JSON.stringify(DEFAULT_CALC_AR_VIS));
-// Hiányzó kalkulátor-kulcsok pótlása (pl. ha később bővült a lista)
-[1,2,3,4,5,6].forEach(c => { if (!stored[c]) stored[c] = { ar1:true, ar2:true, ar3:true }; });
-return stored;
-} catch { return JSON.parse(JSON.stringify(DEFAULT_CALC_AR_VIS)); }
-}
-function saveCalcArVis(v) {
-localStorage.setItem('sf_calc_ar_vis', JSON.stringify(v)); // gyors helyi cache
-if (!SHARED_SETTINGS) SHARED_SETTINGS = {};
-SHARED_SETTINGS.calc_ar_vis = v;
-saveSettingToSheets('calc_ar_vis', v); // megosztott mentés
-}
-function getActiveArVis() {
-const v = getCalcArVis();
-return v[activeCalc] || { ar1: true, ar2: true, ar3: true };
-}
-function setCalcArVis(calcNum, tier, checked) {
-const v = getCalcArVis();
-if (!v[calcNum]) v[calcNum] = { ar1: true, ar2: true, ar3: true };
-v[calcNum][tier] = checked;
-saveCalcArVis(v);
-if (calcNum === activeCalc) { calculate(); refreshDetail(); }
 }
 // ============================================================
 // CÉLÁRAZÓ – kalkulátoronként állítható, hogy a sales kolléga lássa-e a
@@ -1797,40 +1682,120 @@ function toggleAlonePriceMode(checked) {
 sfAlonePriceMode = checked;
 calculate();
 }
+// Szintenként (senior/junior/kulsos) és állapotonként (normál / "Egyedül vagyok") állítható, hogy ki mit lát.
+// min = Minimum ár; bont = bontás (anyag, csapat+iroda rész, Y); haszon = haszon rész. Az "…Alone" kulcsok
+// az "Egyedül vagyok" bepipálásakor érvényesek. Az admin mindent lát. Admin felület: 🎯 Célárazó fül.
+const DEFAULT_AR_LATHATOSAG = {
+senior: { min: false, minAlone: true, bont: false, bontAlone: true, haszon: false, haszonAlone: false },
+junior: { min: false, minAlone: true, bont: false, bontAlone: false, haszon: false, haszonAlone: false },
+kulsos: { min: false, minAlone: false, bont: false, bontAlone: false, haszon: false, haszonAlone: false },
+};
+const AR_LATHATOSAG_KEYS = ['min', 'minAlone', 'bont', 'bontAlone', 'haszon', 'haszonAlone'];
+function getArLathatosag() {
+let stored = null;
+if (SHARED_SETTINGS && SHARED_SETTINGS.ar_lathatosag) stored = SHARED_SETTINGS.ar_lathatosag;
+else { try { stored = JSON.parse(localStorage.getItem('sf_ar_lathatosag') || 'null'); } catch { stored = null; } }
+const out = {};
+['senior', 'junior', 'kulsos'].forEach(l => {
+out[l] = { ...DEFAULT_AR_LATHATOSAG[l], ...((stored && stored[l]) || {}) };
+AR_LATHATOSAG_KEYS.forEach(k => { out[l][k] = !!out[l][k]; });
+});
+return out;
+}
+function setArLathatosag(level, key, checked) {
+const v = getArLathatosag();
+if (!v[level]) return;
+v[level][key] = !!checked;
+localStorage.setItem('sf_ar_lathatosag', JSON.stringify(v));
+if (!SHARED_SETTINGS) SHARED_SETTINGS = {};
+SHARED_SETTINGS.ar_lathatosag = v;
+saveSettingToSheets('ar_lathatosag', v);
+calculate();
+}
 function getPriceVisibilityForUser() {
 const isAdminUser = currentUser && currentUser.isAdmin;
-if (isAdminUser) return { showMinimum: true, showBreakdown: true, showAloneCheckbox: false, isJuniorMinimumOnly: false };
-const level = getUserSalesLevel(currentUser);
-const calcForcedBontas = !!getCelarazoBontasLathato()[activeCalc]; // admin-kapcsoló kalkulátoronként, mindenkinek megmutatja
-if (level === 'senior') {
-const showExtra = sfAlonePriceMode || calcForcedBontas;
-return { showMinimum: showExtra, showBreakdown: showExtra, showAloneCheckbox: true, isJuniorMinimumOnly: false };
-}
-if (level === 'junior') {
-const showExtra = sfAlonePriceMode || calcForcedBontas;
-return { showMinimum: showExtra, showBreakdown: calcForcedBontas, showAloneCheckbox: true, isJuniorMinimumOnly: showExtra && !calcForcedBontas };
-}
-// "kulsos" vagy nincs beállítva sales-szint → a legszűkebb jogosultság, amíg admin be nem állítja
-return { showMinimum: calcForcedBontas, showBreakdown: calcForcedBontas, showAloneCheckbox: false, isJuniorMinimumOnly: false };
-}
-// Kiszámolja mindhárom árat (nettó/kedvezményes nettó/áfa/bruttó/kW-ár) egy adott
-// anyagköltség + működési költség (munkadíj) párosból. A visszaadott tömb mindig
-// mindhárom szintet tartalmazza – a megjelenítésnél kell szűrni getActiveArVis() szerint.
-function computeAr3Tier(anyagok, munkadij, discount, afaKulcs, rendszerKw) {
-const raw = {
-ar1: anyagok,
-ar2: anyagok + munkadij * CALC_SETTINGS.min_ar_szorzo.value,
-ar3: anyagok + munkadij * CALC_SETTINGS.ajanlott_ar_szorzo.value,
+if (isAdminUser) return { showMinimum: true, showBreakdown: true, showHaszon: true, showAloneCheckbox: false };
+let level = getUserSalesLevel(currentUser);
+if (!level) level = 'kulsos'; // nincs beállított sales-szint → a legszűkebb jogosultság
+const cfg = getArLathatosag()[level];
+const calcForced = !!getCelarazoBontasLathato()[activeCalc]; // kalkulátoronkénti admin-kapcsoló: mindenkinek megmutatja
+const alone = !!sfAlonePriceMode && (cfg.minAlone || cfg.bontAlone || cfg.haszonAlone);
+return {
+showMinimum: calcForced || (alone ? cfg.minAlone : cfg.min),
+showBreakdown: calcForced || (alone ? cfg.bontAlone : cfg.bont),
+showHaszon: calcForced || (alone ? cfg.haszonAlone : cfg.haszon),
+showAloneCheckbox: !!(cfg.minAlone || cfg.bontAlone || cfg.haszonAlone),
 };
-return AR_TIER_DEFS.map(def => {
-const netto = raw[def.key];
-const nettoKedv = netto * (1 - discount / 100);
-const afaKedv = nettoKedv * afaKulcs;
-const bruttoKedv = nettoKedv * (1 + afaKulcs);
-const kwNetKedv = rendszerKw > 0 ? nettoKedv / rendszerKw : 0;
-const kwGrossKedv = rendszerKw > 0 ? bruttoKedv / rendszerKw : 0;
-return { key: def.key, label: def.label, netto, nettoKedv, afaKedv, bruttoKedv, kwNetKedv, kwGrossKedv };
+}
+// ============================================================
+// CÉLÁRAZÓ – KÖZPONTI SZÁMÍTÁS (v2.94, az egyetlen árazási módszer)
+// ============================================================
+// Szerelési anyag díj / panel a kiválasztott tartószerkezet-típus (tetőtípus) szerint.
+// A tartószerkezet-választó nevei: Cserepes, Trapézsín, Lapostetős, Földre telepített.
+function celTartInfo(tartCode) {
+const cs = CALC_SETTINGS;
+let tart = null;
+if (tartCode) tart = PRODUCTS.tarts.find(t => Number(t.code) === tartCode || (PRODUCTS.tarts.indexOf(t) + 1) === tartCode) || null;
+const nev = tart ? String(tart.name || '') : '';
+const low = nev.toLowerCase();
+let dij = cs.szereles_panel_cserepes.value, tipus = 'cserepes/trapéz';
+if (low.includes('lapos')) { dij = cs.szereles_panel_lapos.value; tipus = 'lapostető'; }
+else if (low.includes('föld') || low.includes('fold')) { dij = cs.szereles_panel_fold.value; tipus = 'földre telepített'; }
+return { name: nev, dij, tipus, selected: !!tart };
+}
+function isAkkuProduct(p) { return !!(p && /^\s*akku/i.test(String(p.name || ''))); }
+// Anyagköltség (nettó): panel + szerelési anyag/panel + inverter + szerelési anyag/inverter
+// + optimalizáló + egyéb tételek + akkumulátor szerelési anyag (egyszeri) + puffer.
+// o: { panelSel, panelQty, tartCode, inv1Sel, inv1Qty, inv2Sel, inv2Qty, optiSel, optiQty, extras:[{product,qty}] }
+function computeAnyagKoltseg(o) {
+const cs = CALC_SETTINGS;
+const panelQty = o.panelSel ? (o.panelQty || 0) : 0;
+const panelCost = o.panelSel ? o.panelSel.huf * panelQty : 0;
+const rendszerKw = o.panelSel ? o.panelSel.kw * panelQty : 0;
+const tart = celTartInfo(o.tartCode);
+const szerelesPanel = panelQty > 0 ? tart.dij * panelQty : 0;
+const inv1Cost = o.inv1Sel ? o.inv1Sel.huf * (o.inv1Qty || 0) : 0;
+const inv2Cost = o.inv2Sel ? o.inv2Sel.huf * (o.inv2Qty || 0) : 0;
+const invDb = (o.inv1Sel ? (o.inv1Qty || 0) : 0) + (o.inv2Sel ? (o.inv2Qty || 0) : 0);
+const szerelesInverter = invDb * cs.szereles_inverter.value;
+const optiCost = o.optiSel && o.optiQty > 0 ? o.optiSel.huf * o.optiQty : 0;
+let egyebCost = 0, hasAkku = false;
+const tetelek = [];
+(o.extras || []).forEach(r => {
+if (r.product && r.qty > 0) {
+const cost = r.product.huf * r.qty;
+egyebCost += cost;
+tetelek.push({ name: r.product.name, qty: r.qty, egysegar: r.product.huf, cost });
+if (isAkkuProduct(r.product)) hasAkku = true;
+}
 });
+const szerelesAkku = hasAkku ? cs.szereles_akku.value : 0;
+const puffer = cs.anyag_puffer.value;
+const anyagok = panelCost + szerelesPanel + inv1Cost + inv2Cost + szerelesInverter + optiCost + egyebCost + szerelesAkku + puffer;
+return { panelCost, szerelesPanel, szerelesDij: tart.dij, tetoTipus: tart.tipus, tartName: tart.name, tartKivalasztva: tart.selected,
+inv1Cost, inv2Cost, invDb, szerelesInverter, optiCost, egyebCost, tetelek, hasAkku, szerelesAkku, puffer, anyagok, rendszerKw };
+}
+// Célárazó: Nettó = Anyag + (csapat/db + iroda/db + haszon/(db·12)) × Y,  Y = anyag / éves átlag anyag.
+function computeCelArazo(anyagok, discount, afaKulcs) {
+const cs = CALC_SETTINGS;
+const db = cs.celarazo_havi_kivitelezes_db.value || 1;
+const atlag = cs.celarazo_eves_atlag_anyag.value || 1;
+const Y = anyagok / atlag;
+const csapatAlap = cs.celarazo_ketcsapat_havi_koltseg.value / db;
+const irodaAlap = cs.celarazo_iroda_havi_koltseg.value / db;
+const haszonAlap = cs.celarazo_eves_celszam.value / (db * 12);
+const csapatResz = csapatAlap * Y;
+const irodaResz = irodaAlap * Y;
+const haszonResz = haszonAlap * Y;
+const fixResz = csapatResz + irodaResz;
+const minimumNetto = anyagok + fixResz;           // haszon nélkül
+const netto = minimumNetto + haszonResz;          // kedvezmény előtt
+const k = 1 - (discount || 0) / 100;
+const nettoKedv = netto * k;
+const minimumNettoKedv = minimumNetto * k;
+return { Y, csapatAlap, irodaAlap, haszonAlap, csapatResz, irodaResz, haszonResz, fixResz, minimumNetto, netto,
+nettoKedv, minimumNettoKedv, afaKedv: nettoKedv * afaKulcs, bruttoKedv: nettoKedv * (1 + afaKulcs),
+minimumBruttoKedv: minimumNettoKedv * (1 + afaKulcs) };
 }
 function getCalcNames() {
 if (SHARED_SETTINGS && SHARED_SETTINGS.calc_names) {
@@ -2123,103 +2088,34 @@ const inv2Qty = parseInt(document.getElementById('inv2-qty')?.value) || 0;
 const optiSel = searchState.opti.selected;
 const optiQty = parseInt(document.getElementById('opti-qty')?.value) || 0;
 const discount = parseFloat(document.getElementById('discount-val')?.value) || 0;
-const mode = getActiveMode();
-const bovitesMod = isBovitesKalkulacio();
-const rendszerKw = panelSel ? panelSel.kw * panelQty : 0;
-// Costs
-const panelCost = panelSel ? panelSel.huf * panelQty : 0;
-let tartCost = 0, tartName = '';
-if (tartCode && panelSel) {
-const tart = PRODUCTS.tarts.find(t => Number(t.code) === tartCode || (PRODUCTS.tarts.indexOf(t)+1) === tartCode);
-if (tart) { tartCost = tart.base + Math.max(0,rendszerKw-3)*tart.per_kw; tartName = tart.name; }
-}
-const inv1Cost = inv1Sel ? inv1Sel.huf * inv1Qty : 0;
-const inv2Cost = inv2Sel ? inv2Sel.huf * inv2Qty : 0;
-const optiCost = optiSel ? optiSel.huf * optiQty : 0;
-const tetelek = [];
-let egyebCost = 0;
-extraRows.forEach(row => {
-if (row.product && row.qty > 0) {
-tetelek.push({ name: row.product.name, qty: row.qty, egysegar: row.product.huf, cost: row.product.huf * row.qty });
-egyebCost += row.product.huf * row.qty;
-}
-});
-const anyagköltseg = panelCost + tartCost + inv1Cost + inv2Cost + optiCost + egyebCost;
+const am = computeAnyagKoltseg({ panelSel, panelQty, tartCode, inv1Sel, inv1Qty, inv2Sel, inv2Qty, optiSel, optiQty,
+extras: extraRows.map(r => ({ product: r.product, qty: r.qty })) });
+const { panelCost, optiCost, egyebCost, tetelek, rendszerKw } = am;
+const inv1Cost = am.inv1Cost, inv2Cost = am.inv2Cost;
+const tartName = am.tartName, tartCost = am.szerelesPanel; // a "tartószerkezet" oszlop mostantól a panelenkénti szerelési anyag összege
+const anyagköltseg = am.anyagok;
 const AFA = CALC_SETTINGS.afa.value / 100;
-let munkadij = 0;
-let napok = 0;
-if (bovitesMod) {
-// BŐVÍTÉS KALKULÁCIÓ: nincs munkadíj
-munkadij = 0;
-} else if (mode === 'regi') {
-const md_alap = CALC_SETTINGS.munkadij_alap.value;
-const md_extra = CALC_SETTINGS.munkadij_extra.value;
-const md_hatar = CALC_SETTINGS.munkadij_hatar.value;
-munkadij = rendszerKw <= md_hatar
-? rendszerKw * md_alap
-: md_hatar * md_alap + (rendszerKw - md_hatar) * md_extra;
-} else {
 const manualNapEl = document.getElementById('manual-nap');
-napok = (manualNapEl && manualNapEl.value) ? parseInt(manualNapEl.value) : calcDaysForKw(rendszerKw);
-munkadij = napok * CALC_SETTINGS.napi_munkadij.value * (1 + CALC_SETTINGS.munkadij_pct.value/100);
-}
+const napok = (manualNapEl && manualNapEl.value) ? parseInt(manualNapEl.value) : calcDaysForKw(rendszerKw);
 const names = getCalcNames();
-const fmt = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
-// Fő (payload-kompatibilitási) ár mezők + a 3 szintű árazás mentése
-let netto, nettoKedv, bruttoKedv, arTipus;
-let ar3Fields = {};
-if (bovitesMod) {
-const bNetto = anyagköltseg * CALC_SETTINGS.bovites_szorzo.value;
-netto = bNetto;
-nettoKedv = bNetto * (1 - discount / 100);
-bruttoKedv = nettoKedv * (1 + AFA);
-arTipus = 'Bővítés';
-} else if (mode === 'regi') {
-// RÉGI MÓD – változatlan, egyetlen ár, nincs 3 szintű árazás
-const rNetto = (anyagköltseg + munkadij) * CALC_SETTINGS.haszonkulcs.value;
-netto = rNetto;
-nettoKedv = rNetto * (1 - discount / 100);
-bruttoKedv = nettoKedv * (1 + AFA);
-arTipus = 'Régi (haszonkulcsos)';
-} else if (mode === 'cel') {
-// CÉLÁRAZÓ – anyag + kivitelezési rész + admin rész + cél(haszon) rész,
-// mindhárom a napok / havi kivitelezési célszám (X) arányában (ld. calculate()).
-const xCelszam = CALC_SETTINGS.celarazo_havi_kivitelezesi_celszam.value || 1;
-const napArany = napok / xCelszam;
-const kivitelezesiResz = CALC_SETTINGS.celarazo_havi_kivitelezesi_dij.value * napArany;
-const adminResz = CALC_SETTINGS.celarazo_havi_admin_dij.value * napArany;
-const celResz = (CALC_SETTINGS.celarazo_eves_celszam.value / 12) * napArany;
-const cNetto = anyagköltseg + kivitelezesiResz + adminResz + celResz;
-netto = cNetto;
-nettoKedv = cNetto * (1 - discount / 100);
-bruttoKedv = nettoKedv * (1 + AFA);
-arTipus = 'Célár';
-ar3Fields = {
-celKivitelezesiResz: Math.round(kivitelezesiResz),
-celAdminResz: Math.round(adminResz),
-celHaszonResz: Math.round(celResz),
+const ca = computeCelArazo(anyagköltseg, discount, AFA);
+const netto = ca.netto, nettoKedv = ca.nettoKedv, bruttoKedv = ca.bruttoKedv;
+const arTipus = 'Célár';
+const ar3Fields = {
+celKivitelezesiResz: Math.round(ca.csapatResz),
+celAdminResz: Math.round(ca.irodaResz),
+celHaszonResz: Math.round(ca.haszonResz),
 celNapok: napok,
+celY: Math.round(ca.Y * 1000) / 1000,
+szerelesInverter: Math.round(am.szerelesInverter),
+szerelesAkku: Math.round(am.szerelesAkku),
+puffer: Math.round(am.puffer),
 };
-} else {
-// ÚJ MÓD – 3 szintű árazás
-const tiers = computeAr3Tier(anyagköltseg, munkadij, discount, AFA, rendszerKw);
-const [t1, t2, t3] = tiers;
-// A "fő" netto/brutto mező (visszamenőleges kompatibilitás a Sheets riportokkal) az Ajánlott árat tükrözi
-netto = t3.netto;
-nettoKedv = t3.nettoKedv;
-bruttoKedv = t3.bruttoKedv;
-arTipus = 'Ajánlott (3 szintű árazás)';
-ar3Fields = {
-ar1Nev: t1.label, ar1Netto: Math.round(t1.nettoKedv), ar1Afa: Math.round(t1.afaKedv), ar1Brutto: Math.round(t1.bruttoKedv),
-ar2Nev: t2.label, ar2Netto: Math.round(t2.nettoKedv), ar2Afa: Math.round(t2.afaKedv), ar2Brutto: Math.round(t2.bruttoKedv),
-ar3Nev: t3.label, ar3Netto: Math.round(t3.nettoKedv), ar3Afa: Math.round(t3.afaKedv), ar3Brutto: Math.round(t3.bruttoKedv),
-};
-}
 const payload = {
 ertekesito: currentUser.name || currentUser.email,
 kalkulator: names[activeCalc] || 'Kalkulátor ' + activeCalc,
 rendszerNev: document.getElementById('sysname-1')?.value || 'Alap',
-mod: bovitesMod ? 'Bővítés' : (mode === 'regi' ? 'Régi' : mode === 'cel' ? 'Célár' : 'Új'),
+mod: 'Célár',
 arTipus,
 // Napelem
 napelem: panelSel ? panelSel.name : '',
@@ -2250,13 +2146,11 @@ tetelek,
 egyebOsszeg: Math.round(egyebCost),
 // Összesítők
 anyagköltseg: Math.round(anyagköltseg),
-munkadij: Math.round(munkadij),
-bekerulesi: Math.round(anyagköltseg + munkadij),
-haszonkulcs: bovitesMod ? CALC_SETTINGS.bovites_szorzo.value : (mode === 'regi' ? CALC_SETTINGS.haszonkulcs.value : mode === 'cel' ? null : CALC_SETTINGS.ajanlott_ar_szorzo.value),
-// 3 szintű árazás (régi/új módban mindhárom kitöltve; bővítés módban üres, mert ott 1 ár van)
+munkadij: 0,
+bekerulesi: Math.round(anyagköltseg),
+haszonkulcs: null,
+// Célárazó bontás (csapat/iroda/haszon rész ×Y, becsült napok) – a régi 3 szintű mezők üresek maradnak
 ...ar3Fields,
-// Fő ár mezők – visszamenőleges kompatibilitás: bővítés módban a bővítés ára,
-// egyébként az Ajánlott ár (3. szint)
 nettoKedvNelkul: Math.round(netto),
 kedvezmeny: discount,
 kedvezmenyOsszeg: Math.round(netto - nettoKedv),
@@ -2314,8 +2208,6 @@ const inv2Qty = parseInt(document.getElementById('inv2-qty')?.value) || 0;
 const optiSel = searchState.opti.selected;
 const optiQty = parseInt(document.getElementById('opti-qty')?.value) || 0;
 const discount = parseFloat(document.getElementById('discount-val')?.value) || 0;
-const mode = getActiveMode();
-const bovitesMod = isBovitesKalkulacio();
 // JAVÍTVA: korábban csak napelem-választás esetén jelent meg a részletező – ha valaki csak
 // invertert / akkut / egyéb tételt vett fel napelem nélkül, üres maradt az oldal.
 if (!hasAnyProductSelected()) {
@@ -2323,77 +2215,30 @@ container.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;tex
 return;
 }
 const fmt = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
-const fmtn = n => Math.round(n).toLocaleString('hu-HU');
-const rendszerKw = panelSel ? panelSel.kw * panelQty : 0;
-// --- ANYAGOK ---
-const panelCost = panelSel ? panelSel.huf * panelQty : 0;
-let tartCost = 0;
-let tartName = '—';
-if (tartCode && panelSel) {
-const tart = PRODUCTS.tarts.find(t => Number(t.code) === tartCode || (PRODUCTS.tarts.indexOf(t)+1) === tartCode);
-if (tart) {
-const extraKw = Math.max(0, rendszerKw - 3);
-tartCost = tart.base + extraKw * tart.per_kw;
-tartName = tart.name;
-}
-}
-const inv1Cost = inv1Sel ? inv1Sel.huf * inv1Qty : 0;
-const inv2Cost = inv2Sel ? inv2Sel.huf * inv2Qty : 0;
-const optiCost = optiSel ? optiSel.huf * optiQty : 0;
-let egyebRows = [];
-let egyebCost = 0;
-extraRows.forEach(row => {
-if (row.product && row.qty > 0) {
-const cost = row.product.huf * row.qty;
-egyebRows.push({ name: row.product.name, qty: row.qty, egysegar: row.product.huf, cost });
-egyebCost += cost;
-}
-});
-const anyagok = panelCost + tartCost + inv1Cost + inv2Cost + optiCost + egyebCost;
-// --- MŰKÖDÉSI KÖLTSÉG (munkadíj) – változatlan Régi/Új/Bővítés logika ---
+const am = computeAnyagKoltseg({ panelSel, panelQty, tartCode, inv1Sel, inv1Qty, inv2Sel, inv2Qty, optiSel, optiQty,
+extras: extraRows.map(r => ({ product: r.product, qty: r.qty })) });
+const { panelCost, inv1Cost, inv2Cost, optiCost, tetelek: egyebRows, rendszerKw, anyagok } = am;
 const AFA = CALC_SETTINGS.afa.value / 100;
-let munkadij = 0;
-let munkadijLabel = '';
-if (bovitesMod) {
-munkadij = 0;
-munkadijLabel = 'bővítés módban nincs munkadíj';
-} else if (mode === 'regi') {
-const md_alap = CALC_SETTINGS.munkadij_alap.value;
-const md_extra = CALC_SETTINGS.munkadij_extra.value;
-const md_hatar = CALC_SETTINGS.munkadij_hatar.value;
-if (rendszerKw <= md_hatar) {
-munkadij = rendszerKw * md_alap;
-munkadijLabel = `${rendszerKw.toFixed(2)} kW × ${fmt(md_alap)}/kW`;
-} else {
-munkadij = md_hatar * md_alap + (rendszerKw - md_hatar) * md_extra;
-munkadijLabel = `${md_hatar} kW × ${fmt(md_alap)} + ${(rendszerKw-md_hatar).toFixed(2)} kW × ${fmt(md_extra)}`;
-}
-} else {
+const ca = computeCelArazo(anyagok, discount, AFA);
+const arVis = getPriceVisibilityForUser();
 const napok = (() => {
 const manualNapEl = document.getElementById('manual-nap');
 if (manualNapEl && manualNapEl.value) return parseInt(manualNapEl.value);
 return calcDaysForKw(rendszerKw);
 })();
-const napi = CALC_SETTINGS.napi_munkadij.value;
-const felarPct = CALC_SETTINGS.munkadij_pct.value / 100;
-munkadij = napok * napi * (1 + felarPct);
-munkadijLabel = `${napok} nap × ${fmt(napi)}${felarPct > 0 ? ' × ' + (1+felarPct) : ''}`;
-}
-const modeLabel = bovitesMod
-? `📦 Bővítés kalkuláció (szorzó: ×${CALC_SETTINGS.bovites_szorzo.value})`
-: mode === 'regi'
-? `📐 Régi mód (haszonkulcs: ×${CALC_SETTINGS.haszonkulcs.value})`
-: `🆕 Új mód (napi díj: ${fmt(CALC_SETTINGS.napi_munkadij.value)})`;
 const rowStyle = 'display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--border);font-size:0.83rem';
 const hdrStyle = 'font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin:1rem 0 0.4rem';
 const subStyle = 'color:var(--text-muted);font-size:0.75rem';
 let html = `
 <div style="background:var(--bg);border:1px solid var(--sun);border-radius:0.75rem;padding:1rem;margin-bottom:0.75rem;font-size:0.82rem">
 <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem">
-<span style="color:var(--text-muted)">Kalkulátor:</span><strong>Kalkulátor ${activeCalc} – ${modeLabel}</strong>
+<span style="color:var(--text-muted)">Kalkulátor:</span><strong>Kalkulátor ${activeCalc} – 🎯 Célárazó</strong>
 </div>
 <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem">
 <span style="color:var(--text-muted)">Rendszer mérete:</span><strong>${rendszerKw.toFixed(3)} kW</strong>
+</div>
+<div style="display:flex;justify-content:space-between;margin-bottom:0.25rem">
+<span style="color:var(--text-muted)">Becsült kivitelezési idő:</span><strong>${napok} nap</strong>
 </div>
 ${discount > 0 ? `<div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">Kedvezmény:</span><strong style="color:var(--red)">−${discount}%</strong></div>` : ''}
 </div>`;
@@ -2404,17 +2249,9 @@ html += `
 <span>${panelSel.name} <span style="${subStyle}">(${panelQty} db × ${fmt(panelSel.huf)})</span></span>
 <strong>${fmt(panelCost)}</strong>
 </div>
-<div style="display:flex;justify-content:space-between;padding:0.2rem 0;font-size:0.75rem;color:var(--text-muted)">
-<span>Napelem egységár</span><span>${fmt(panelSel.huf)}/db</span>
-</div>`;
-}
-if (tartCost > 0) {
-const tart = PRODUCTS.tarts.find(t => Number(t.code) === tartCode || (PRODUCTS.tarts.indexOf(t)+1) === tartCode);
-html += `
-<div style="${hdrStyle}">🏗️ Tartószerkezet</div>
 <div style="${rowStyle}">
-<span>${tartName} <span style="${subStyle}">(alap: ${fmt(tart?.base||0)} + ${Math.max(0,rendszerKw-3).toFixed(2)} kW × ${fmt(tart?.per_kw||0)})</span></span>
-<strong>${fmt(tartCost)}</strong>
+<span>Szerelési anyag <span style="${subStyle}">(${am.tetoTipus}${am.tartKivalasztva ? '' : ' – tetőtípus nincs kiválasztva, ez az alapdíj'}: ${panelQty} db × ${fmt(am.szerelesDij)})</span></span>
+<strong>${fmt(am.szerelesPanel)}</strong>
 </div>`;
 }
 if (inv1Sel && inv1Qty > 0) {
@@ -2428,6 +2265,13 @@ if (inv2Sel && inv2Qty > 0) html += `
 <div style="${rowStyle}">
 <span>${inv2Sel.name} <span style="${subStyle}">(${inv2Qty} db × ${fmt(inv2Sel.huf)})</span></span>
 <strong>${fmt(inv2Cost)}</strong>
+</div>`;
+}
+if (am.szerelesInverter > 0) {
+html += `
+<div style="${rowStyle}">
+<span>Inverter szerelési anyag <span style="${subStyle}">(${am.invDb} db × ${fmt(CALC_SETTINGS.szereles_inverter.value)})</span></span>
+<strong>${fmt(am.szerelesInverter)}</strong>
 </div>`;
 }
 if (optiSel && optiQty > 0) {
@@ -2447,52 +2291,71 @@ html += `<div style="${rowStyle}">
 </div>`;
 });
 }
-// Összesítő – anyagköltség + működési költség (nyers, szorzók nélkül)
+if (am.szerelesAkku > 0) {
+html += `<div style="${rowStyle}">
+<span>Akkumulátor szerelési anyag <span style="${subStyle}">(egyszeri)</span></span>
+<strong>${fmt(am.szerelesAkku)}</strong>
+</div>`;
+}
+html += `<div style="${rowStyle}">
+<span>Előre nem látható költségek puffere</span>
+<strong>${fmt(am.puffer)}</strong>
+</div>`;
+// Összesítő
 html += `
 <div style="border-top:2px solid var(--border);margin-top:0.75rem;padding-top:0.75rem">
 <div style="${rowStyle}">
-<span style="font-weight:600">Anyagköltség összesen</span><strong>${fmt(anyagok)}</strong>
+<span style="font-weight:600">Anyagköltség összesen (nettó)</span><strong>${fmt(anyagok)}</strong>
 </div>`;
-if (!bovitesMod) {
+if (arVis.showBreakdown) {
 html += `
 <div style="${rowStyle}">
-<span>Működési költség <span style="${subStyle}">(${munkadijLabel})</span></span>
-<strong>${fmt(munkadij)}</strong>
+<span>Y szorzó <span style="${subStyle}">(${fmt(anyagok)} / ${fmt(CALC_SETTINGS.celarazo_eves_atlag_anyag.value)})</span></span>
+<strong>${ca.Y.toFixed(3)}</strong>
+</div>
+<div style="${rowStyle}">
+<span>Csapat rész <span style="${subStyle}">(${fmt(CALC_SETTINGS.celarazo_ketcsapat_havi_koltseg.value)} / ${CALC_SETTINGS.celarazo_havi_kivitelezes_db.value} × Y)</span></span>
+<span>${fmt(ca.csapatResz)}</span>
+</div>
+<div style="${rowStyle}">
+<span>Iroda rész <span style="${subStyle}">(${fmt(CALC_SETTINGS.celarazo_iroda_havi_koltseg.value)} / ${CALC_SETTINGS.celarazo_havi_kivitelezes_db.value} × Y)</span></span>
+<span>${fmt(ca.irodaResz)}</span>
+</div>`;
+}
+if (arVis.showHaszon) {
+html += `
+<div style="${rowStyle}">
+<span>Haszon rész <span style="${subStyle}">(éves cél / (${CALC_SETTINGS.celarazo_havi_kivitelezes_db.value} × 12) × Y)</span></span>
+<span>${fmt(ca.haszonResz)}</span>
+</div>`;
+}
+if (arVis.showMinimum) {
+html += `
+<div style="${rowStyle}">
+<span style="color:var(--text-muted)">Minimum ár (nettó / bruttó, haszon nélkül)</span><span>${fmt(ca.minimumNettoKedv)} / ${fmt(ca.minimumBruttoKedv)}</span>
 </div>`;
 }
 html += `</div>`;
-if (bovitesMod) {
-// ============================================================
-// BŐVÍTÉS KALKULÁCIÓ – egyetlen ár, saját képlettel
-// ============================================================
-const netto = anyagok * CALC_SETTINGS.bovites_szorzo.value;
-const nettoKedv = netto * (1 - discount / 100);
-const afaKedv = nettoKedv * AFA;
-const bruttoKedv = nettoKedv * (1 + AFA);
-const kwNetKedv = rendszerKw > 0 ? nettoKedv / rendszerKw : 0;
-const kwGrossKedv = rendszerKw > 0 ? bruttoKedv / rendszerKw : 0;
-html += `
-<div style="${rowStyle}">
-<span style="color:var(--text-muted)">× ${CALC_SETTINGS.bovites_szorzo.value} bővítés szorzó <span style="${subStyle}">(munkadíj nélkül)</span></span><span>${fmt(netto)}</span>
-</div>`;
 if (discount > 0) {
-html += `<div style="${rowStyle}"><span style="color:var(--red)">Kedvezmény (−${discount}%)</span><span style="color:var(--red)">−${fmt(netto - nettoKedv)}</span></div>`;
+html += `<div style="${rowStyle}"><span style="color:var(--red)">Kedvezmény (−${discount}%)</span><span style="color:var(--red)">−${fmt(ca.netto - ca.nettoKedv)}</span></div>`;
 }
+const kwNetKedv = rendszerKw > 0 ? ca.nettoKedv / rendszerKw : 0;
+const kwGrossKedv = rendszerKw > 0 ? ca.bruttoKedv / rendszerKw : 0;
 html += `
 <div style="display:flex;justify-content:space-between;padding:0.4rem 0;font-size:0.83rem">
 <span style="color:var(--text-muted)">ÁFA (${CALC_SETTINGS.afa.value}%)</span>
-<span>${fmt(afaKedv)}</span>
+<span>${fmt(ca.afaKedv)}</span>
 </div>
 <!-- VÉGEREDMÉNY -->
 <div style="background:linear-gradient(135deg,var(--surface),var(--surface2));border:1px solid var(--sun);border-radius:0.75rem;padding:1rem;margin-top:0.75rem">
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;text-align:center">
 <div>
-<div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.2rem">Nettó ár</div>
-<div style="font-size:1.1rem;font-weight:800">${fmt(nettoKedv)}</div>
+<div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.2rem">Célár – nettó</div>
+<div style="font-size:1.1rem;font-weight:800">${fmt(ca.nettoKedv)}</div>
 </div>
 <div>
-<div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.2rem">Bruttó ár</div>
-<div style="font-size:1.3rem;font-weight:800;color:var(--sun)">${fmt(bruttoKedv)}</div>
+<div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.2rem">Célár – bruttó</div>
+<div style="font-size:1.3rem;font-weight:800;color:var(--sun)">${fmt(ca.bruttoKedv)}</div>
 </div>
 <div>
 <div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.2rem">kW ár nettó</div>
@@ -2504,86 +2367,6 @@ html += `
 </div>
 </div>
 </div>`;
-} else if (mode === 'regi') {
-// ============================================================
-// RÉGI MÓD – változatlan, egyetlen ár: (anyag + munkadíj) × haszonkulcs
-// ============================================================
-const netto = (anyagok + munkadij) * CALC_SETTINGS.haszonkulcs.value;
-const nettoKedv = netto * (1 - discount / 100);
-const afaKedv = nettoKedv * AFA;
-const bruttoKedv = nettoKedv * (1 + AFA);
-const kwNetKedv = rendszerKw > 0 ? nettoKedv / rendszerKw : 0;
-const kwGrossKedv = rendszerKw > 0 ? bruttoKedv / rendszerKw : 0;
-html += `
-<div style="${rowStyle}">
-<span style="color:var(--text-muted)">Bekerülési ár összesen</span><span>${fmt(anyagok + munkadij)}</span>
-</div>
-<div style="${rowStyle}">
-<span style="color:var(--text-muted)">× ${CALC_SETTINGS.haszonkulcs.value} haszonkulcs</span><span>${fmt(netto)}</span>
-</div>`;
-if (discount > 0) {
-html += `<div style="${rowStyle}"><span style="color:var(--red)">Kedvezmény (−${discount}%)</span><span style="color:var(--red)">−${fmt(netto - nettoKedv)}</span></div>`;
-}
-html += `
-<div style="display:flex;justify-content:space-between;padding:0.4rem 0;font-size:0.83rem">
-<span style="color:var(--text-muted)">ÁFA (${CALC_SETTINGS.afa.value}%)</span>
-<span>${fmt(afaKedv)}</span>
-</div>
-<!-- VÉGEREDMÉNY -->
-<div style="background:linear-gradient(135deg,var(--surface),var(--surface2));border:1px solid var(--sun);border-radius:0.75rem;padding:1rem;margin-top:0.75rem">
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;text-align:center">
-<div>
-<div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.2rem">Nettó ár</div>
-<div style="font-size:1.1rem;font-weight:800">${fmt(nettoKedv)}</div>
-</div>
-<div>
-<div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.2rem">Bruttó ár</div>
-<div style="font-size:1.3rem;font-weight:800;color:var(--sun)">${fmt(bruttoKedv)}</div>
-</div>
-<div>
-<div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.2rem">kW ár nettó</div>
-<div style="font-size:0.95rem;font-weight:700;color:var(--green)">${rendszerKw > 0 ? fmt(kwNetKedv) + '/kW' : '—'}</div>
-</div>
-<div>
-<div style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.2rem">kW ár bruttó</div>
-<div style="font-size:0.95rem;font-weight:700;color:var(--green)">${rendszerKw > 0 ? fmt(kwGrossKedv) + '/kW' : '—'}</div>
-</div>
-</div>
-</div>`;
-} else {
-// ============================================================
-// 3 SZINTŰ ÁRAZÁS – Bekerülési anyagköltség / Minimum ár / Ajánlott ár (csak Új mód)
-// ============================================================
-const tiers = computeAr3Tier(anyagok, munkadij, discount, AFA, rendszerKw);
-const activeVis = getActiveArVis();
-const visible = tiers.filter(t => activeVis[t.key]);
-if (visible.length === 0) {
-html += `
-<div style="background:var(--bg);border:1px dashed var(--border);border-radius:0.75rem;padding:1rem;margin-top:0.75rem;text-align:center;color:var(--text-muted);font-size:0.85rem">
-Ehhez a kalkulátorhoz nincs látható ár beállítva – kérd az adminisztrátort az "Ár-láthatóság" beállításánál.
-</div>`;
-} else {
-html += `<div style="display:grid;grid-template-columns:repeat(${visible.length},1fr);gap:0.6rem;margin-top:0.75rem">`;
-visible.forEach((t, i) => {
-const highlight = i === visible.length - 1; // az utolsó (jellemzően "Ajánlott ár") kiemelve
-html += `
-<div style="background:${highlight ? 'linear-gradient(135deg,var(--surface),var(--surface2))' : 'var(--bg)'};border:1px solid ${highlight ? 'var(--sun)' : 'var(--border)'};border-radius:0.75rem;padding:0.85rem;text-align:center">
-<div style="font-size:0.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">${t.label}</div>
-<div style="font-size:${highlight ? '1.15rem' : '1rem'};font-weight:800;color:${highlight ? 'var(--sun)' : 'var(--text)'}">${fmt(t.bruttoKedv)}</div>
-<div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.15rem">bruttó</div>
-<div style="border-top:1px solid var(--border);margin:0.5rem 0"></div>
-<div style="font-size:0.78rem;color:var(--text-muted)">nettó: <strong style="color:var(--text)">${fmt(t.nettoKedv)}</strong></div>
-<div style="font-size:0.78rem;color:var(--text-muted)">ÁFA: <strong style="color:var(--text)">${fmt(t.afaKedv)}</strong></div>
-<div style="font-size:0.72rem;color:var(--green);margin-top:0.3rem">${rendszerKw > 0 ? fmt(t.kwNetKedv) + '/kW nettó' : '—'}</div>
-<div style="font-size:0.72rem;color:var(--green)">${rendszerKw > 0 ? fmt(t.kwGrossKedv) + '/kW bruttó' : '—'}</div>
-</div>`;
-});
-html += `</div>`;
-if (discount > 0) {
-html += `<div style="text-align:center;font-size:0.75rem;color:var(--red);margin-top:0.5rem">Kedvezmény: −${discount}% (minden árban érvényesítve)</div>`;
-}
-}
-}
 html += `
 <div style="margin-top:0.75rem;font-size:0.72rem;color:var(--text-muted);text-align:center">
 Frissítve: ${new Date().toLocaleTimeString('hu-HU')}
@@ -2804,7 +2587,6 @@ const inv2Qty = parseInt(document.getElementById('inv2-qty').value) || 0;
 const optiSel = searchState.opti.selected;
 const optiQty = parseInt(document.getElementById('opti-qty').value) || 0;
 const discount = parseFloat(document.getElementById('discount-val').value) || 0;
-const bovitesMod = isBovitesKalkulacio();
 // Napelem kW info
 if (panelSel) {
 const kw = panelSel.kw * panelQty;
@@ -2823,200 +2605,69 @@ document.getElementById('rbar-full').style.display = 'none';
 LAST_CALC_BRUTTO = 0;
 return;
 }
-// === ANYAGKÖLTSÉG ===
-const panelCost = panelSel ? panelSel.huf * panelQty : 0;
-// Tartószerkezet: alap + per_kw * rendszer_kw (napelem nélkül nincs tartószerkezet-igény)
-const rendszerKw = panelSel ? panelSel.kw * panelQty : 0;
-let tartCost = 0;
-if (tartCode && panelSel) {
-const tart = PRODUCTS.tarts.find(t => Number(t.code) === tartCode || (PRODUCTS.tarts.indexOf(t) + 1) === tartCode);
-if (tart) {
-// Képlet: =(G9-3)*per_kw + base (3 kW-ig csak az alapár)
-const extraKw = Math.max(0, rendszerKw - 3);
-tartCost = tart.base + extraKw * tart.per_kw;
-}
-}
-// Inverter
-const invCost = (inv1Sel ? inv1Sel.huf * inv1Qty : 0) + (inv2Sel ? inv2Sel.huf * inv2Qty : 0);
-// Optimalizátor
-const optiCost = optiSel ? optiSel.huf * optiQty : 0;
-// Egyéb
-let egyebCost = 0;
-extraRows.forEach(row => {
-if (row.product && row.qty > 0) egyebCost += row.product.huf * row.qty;
-});
-const anyagok = panelCost + tartCost + invCost + optiCost + egyebCost;
-// === MŰKÖDÉSI KÖLTSÉG (munkadíj) – változatlan logika Régi/Új/Bővítés szerint ===
+// === ANYAGKÖLTSÉG (szerelési anyag, inverter-/akku-felár, puffer) ===
+const am = computeAnyagKoltseg({ panelSel, panelQty, tartCode, inv1Sel, inv1Qty, inv2Sel, inv2Qty, optiSel, optiQty,
+extras: extraRows.map(r => ({ product: r.product, qty: r.qty })) });
+const { panelCost, szerelesPanel, szerelesInverter, szerelesAkku, puffer, optiCost, egyebCost, rendszerKw, anyagok } = am;
+const invCost = am.inv1Cost + am.inv2Cost;
+// === CÉLÁRAZÓ ===
 const AFA_KULCS = CALC_SETTINGS.afa.value / 100;
-const mode = getActiveMode();
-let munkadij = 0;
-let javasoltNap = 0;
-let tenylegNap = 0;
-let modeLabel = '';
-if (bovitesMod) {
-// BŐVÍTÉS KALKULÁCIÓ: nincs szerelési munkadíj – saját, önálló képlete van (ld. lentebb),
-// nem megy át a 3 szintű árazáson.
-munkadij = 0;
-modeLabel = ` | ×${CALC_SETTINGS.bovites_szorzo.value} bővítés szorzó (munkadíj nélkül)`;
-} else if (mode === 'regi') {
-// RÉGI MÓD munkadíj-formula (kW-sávos)
-const md_alap = CALC_SETTINGS.munkadij_alap.value;
-const md_extra = CALC_SETTINGS.munkadij_extra.value;
-const md_hatar = CALC_SETTINGS.munkadij_hatar.value;
-if (rendszerKw <= md_hatar) {
-munkadij = rendszerKw * md_alap;
-} else {
-munkadij = md_hatar * md_alap + (rendszerKw - md_hatar) * md_extra;
-}
-modeLabel = ` | ×${CALC_SETTINGS.haszonkulcs.value} haszonkulcs`;
-} else {
-// ÚJ MÓD munkadíj-formula (nap × napi díj × (1 + felár%))
-javasoltNap = calcDaysForKw(rendszerKw);
+const ca = computeCelArazo(anyagok, discount, AFA_KULCS);
+// Becsült kivitelezési idő – csak tájékoztató megjegyzés, az árat nem befolyásolja
+const javasoltNap = calcDaysForKw(rendszerKw);
 const manualNapEl = document.getElementById('manual-nap');
-tenylegNap = (manualNapEl && manualNapEl.value) ? parseInt(manualNapEl.value) : javasoltNap;
-const napi = CALC_SETTINGS.napi_munkadij.value;
-const felarPct = CALC_SETTINGS.munkadij_pct.value / 100;
-munkadij = tenylegNap * napi * (1 + felarPct);
-modeLabel = mode === 'cel'
-? ` | ${tenylegNap} nap (havi kivitelezési célszám: ${CALC_SETTINGS.celarazo_havi_kivitelezesi_celszam.value} db)`
-: ` | ${tenylegNap} nap × ${Math.round(napi).toLocaleString('hu-HU')} Ft${felarPct > 0 ? ' +' + CALC_SETTINGS.munkadij_pct.value + '%' : ''}`;
-// Update javasolt nap display
+const tenylegNap = (manualNapEl && manualNapEl.value) ? parseInt(manualNapEl.value) : javasoltNap;
 const jnEl = document.getElementById('javasolt-nap');
-if (jnEl) jnEl.textContent = javasoltNap + ' nap (' + rendszerKw.toFixed(2) + ' kW)';
-}
+if (jnEl) jnEl.textContent = tenylegNap + ' nap (' + rendszerKw.toFixed(2) + ' kW)';
 const fmt = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
-let mainHtml = '';
-if (bovitesMod) {
-// ============================================================
-// BŐVÍTÉS KALKULÁCIÓ: egyetlen ár, saját (anyagköltség × szorzó) képlettel
-// ============================================================
-const netto = anyagok * CALC_SETTINGS.bovites_szorzo.value;
-const nettoKedv = netto * (1 - discount / 100);
-const afaKedv = nettoKedv * AFA_KULCS;
-const bruttoKedv = nettoKedv * (1 + AFA_KULCS);
-const kwNetKedv = rendszerKw > 0 ? nettoKedv / rendszerKw : 0;
-const kwGrossKedv = rendszerKw > 0 ? bruttoKedv / rendszerKw : 0;
-mainHtml = `
-<div class="rbar-item">
-<div class="rbar-label">Bővítés ár (bruttó)</div>
-<div class="rbar-val brutto">${fmt(bruttoKedv)}</div>
-</div>
-<div class="rbar-item">
-<div class="rbar-label">Nettó</div>
-<div class="rbar-val">${fmt(nettoKedv)}</div>
-</div>
-<div class="rbar-item">
-<div class="rbar-label">ÁFA</div>
-<div class="rbar-val">${fmt(afaKedv)}</div>
-</div>
-<div class="rbar-item">
-<div class="rbar-label">Méret</div>
-<div class="rbar-val kw">${rendszerKw.toFixed(2)} kW</div>
-</div>`;
-document.getElementById('res-kw-sub').textContent = `${fmt(kwNetKedv)} nettó/kW | ${fmt(kwGrossKedv)} bruttó/kW`;
-LAST_CALC_BRUTTO = bruttoKedv;
-} else if (mode === 'regi') {
-// ============================================================
-// RÉGI MÓD: változatlan, egyetlen ár – (anyag + munkadíj) × haszonkulcs
-// (nem megy át a 3 szintű árazáson, hogy elkerüljük a félreértéseket)
-// ============================================================
-const netto = (anyagok + munkadij) * CALC_SETTINGS.haszonkulcs.value;
-const nettoKedv = netto * (1 - discount / 100);
-const afaKedv = nettoKedv * AFA_KULCS;
-const bruttoKedv = nettoKedv * (1 + AFA_KULCS);
-const kwNetKedv = rendszerKw > 0 ? nettoKedv / rendszerKw : 0;
-const kwGrossKedv = rendszerKw > 0 ? bruttoKedv / rendszerKw : 0;
-mainHtml = `
-<div class="rbar-item">
-<div class="rbar-label">Bruttó</div>
-<div class="rbar-val brutto">${fmt(bruttoKedv)}</div>
-</div>
-<div class="rbar-item">
-<div class="rbar-label">Nettó</div>
-<div class="rbar-val">${fmt(nettoKedv)}</div>
-</div>
-<div class="rbar-item">
-<div class="rbar-label">ÁFA</div>
-<div class="rbar-val">${fmt(afaKedv)}</div>
-</div>
-<div class="rbar-item">
-<div class="rbar-label">Méret</div>
-<div class="rbar-val kw">${rendszerKw.toFixed(2)} kW</div>
-</div>`;
-document.getElementById('res-kw-sub').textContent = `${fmt(kwNetKedv)} nettó/kW | ${fmt(kwGrossKedv)} bruttó/kW`;
-LAST_CALC_BRUTTO = bruttoKedv;
-} else if (mode === 'cel') {
-// ============================================================
-// CÉLÁRAZÓ: anyag + kivitelezési rész + admin rész + cél(haszon) rész –
-// mindhárom a kivitelezési napok / havi kivitelezési célszám (X) arányában nő.
-// Admin látja a teljes bontást, sima értékesítő csak a végső Célárat.
-// 20 kW fölött a számítás ugyanúgy fut, csak figyelmeztető jelenik meg a
-// felületen (a PDF riportba ez nem kerül be, mert ez egy Árazó-oldali
-// UI-elem, nem része a Megtérülés PDF sablonjának).
-// ============================================================
-const cs = CALC_SETTINGS;
-const xCelszam = cs.celarazo_havi_kivitelezesi_celszam.value || 1;
-const napArany = tenylegNap / xCelszam;
-const napiKivitelezesiDij = cs.celarazo_havi_kivitelezesi_dij.value / xCelszam;
-const napiAdminDij = cs.celarazo_havi_admin_dij.value / xCelszam;
-const kivitelezesiResz = napiKivitelezesiDij * tenylegNap;
-const adminResz = napiAdminDij * tenylegNap;
-const celResz = (cs.celarazo_eves_celszam.value / 12) * napArany;
-const minimumNetto = anyagok + kivitelezesiResz + adminResz; // célRész (haszon) nélkül
-const netto = minimumNetto + celResz;
-const nettoKedv = netto * (1 - discount / 100);
-const minimumNettoKedv = minimumNetto * (1 - discount / 100);
-const afaKedv = nettoKedv * AFA_KULCS;
-const bruttoKedv = nettoKedv * (1 + AFA_KULCS);
-const minimumBruttoKedv = minimumNettoKedv * (1 + AFA_KULCS);
-const kwNetKedv = rendszerKw > 0 ? nettoKedv / rendszerKw : 0;
-const kwGrossKedv = rendszerKw > 0 ? bruttoKedv / rendszerKw : 0;
+const kwNetKedv = rendszerKw > 0 ? ca.nettoKedv / rendszerKw : 0;
+const kwGrossKedv = rendszerKw > 0 ? ca.bruttoKedv / rendszerKw : 0;
 const arVis = getPriceVisibilityForUser();
-mainHtml = `
+let mainHtml = `
 <div class="rbar-item">
-<div class="rbar-label">Célár (bruttó) <span class="sf-info" title="A Célárazó módban számolt ajánlati ár: anyagköltség + kivitelezési rész + admin rész + célhaszon rész, a kivitelezési napok / havi célszám (X) arányában szétosztva.">ⓘ</span></div>
-<div class="rbar-val brutto">${fmt(bruttoKedv)}</div>
+<div class="rbar-label">Célár (bruttó) <span class="sf-info" title="Nettó ár = anyagköltség + (2 csapat havi költsége + irodaköltség + éves haszoncél/12) / havi kivitelezésszám × Y, ahol Y = az aktuális anyagköltség / éves átlagos anyagköltség.">ⓘ</span></div>
+<div class="rbar-val brutto">${fmt(ca.bruttoKedv)}</div>
 </div>
 <div class="rbar-item">
 <div class="rbar-label">Célár (nettó)</div>
-<div class="rbar-val">${fmt(nettoKedv)}</div>
+<div class="rbar-val">${fmt(ca.nettoKedv)}</div>
 </div>`;
 if (arVis.showMinimum) {
 mainHtml += `
 <div class="rbar-item">
 <div class="rbar-label">Minimum ár (bruttó)</div>
-<div class="rbar-val">${fmt(minimumBruttoKedv)}</div>
+<div class="rbar-val">${fmt(ca.minimumBruttoKedv)}</div>
 </div>
 <div class="rbar-item">
 <div class="rbar-label">Minimum ár (nettó)</div>
-<div class="rbar-val">${fmt(minimumNettoKedv)}</div>
+<div class="rbar-val">${fmt(ca.minimumNettoKedv)}</div>
 </div>`;
 }
 if (arVis.showBreakdown) {
 mainHtml += `
 <div class="rbar-item">
-<div class="rbar-label">Anyagköltség (nettó) <span class="sf-info" title="A Célárazó teljes bontása: anyagköltség + a kivitelezési napok arányában szétosztott kivitelezési/admin (és adminnak/engedélyezett sales-nek: célhaszon) rész.">ⓘ</span></div>
+<div class="rbar-label">Anyagköltség (nettó) <span class="sf-info" title="Panel + szerelési anyag/panel + inverter + szerelési anyag/inverter + optimalizáló + egyéb + akku szerelés + puffer.">ⓘ</span></div>
 <div class="rbar-val">${fmt(anyagok)}</div>
 </div>
 <div class="rbar-item">
-<div class="rbar-label">Kivitelezési rész (${fmt(napiKivitelezesiDij)}/nap × ${tenylegNap} nap)</div>
-<div class="rbar-val">${fmt(kivitelezesiResz)}</div>
+<div class="rbar-label">Y szorzó <span class="sf-info" title="Az aktuális anyagköltség / éves átlagos anyagköltség (${fmt(CALC_SETTINGS.celarazo_eves_atlag_anyag.value)}).">ⓘ</span></div>
+<div class="rbar-val">${ca.Y.toFixed(3)}</div>
 </div>
 <div class="rbar-item">
-<div class="rbar-label">Admin rész (${fmt(napiAdminDij)}/nap × ${tenylegNap} nap)</div>
-<div class="rbar-val">${fmt(adminResz)}</div>
-</div>`;
-if (currentUser && (currentUser.isAdmin || !!getCelarazoBontasLathato()[activeCalc])) {
-// A "Cél (haszon) rész" és az éves/havi célértékek csak adminnak vagy a
-// kalkulátoronként explicit engedélyezett esetben látszanak – senior sales
-// "egyedül" módban ezt SOSEM látja, csak a napra levetített kivitelezési/
-// admin díjat (ld. fent), az éves célszám bizalmas marad.
-mainHtml += `
+<div class="rbar-label">Csapat rész (×Y)</div>
+<div class="rbar-val">${fmt(ca.csapatResz)}</div>
+</div>
 <div class="rbar-item">
-<div class="rbar-label">Cél (haszon) rész</div>
-<div class="rbar-val">${fmt(celResz)}</div>
+<div class="rbar-label">Iroda rész (×Y)</div>
+<div class="rbar-val">${fmt(ca.irodaResz)}</div>
 </div>`;
 }
+if (arVis.showHaszon) {
+mainHtml += `
+<div class="rbar-item">
+<div class="rbar-label">Haszon rész (×Y)</div>
+<div class="rbar-val">${fmt(ca.haszonResz)}</div>
+</div>`;
 }
 if (arVis.showAloneCheckbox) {
 mainHtml += `
@@ -3033,49 +2684,19 @@ mainHtml += `
 <div class="rbar-val kw">${rendszerKw.toFixed(2)} kW</div>
 </div>`;
 document.getElementById('res-kw-sub').textContent = `${fmt(kwNetKedv)} nettó/kW | ${fmt(kwGrossKedv)} bruttó/kW` +
+(rendszerKw > 0 ? ` | ⏱️ becsült kivitelezés: ${tenylegNap} nap` : '') +
 (rendszerKw > 20 ? ' — ⚠️ Nem lakossági méret (20 kW felett), egyedi elbírálás szükséges' : '');
-LAST_CALC_BRUTTO = bruttoKedv;
-} else {
-// ============================================================
-// ÚJ MÓD: 3 szintű árazás – Bekerülési anyagköltség / Minimum ár / Ajánlott ár
-// ============================================================
-const tiers = computeAr3Tier(anyagok, munkadij, discount, AFA_KULCS, rendszerKw);
-const activeVis = getActiveArVis();
-const visible = tiers.filter(t => activeVis[t.key]);
-if (visible.length === 0) {
-mainHtml = `<div class="rbar-item" style="grid-column:1/-1">
-<div class="rbar-label">Nincs látható ár ehhez a kalkulátorhoz</div>
-<div class="rbar-val" style="font-size:0.85rem;color:var(--text-muted)">Kérd az adminisztrátort az ár-láthatóság beállításához</div>
-</div>`;
-document.getElementById('res-kw-sub').textContent = '';
-LAST_CALC_BRUTTO = 0;
-} else {
-visible.forEach(t => {
-mainHtml += `
-<div class="rbar-item">
-<div class="rbar-label">${t.label.replace(/^\d+\.\s*/, '')} (bruttó)</div>
-<div class="rbar-val brutto">${fmt(t.bruttoKedv)}</div>
-</div>`;
-});
-const t0 = visible[visible.length - 1]; // az utolsó (legmagasabb) látható tétel kW-ára a fő referencia
-document.getElementById('res-kw-sub').textContent =
-`${t0.label.replace(/^\d+\.\s*/, '')}: ${fmt(t0.kwNetKedv)} nettó/kW | ${fmt(t0.kwGrossKedv)} bruttó/kW`;
-LAST_CALC_BRUTTO = t0.bruttoKedv;
-}
-mainHtml += `
-<div class="rbar-item">
-<div class="rbar-label">Méret</div>
-<div class="rbar-val kw">${rendszerKw.toFixed(2)} kW</div>
-</div>`;
-}
+LAST_CALC_BRUTTO = ca.bruttoKedv;
 document.getElementById('rbar-main').innerHTML = mainHtml;
 document.getElementById('res-breakdown').innerHTML =
 (panelCost ? `Napelem: ${fmt(panelCost)}` : '') +
-(tartCost ? ` | Tartó: ${fmt(tartCost)}` : '') +
+(szerelesPanel ? ` | Panel szerelési anyag: ${fmt(szerelesPanel)}` : '') +
 (invCost ? ` | Inverter: ${fmt(invCost)}` : '') +
+(szerelesInverter ? ` | Inverter szerelés: ${fmt(szerelesInverter)}` : '') +
 (optiCost ? ` | Opti: ${fmt(optiCost)}` : '') +
 (egyebCost ? ` | Egyéb: ${fmt(egyebCost)}` : '') +
-(bovitesMod || mode === 'cel' ? '' : ` | Munkadíj: ${fmt(munkadij)}`) + modeLabel;
+(szerelesAkku ? ` | Akku szerelés: ${fmt(szerelesAkku)}` : '') +
+` | Puffer: ${fmt(puffer)}`;
 document.getElementById('rbar-empty').style.display = 'none';
 document.getElementById('rbar-full').style.display = 'block';
 if (typeof mt_renderItemCompareTable === 'function') mt_renderItemCompareTable();
@@ -3415,55 +3036,23 @@ const inv1Qty = parseInt(document.getElementById('inv1-qty-' + sysNum)?.value) |
 const tartCode = parseInt(document.getElementById('tart-select-' + sysNum)?.value) || 0;
 const optiSel = extraSearchState[sysNum].opti ? extraSearchState[sysNum].opti.selected : null;
 const optiQty = parseInt(document.getElementById('opti-qty-' + sysNum)?.value) || 0;
-const rendszerKw = panelSel.kw * panelQty;
-const panelCost = panelSel.huf * panelQty;
-const inv1Cost = inv1Sel ? inv1Sel.huf * inv1Qty : 0;
-let tartCost = 0;
-if (tartCode) {
-const tart = PRODUCTS.tarts.find(t => Number(t.code) === tartCode || (PRODUCTS.tarts.indexOf(t)+1) === tartCode);
-if (tart) tartCost = tart.base + Math.max(0, rendszerKw - 3) * tart.per_kw;
-}
-const optiCost = optiSel && optiQty > 0 ? optiSel.huf * optiQty : 0;
-let egyebCost = 0;
-(extraRowsSys[sysNum] || []).forEach(row => {
-if (row.product && row.qty > 0) egyebCost += row.product.huf * row.qty;
-});
-const anyagok = panelCost + inv1Cost + tartCost + optiCost + egyebCost;
+const am = computeAnyagKoltseg({ panelSel, panelQty, tartCode, inv1Sel, inv1Qty, optiSel, optiQty,
+extras: (extraRowsSys[sysNum] || []).map(r => ({ product: r.product, qty: r.qty })) });
+const { rendszerKw, anyagok } = am;
 const AFA_KULCS = CALC_SETTINGS.afa.value / 100;
-const mode = getActiveMode();
 const discount = parseFloat(document.getElementById('discount-val')?.value) || 0;
 const fmt = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
 const manualNapOverride = document.getElementById('nap-override-' + sysNum)?.value;
 const napok = manualNapOverride ? parseInt(manualNapOverride) : calcDaysForKw(rendszerKw);
-let bruttoKedv = 0, breakdownHtml = '';
-if (mode === 'regi') {
-const md_alap = CALC_SETTINGS.munkadij_alap.value, md_extra = CALC_SETTINGS.munkadij_extra.value, md_hatar = CALC_SETTINGS.munkadij_hatar.value;
-const munkadij = rendszerKw <= md_hatar ? rendszerKw * md_alap : md_hatar * md_alap + (rendszerKw - md_hatar) * md_extra;
-const netto = (anyagok + munkadij) * CALC_SETTINGS.haszonkulcs.value;
-bruttoKedv = netto * (1 - discount/100) * (1 + AFA_KULCS);
-} else if (mode === 'cel') {
-const cs = CALC_SETTINGS;
-const x = cs.celarazo_havi_kivitelezesi_celszam.value || 1;
-const napArany = napok / x;
-const napiKivitelezesiDij = cs.celarazo_havi_kivitelezesi_dij.value / x;
-const napiAdminDij = cs.celarazo_havi_admin_dij.value / x;
-const kivitelezesiResz = napiKivitelezesiDij * napok;
-const adminResz = napiAdminDij * napok;
-const celResz = (cs.celarazo_eves_celszam.value / 12) * napArany;
-const minimumNetto = anyagok + kivitelezesiResz + adminResz;
-const netto = minimumNetto + celResz;
-bruttoKedv = netto * (1 - discount/100) * (1 + AFA_KULCS);
-const minimumBrutto = minimumNetto * (1 - discount/100) * (1 + AFA_KULCS);
+// Minden rendszer saját Y-nal számol (Y = a rendszer anyagköltsége / éves átlagos anyagköltség)
+const ca = computeCelArazo(anyagok, discount, AFA_KULCS);
+const bruttoKedv = ca.bruttoKedv;
+let breakdownHtml = '';
 const arVis = getPriceVisibilityForUser();
 if (arVis.showMinimum) {
-breakdownHtml = `<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.4rem">Minimum ár (bruttó): ${fmt(minimumBrutto)}${arVis.showBreakdown ? ` | Anyag: ${fmt(anyagok)} | Kivitelezés (${fmt(napiKivitelezesiDij)}/nap): ${fmt(kivitelezesiResz)} | Admin (${fmt(napiAdminDij)}/nap): ${fmt(adminResz)}` : ''} | ${napok} nap</div>`;
+breakdownHtml = `<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.4rem">Minimum ár (bruttó): ${fmt(ca.minimumBruttoKedv)}${arVis.showBreakdown ? ` | Anyag: ${fmt(anyagok)} | Y: ${ca.Y.toFixed(3)} | Csapat+iroda (×Y): ${fmt(ca.fixResz)}` : ''}${arVis.showHaszon ? ` | Haszon (×Y): ${fmt(ca.haszonResz)}` : ''}</div>`;
 }
-} else {
-const napi = CALC_SETTINGS.napi_munkadij.value;
-const munkadij = napok * napi * (1 + CALC_SETTINGS.munkadij_pct.value/100);
-const tiers = computeAr3Tier(anyagok, munkadij, discount, AFA_KULCS, rendszerKw);
-bruttoKedv = tiers[2].bruttoKedv; // Ajánlott ár
-}
+breakdownHtml += `<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.2rem">Nettó: ${fmt(ca.nettoKedv)} | ⏱️ becsült kivitelezés: ${napok} nap</div>`;
 resEl.style.color = 'var(--text)';
 resEl.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:0.5rem">
 <span style="font-weight:700;color:var(--sun);font-size:1.05rem">${fmt(bruttoKedv)}</span>
@@ -3487,70 +3076,26 @@ const tartCode = parseInt(document.getElementById('tart-select-' + sysNum)?.valu
 const optiSel = extraSearchState[sysNum].opti ? extraSearchState[sysNum].opti.selected : null;
 const optiQty = parseInt(document.getElementById('opti-qty-' + sysNum)?.value) || 0;
 const discount = parseFloat(document.getElementById('discount-val')?.value) || 0;
-const mode = getActiveMode();
-const bovitesMod = isBovitesKalkulacio();
-const rendszerKw = panelSel.kw * panelQty;
-const panelCost = panelSel.huf * panelQty;
-const inv1Cost = inv1Sel ? inv1Sel.huf * inv1Qty : 0;
-let tartCost = 0, tartName = '';
-if (tartCode) {
-const tart = PRODUCTS.tarts.find(t => Number(t.code) === tartCode || (PRODUCTS.tarts.indexOf(t)+1) === tartCode);
-if (tart) { tartCost = tart.base + Math.max(0, rendszerKw - 3) * tart.per_kw; tartName = tart.name; }
-}
-const optiCost = optiSel && optiQty > 0 ? optiSel.huf * optiQty : 0;
-const tetelek = [];
-let egyebCost = 0;
-(extraRowsSys[sysNum] || []).forEach(row => {
-if (row.product && row.qty > 0) {
-tetelek.push({ name: row.product.name, qty: row.qty, egysegar: row.product.huf, cost: row.product.huf * row.qty });
-egyebCost += row.product.huf * row.qty;
-}
-});
-const anyagköltseg = panelCost + inv1Cost + tartCost + optiCost + egyebCost;
+const am = computeAnyagKoltseg({ panelSel, panelQty, tartCode, inv1Sel, inv1Qty, optiSel, optiQty,
+extras: (extraRowsSys[sysNum] || []).map(r => ({ product: r.product, qty: r.qty })) });
+const { panelCost, optiCost, egyebCost, tetelek, rendszerKw } = am;
+const inv1Cost = am.inv1Cost;
+const tartName = am.tartName, tartCost = am.szerelesPanel;
+const anyagköltseg = am.anyagok;
 const AFA = CALC_SETTINGS.afa.value / 100;
 const manualNapOverride = document.getElementById('nap-override-' + sysNum)?.value;
 const napok = manualNapOverride ? parseInt(manualNapOverride) : calcDaysForKw(rendszerKw);
-let munkadij = 0;
-if (!bovitesMod && mode === 'regi') {
-const md_alap = CALC_SETTINGS.munkadij_alap.value, md_extra = CALC_SETTINGS.munkadij_extra.value, md_hatar = CALC_SETTINGS.munkadij_hatar.value;
-munkadij = rendszerKw <= md_hatar ? rendszerKw * md_alap : md_hatar * md_alap + (rendszerKw - md_hatar) * md_extra;
-} else if (!bovitesMod && mode !== 'cel') {
-munkadij = napok * CALC_SETTINGS.napi_munkadij.value * (1 + CALC_SETTINGS.munkadij_pct.value/100);
-}
-let netto, nettoKedv, bruttoKedv, arTipus;
-let ar3Fields = {};
-if (bovitesMod) {
-const bNetto = anyagköltseg * CALC_SETTINGS.bovites_szorzo.value;
-netto = bNetto; nettoKedv = bNetto * (1 - discount/100); bruttoKedv = nettoKedv * (1+AFA); arTipus = 'Bővítés';
-} else if (mode === 'regi') {
-const rNetto = (anyagköltseg + munkadij) * CALC_SETTINGS.haszonkulcs.value;
-netto = rNetto; nettoKedv = rNetto * (1 - discount/100); bruttoKedv = nettoKedv * (1+AFA); arTipus = 'Régi (haszonkulcsos)';
-} else if (mode === 'cel') {
-const cs = CALC_SETTINGS;
-const x = cs.celarazo_havi_kivitelezesi_celszam.value || 1;
-const napArany = napok / x;
-const kivitelezesiResz = cs.celarazo_havi_kivitelezesi_dij.value * napArany;
-const adminResz = cs.celarazo_havi_admin_dij.value * napArany;
-const celResz = (cs.celarazo_eves_celszam.value / 12) * napArany;
-const cNetto = anyagköltseg + kivitelezesiResz + adminResz + celResz;
-netto = cNetto; nettoKedv = cNetto * (1 - discount/100); bruttoKedv = nettoKedv * (1+AFA); arTipus = 'Célár';
-ar3Fields = { celKivitelezesiResz: Math.round(kivitelezesiResz), celAdminResz: Math.round(adminResz), celHaszonResz: Math.round(celResz), celNapok: napok };
-} else {
-const tiers = computeAr3Tier(anyagköltseg, munkadij, discount, AFA, rendszerKw);
-const [t1, t2, t3] = tiers;
-netto = t3.netto; nettoKedv = t3.nettoKedv; bruttoKedv = t3.bruttoKedv; arTipus = 'Ajánlott (3 szintű árazás)';
-ar3Fields = {
-ar1Nev: t1.label, ar1Netto: Math.round(t1.nettoKedv), ar1Afa: Math.round(t1.afaKedv), ar1Brutto: Math.round(t1.bruttoKedv),
-ar2Nev: t2.label, ar2Netto: Math.round(t2.nettoKedv), ar2Afa: Math.round(t2.afaKedv), ar2Brutto: Math.round(t2.bruttoKedv),
-ar3Nev: t3.label, ar3Netto: Math.round(t3.nettoKedv), ar3Afa: Math.round(t3.afaKedv), ar3Brutto: Math.round(t3.bruttoKedv),
-};
-}
+const ca = computeCelArazo(anyagköltseg, discount, AFA);
+const netto = ca.netto, nettoKedv = ca.nettoKedv, bruttoKedv = ca.bruttoKedv;
+const arTipus = 'Célár';
+const ar3Fields = { celKivitelezesiResz: Math.round(ca.csapatResz), celAdminResz: Math.round(ca.irodaResz), celHaszonResz: Math.round(ca.haszonResz), celNapok: napok, celY: Math.round(ca.Y * 1000) / 1000,
+szerelesInverter: Math.round(am.szerelesInverter), szerelesAkku: Math.round(am.szerelesAkku), puffer: Math.round(am.puffer) };
 const rendszerNev = document.getElementById('sysname-' + sysNum)?.value || EXTRA_SYS_DEFAULT_NAMES[sysNum] || ('Rendszer ' + sysNum);
 return {
 ertekesito: ertekesitoName,
 kalkulator: kalkulatorNev,
 rendszerNev,
-mod: bovitesMod ? 'Bővítés' : (mode === 'regi' ? 'Régi' : mode === 'cel' ? 'Célár' : 'Új'),
+mod: 'Célár',
 arTipus,
 napelem: panelSel.name, napelemDb: panelQty, napelemEgysegar: Math.round(panelSel.huf), napelemOsszeg: Math.round(panelCost),
 rendszerKw: Math.round(rendszerKw * 1000) / 1000,
@@ -3559,8 +3104,8 @@ inverter1: inv1Sel ? inv1Sel.name : '', inverter1Db: inv1Sel ? inv1Qty : 0, inve
 inverter2: '', inverter2Db: 0, inverter2Egysegar: 0, inverter2Osszeg: 0,
 optimalizator: optiSel && optiQty > 0 ? optiSel.name : '', optimalizatorDb: optiSel && optiQty > 0 ? optiQty : 0, optimalizatorEgysegar: optiSel && optiQty > 0 ? Math.round(optiSel.huf) : 0, optimalizatorOsszeg: Math.round(optiCost),
 tetelek, egyebOsszeg: Math.round(egyebCost),
-anyagköltseg: Math.round(anyagköltseg), munkadij: Math.round(munkadij), bekerulesi: Math.round(anyagköltseg + munkadij),
-haszonkulcs: bovitesMod ? CALC_SETTINGS.bovites_szorzo.value : (mode === 'regi' ? CALC_SETTINGS.haszonkulcs.value : mode === 'cel' ? null : CALC_SETTINGS.ajanlott_ar_szorzo.value),
+anyagköltseg: Math.round(anyagköltseg), munkadij: 0, bekerulesi: Math.round(anyagköltseg),
+haszonkulcs: null,
 ...ar3Fields,
 nettoKedvNelkul: Math.round(netto), kedvezmeny: discount, kedvezmenyOsszeg: Math.round(netto - nettoKedv),
 netto: Math.round(nettoKedv), afa: Math.round(nettoKedv * CALC_SETTINGS.afa.value / 100), brutto: Math.round(bruttoKedv),
@@ -3715,132 +3260,77 @@ saveUsers(users);
 document.getElementById('pw-other-new').value = '';
 showToast(`✅ ${users[idx].name || users[idx].email} jelszava megváltoztatva!`);
 }
-function setCalcMode(mode, persist = true) {
-// JAVÍTVA: korábban a persist paraméter nem létezett, így ez a függvény MINDIG
-// mentett is (localStorage + Sheets), akkor is, ha csak a UI-t szinkronizáltuk
-// (pl. belépéskor initModeUI()-ból, mielőtt a Sheets-ből megérkezett volna a
-// valós érték). Emiatt a beépített "regi" alapérték visszaíródott a Sheets-be
-// minden bejelentkezéskor, felülírva a ténylegesen beállított módot.
-if (persist) {
-const modes = getCalcModes();
-modes[activeCalc] = mode;
-saveCalcModes(modes);
-}
-// Update button styles
-const celBtn = document.getElementById('mode-cel-btn');
-const regiBtn = document.getElementById('mode-regi-btn');
-const ujBtn = document.getElementById('mode-uj-btn');
+// A Célárazó az egyetlen számítási mód – nincs mód-váltó. A "becsült napok" sáv mindig látszik.
+function initModeUI() {
 const ujBar = document.getElementById('uj-nap-bar');
-const manualNap = document.getElementById('manual-nap');
-const activeStyle = 'padding:0.2rem 0.7rem;border:none;cursor:pointer;font-size:0.75rem;background:var(--sun);color:#000;font-weight:700;opacity:1';
-// A Régi/Új üzemmódok halványítva (kiszürkítve) jelennek meg – a Célárazó a
-// javasolt, alapértelmezett számítási mód, de a másik kettő továbbra is
-// elérhető marad, ha valaki azzal akar számolni/összehasonlítani.
-const dimStyle = 'padding:0.2rem 0.7rem;border:none;cursor:pointer;font-size:0.75rem;background:transparent;color:var(--text-muted);opacity:0.5';
-if (celBtn) celBtn.style.cssText = mode === 'cel' ? activeStyle : dimStyle;
-if (regiBtn) regiBtn.style.cssText = mode === 'regi' ? activeStyle : dimStyle;
-if (ujBtn) ujBtn.style.cssText = mode === 'uj' ? activeStyle : dimStyle;
-// Bővítés kalkuláció módban sosem mutatjuk a "Javasolt napok" sávot (nincs munkadíj-számítás).
-// A Célárazó ugyanazt a napok-alapú (javasolt/felülírható) sávot használja, mint az Új mód.
-if (ujBar) ujBar.style.display = ((mode === 'uj' || mode === 'cel') && !isBovitesKalkulacio()) ? 'flex' : 'none';
-if (manualNap) manualNap.value = '';
+if (ujBar) ujBar.style.display = 'flex';
 calculate();
 updateStickyOffsets();
-}
-function updateMunkadijPct(val) {
-CALC_SETTINGS.munkadij_pct.value = parseFloat(val) || 0;
-calculate();
-}
-function initModeUI() {
-const mode = getActiveMode();
-setCalcMode(mode, false); // csak megjelenítés – NE mentsen semmit Sheets-be/localStorage-ba
-const bovitesChk = document.getElementById('bovites-kalk-checkbox');
-const checked = isBovitesKalkulacio();
-if (bovitesChk) bovitesChk.checked = checked;
-const ujModSor = document.getElementById('mode-toggle');
-if (ujModSor) ujModSor.style.opacity = checked ? '0.4' : '1';
-if (checked) {
-const ujBar = document.getElementById('uj-nap-bar');
-if (ujBar) ujBar.style.display = 'none';
-}
 }
 function renderCalcSettings() {
 const grid = document.getElementById('calc-settings-grid');
 if (!grid) return;
-const modes = getCalcModes();
 const names = getCalcNames();
-const arVis = getCalcArVis();
 const celBontas = getCelarazoBontasLathato();
-// Per-calculator mode settings
-let modeHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">Kalkulátorok módja</div><div style="display:grid;gap:0.5rem">';
-[1,2,3,4,5,6].forEach(c => {
-const m = modes[c] || 'cel';
-modeHtml += `<div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg);border:1px solid var(--border);border-radius:0.75rem;padding:0.6rem 1rem">
-<span style="font-size:0.85rem">${names[c] || 'Kalkulátor ' + c}</span>
-<div style="display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:0.4rem;overflow:hidden">
-<button onclick="setAdminCalcMode(${c},'cel')" id="adm-mode-${c}-cel"
-style="padding:0.25rem 0.75rem;border:none;cursor:pointer;font-size:0.75rem;${m==='cel'?'background:var(--sun);color:#000;font-weight:700':'background:transparent;color:var(--text-muted)'}">🎯 Célár</button>
-<button onclick="setAdminCalcMode(${c},'regi')" id="adm-mode-${c}-regi"
-style="padding:0.25rem 0.75rem;border:none;cursor:pointer;font-size:0.75rem;${m==='regi'?'background:var(--sun);color:#000;font-weight:700':'background:transparent;color:var(--text-muted)'}">📐 Régi</button>
-<button onclick="setAdminCalcMode(${c},'uj')" id="adm-mode-${c}-uj"
-style="padding:0.25rem 0.75rem;border:none;cursor:pointer;font-size:0.75rem;${m==='uj'?'background:var(--sun);color:#000;font-weight:700':'background:transparent;color:var(--text-muted)'}">🆕 Új</button>
-</div>
-</div>`;
+const lath = getArLathatosag();
+const hdr = (txt, color) => `<div style="font-size:0.8rem;color:${color || 'var(--text-muted)'};margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">${txt}</div>`;
+// Szintenkénti ár-láthatóság mátrix
+const cols = [
+['min', 'Minimum ár'], ['minAlone', 'Minimum ár – egyedül'],
+['bont', 'Bontás (anyag, Y, csapat, iroda)'], ['bontAlone', 'Bontás – egyedül'],
+['haszon', 'Haszon rész'], ['haszonAlone', 'Haszon rész – egyedül'],
+];
+let lathHtml = '<div style="margin-bottom:1rem">' + hdr('🔐 Ki melyik árat látja (sales szintenként)', 'var(--sun)') +
+'<div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:0.5rem">A Célár (nettó + bruttó) mindenkinek látszik. Az admin mindent lát. Az „egyedül” oszlopok akkor érvényesek, ha a sales kolléga bepipálja az „Egyedül vagyok” jelölőnégyzetet (ha egy szintnél egyik „egyedül” oszlop sincs bepipálva, a jelölőnégyzet meg sem jelenik).</div>' +
+'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.76rem"><thead><tr><th style="text-align:left;padding:0.4rem;color:var(--text-muted)">Szint</th>' +
+cols.map(c => `<th style="padding:0.4rem;color:var(--text-muted);font-weight:600">${c[1]}</th>`).join('') + '</tr></thead><tbody>';
+['senior', 'junior', 'kulsos'].forEach(l => {
+lathHtml += `<tr style="border-top:1px solid var(--border)"><td style="padding:0.4rem;font-weight:600">${SALES_LEVEL_LABELS[l]}</td>` +
+cols.map(c => `<td style="text-align:center;padding:0.4rem"><input type="checkbox" ${lath[l][c[0]] ? 'checked' : ''} onchange="setArLathatosag('${l}','${c[0]}',this.checked)"></td>`).join('') + '</tr>';
 });
-modeHtml += '</div></div>';
-// Per-calculator ár-láthatóság (melyik kalkulátor melyik árat láthatja)
-let arVisHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--sun);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">🎯 Kalkulátorok – Célárazó bontás láthatósága</div><div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:0.5rem">Admin mindig látja a teljes bontást. A tényleges árlátást elsősorban a Felhasználók lap „Sales szint" oszlopa (senior/junior/kulsos) szabályozza – ld. „Felhasználók kezelése" fül. Az itt bekapcsolt kalkulátoroknál MINDENKI látja a bontást/minimum árat, a sales-szinttől függetlenül is – ezt csak kivételes esetben használd (pl. teszteléshez).</div><div style="display:grid;gap:0.5rem">';
+lathHtml += '</tbody></table></div></div>';
+// Kalkulátoronkénti kényszerített bontás-láthatóság
+let arVisHtml = '<div style="margin-bottom:1rem">' + hdr('🎯 Kalkulátorok – bontás láthatósága mindenkinek', 'var(--sun)') +
+'<div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:0.5rem">Ha egy kalkulátornál be van pipálva, ott minden sales kolléga látja a Minimum árat, a bontást és a haszon részt (a fenti szint-beállítástól függetlenül).</div><div style="display:grid;gap:0.5rem">';
 [1,2,3,4,5,6].forEach(c => {
-const showBontas = !!celBontas[c];
 arVisHtml += `<div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg);border:1px solid var(--border);border-radius:0.75rem;padding:0.6rem 1rem;flex-wrap:wrap;gap:0.5rem">
 <span style="font-size:0.85rem">${names[c] || 'Kalkulátor ' + c}</span>
 <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.78rem;color:var(--text-muted);cursor:pointer">
-<input type="checkbox" ${showBontas ? 'checked' : ''} onchange="setCelarazoBontasLathato(${c},this.checked)"> Sales kolléga is lássa a bontást
+<input type="checkbox" ${celBontas[c] ? 'checked' : ''} onchange="setCelarazoBontasLathato(${c},this.checked)"> Sales kolléga is lássa a bontást
 </label>
 </div>`;
 });
 arVisHtml += '</div></div>';
-// Parameter settings grouped by mode
-let regiHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">📐 Régi számítás paraméterei</div><div style="display:grid;gap:0.5rem">';
-let ujHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">🆕 Új számítás paraméterei</div><div style="display:grid;gap:0.5rem">';
-let bothHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">⚙️ Közös paraméterek</div><div style="display:grid;gap:0.5rem">';
-let versenyHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">🆚 Piaci összehasonlítás (Megtérülés riport, csak Új rendszer módban)</div><div style="display:grid;gap:0.5rem">';
-let celHtml = '<div style="margin-bottom:1rem"><div style="font-size:0.8rem;color:var(--sun);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em">🎯 Célárazó paraméterei (lakossági, 0–20 kW ajánlott)</div><div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:0.5rem">Az árajánlat = anyagköltség + kivitelezési rész + admin rész + cél(haszon) rész, mindhárom a kivitelezési napok / havi kivitelezési célszám (X) arányában.</div><div style="display:grid;gap:0.5rem">';
+const wrap = (title, color) => '<div style="margin-bottom:1rem">' + hdr(title, color) + '<div style="display:grid;gap:0.5rem">';
+let celHtml = wrap('🎯 Célárazó paraméterei', 'var(--sun)');
+let anyagHtml = wrap('🧰 Anyagköltség – szerelési anyag, felárak, puffer', 'var(--sun)');
+let napHtml = wrap('⏱️ Becsült kivitelezési napok (csak tájékoztató megjegyzés, az árat nem befolyásolja)');
+let bothHtml = wrap('⚙️ Közös paraméterek');
+let versenyHtml = wrap('🆚 Piaci összehasonlítás (Megtérülés riport)');
 Object.entries(CALC_SETTINGS).forEach(([key, s]) => {
 const row = `<div style="background:var(--bg);border:1px solid var(--border);border-radius:0.75rem;padding:0.75rem">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.3rem">
 <span style="font-size:0.82rem;font-weight:600">${s.label}</span>
 <input type="number" value="${s.value}" min="${s.min}" max="${s.max}" step="${s.step}"
-style="background:var(--surface2);border:1px solid var(--sun);border-radius:0.4rem;padding:0.25rem 0.5rem;color:var(--sun);font-weight:700;font-size:0.85rem;width:110px;text-align:center;outline:none"
+style="background:var(--surface2);border:1px solid var(--sun);border-radius:0.4rem;padding:0.25rem 0.5rem;color:var(--sun);font-weight:700;font-size:0.85rem;width:130px;text-align:center;outline:none"
 onchange="updateCalcSetting('${key}', this.value)">
 </div>
 <div style="font-size:0.72rem;color:var(--text-muted)">${s.desc}</div>
 </div>`;
 if (s.mode === 'both') bothHtml += row;
-else if (s.mode === 'regi') regiHtml += row;
-else if (s.mode === 'uj') ujHtml += row;
 else if (s.mode === 'verseny') versenyHtml += row;
 else if (s.mode === 'cel') celHtml += row;
+else if (s.mode === 'anyag') anyagHtml += row;
+else if (s.mode === 'nap') napHtml += row;
 });
-regiHtml += '</div></div>';
-ujHtml += '</div></div>';
-bothHtml += '</div></div>';
-versenyHtml += '</div></div>';
-celHtml += '</div></div>';
-grid.innerHTML = modeHtml + arVisHtml + celHtml + bothHtml + regiHtml + ujHtml + versenyHtml;
+[celHtml, anyagHtml, napHtml, bothHtml, versenyHtml].forEach((h, i) => {});
+celHtml += '</div></div>'; anyagHtml += '</div></div>'; napHtml += '</div></div>'; bothHtml += '</div></div>'; versenyHtml += '</div></div>';
+grid.innerHTML = lathHtml + arVisHtml + celHtml + anyagHtml + bothHtml + napHtml + versenyHtml;
 updateCalcPreview();
 }
-function setAdminCalcMode(calcNum, mode) {
-const modes = getCalcModes();
-modes[calcNum] = mode;
-saveCalcModes(modes);
-renderCalcSettings();
-// If currently viewing that calc, update the toggle (a mentés már megtörtént fentebb, itt csak UI)
-if (calcNum === activeCalc) setCalcMode(mode, false);
-showToast(`☁️ Kalkulátor ${calcNum} módja mentve (${mode === 'regi' ? 'Régi' : mode === 'uj' ? 'Új' : 'Célár'}) – megosztott beállítás`);
-}
 function updateCalcSetting(key, val) {
-CALC_SETTINGS[key].value = parseFloat(val) || CALC_SETTINGS[key].value;
+const n = parseFloat(val);
+CALC_SETTINGS[key].value = isNaN(n) ? CALC_SETTINGS[key].value : n;
 updateCalcPreview();
 // Megosztott mentés – enélkül ez a beállítás korábban csak a JS memóriában élt,
 // és minden oldalfrissítéskor / más gépen elveszett volna.
@@ -3849,7 +3339,7 @@ Object.keys(CALC_SETTINGS).forEach(k => { valuesOnly[k] = CALC_SETTINGS[k].value
 if (!SHARED_SETTINGS) SHARED_SETTINGS = {};
 SHARED_SETTINGS.calc_settings = valuesOnly;
 saveSettingToSheets('calc_settings', valuesOnly);
-// Az élő kalkulátor is frissüljön, ha épp az van megnyitva (pl. haszonkulcs változott)
+// Az élő kalkulátor is frissüljön, ha épp az van megnyitva
 if (typeof calculate === 'function') calculate();
 if (typeof refreshDetail === 'function') refreshDetail();
 }
@@ -3857,61 +3347,25 @@ function updateCalcPreview() {
 const preview = document.getElementById('calc-preview');
 if (!preview) return;
 const s = CALC_SETTINGS;
-const afa = s.afa.value;
+const afa = s.afa.value / 100;
 const fmt = n => Math.round(n).toLocaleString('hu-HU') + ' Ft';
-const anyag = 1500000; // példa anyagköltség
-const kw = 9.0; // példa: 20 × 450W
-// RÉGI MÓD – változatlan, egyetlen ár
-const hatar = s.munkadij_hatar.value, alap = s.munkadij_alap.value, extra = s.munkadij_extra.value, hk = s.haszonkulcs.value;
-const md_regi = kw <= hatar ? kw * alap : hatar * alap + (kw - hatar) * extra;
-const netto_regi = (anyag + md_regi) * hk;
-const brutto_regi = netto_regi * (1 + afa/100);
-// ÚJ MÓD – működési költség + 3 szintű árazás
-const napi = s.napi_munkadij.value;
-const nap = calcDaysForKw(kw);
-const felar_pct = s.munkadij_pct.value;
-const md_uj = nap * napi * (1 + felar_pct/100);
-const ar1_uj = anyag;
-const ar2_uj = anyag + md_uj * s.min_ar_szorzo.value;
-const ar3_uj = anyag + md_uj * s.ajanlott_ar_szorzo.value;
-const ar1_uj_brutto = ar1_uj * (1 + afa/100);
-const ar2_uj_brutto = ar2_uj * (1 + afa/100);
-const ar3_uj_brutto = ar3_uj * (1 + afa/100);
-// BŐVÍTÉS KALKULÁCIÓ
-const bov_szorzo = s.bovites_szorzo.value;
-const netto_bov = anyag * bov_szorzo;
-const brutto_bov = netto_bov * (1 + afa/100);
+// Példa: átlagos munka (az éves átlag anyagköltséggel) és egy kétszer drágább anyagú munka
+const mk = anyag => ({ anyag, ca: computeCelArazo(anyag, 0, afa) });
+const ex = [mk(s.celarazo_eves_atlag_anyag.value), mk(s.celarazo_eves_atlag_anyag.value * 2)];
 preview.style.display = 'block';
 preview.innerHTML = `
-<div style="font-size:0.8rem;font-weight:700;margin-bottom:0.75rem;color:var(--sun)">📊 Számítás előnézet – példa: 20 × 450W (${kw} kW), anyag: 1 500 000 Ft</div>
-<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;font-size:0.78rem">
-<div style="background:var(--surface2);border-radius:0.5rem;padding:0.75rem">
-<div style="font-weight:700;margin-bottom:0.5rem;color:var(--text-muted)">📐 RÉGI MÓD (1 ár)</div>
-<div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">Anyag:</span><span>${fmt(anyag)}</span></div>
-<div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">Munkadíj (${kw}kW):</span><span>${fmt(md_regi)}</span></div>
-<div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">× ${hk} haszonkulcs:</span><span>${fmt(netto_regi)}</span></div>
-<div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">ÁFA (${afa}%):</span><span>${fmt(netto_regi * afa/100)}</span></div>
+<div style="font-size:0.8rem;font-weight:700;margin-bottom:0.75rem;color:var(--sun)">📊 Célárazó előnézet (kedvezmény nélkül)</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;font-size:0.78rem">` +
+ex.map(e => `<div style="background:var(--surface2);border-radius:0.5rem;padding:0.75rem">
+<div style="font-weight:700;margin-bottom:0.5rem;color:var(--text-muted)">Anyagköltség: ${fmt(e.anyag)} (Y = ${e.ca.Y.toFixed(2)})</div>
+<div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">Csapat rész:</span><span>${fmt(e.ca.csapatResz)}</span></div>
+<div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">Iroda rész:</span><span>${fmt(e.ca.irodaResz)}</span></div>
+<div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">Minimum ár (nettó):</span><span>${fmt(e.ca.minimumNetto)}</span></div>
+<div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">Haszon rész:</span><span>${fmt(e.ca.haszonResz)}</span></div>
+<div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">Célár (nettó):</span><span>${fmt(e.ca.netto)}</span></div>
 <div style="border-top:1px solid var(--border);margin:0.4rem 0"></div>
-<div style="display:flex;justify-content:space-between;font-weight:700;color:var(--sun)"><span>Bruttó:</span><span>${fmt(brutto_regi)}</span></div>
-</div>
-<div style="background:var(--surface2);border-radius:0.5rem;padding:0.75rem;border:1px solid var(--sun)">
-<div style="font-weight:700;margin-bottom:0.5rem;color:var(--text-muted)">🆕 ÚJ MÓD (3 szintű árazás)</div>
-<div style="display:flex;justify-content:space-between;margin-bottom:0.5rem"><span style="color:var(--text-muted)">Működési költség (${nap} nap${felar_pct>0?' +'+felar_pct+'%':''}):</span><span>${fmt(md_uj)}</span></div>
-<div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-top:1px solid var(--border)"><span style="color:var(--text-muted)">1. Bekerülési:</span><span>${fmt(ar1_uj_brutto)}</span></div>
-<div style="display:flex;justify-content:space-between;padding:0.25rem 0"><span style="color:var(--text-muted)">2. Minimum (×${s.min_ar_szorzo.value}):</span><span>${fmt(ar2_uj_brutto)}</span></div>
-<div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-top:1px solid var(--border);font-weight:700;color:var(--sun)"><span>3. Ajánlott (×${s.ajanlott_ar_szorzo.value}):</span><span>${fmt(ar3_uj_brutto)}</span></div>
-<div style="font-size:0.68rem;color:var(--text-muted);margin-top:0.4rem">(bruttó árak, ÁFA-val)</div>
-</div>
-<div style="background:var(--surface2);border-radius:0.5rem;padding:0.75rem">
-<div style="font-weight:700;margin-bottom:0.5rem;color:var(--text-muted)">📦 BŐVÍTÉS KALKULÁCIÓ (1 ár)</div>
-<div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">Anyag:</span><span>${fmt(anyag)}</span></div>
-<div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">Munkadíj:</span><span>${fmt(0)} (nincs)</span></div>
-<div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">× ${bov_szorzo} bővítés szorzó:</span><span>${fmt(netto_bov)}</span></div>
-<div style="display:flex;justify-content:space-between;margin-bottom:0.25rem"><span style="color:var(--text-muted)">ÁFA (${afa}%):</span><span>${fmt(netto_bov * afa/100)}</span></div>
-<div style="border-top:1px solid var(--border);margin:0.4rem 0"></div>
-<div style="display:flex;justify-content:space-between;font-weight:700;color:var(--sun)"><span>Bruttó:</span><span>${fmt(brutto_bov)}</span></div>
-</div>
-</div>`;
+<div style="display:flex;justify-content:space-between;font-weight:700;color:var(--sun)"><span>Célár (bruttó):</span><span>${fmt(e.ca.bruttoKedv)}</span></div>
+</div>`).join('') + `</div>`;
 }
 function saveCalcNames() {
 const names = {};
@@ -4005,8 +3459,7 @@ if (typeof checkExtraCompatibilitySys === 'function') { checkExtraCompatibilityS
 if (data.users && data.users.length > 0) {
 SHEETS_USERS = data.users;
 }
-// Megosztott beállítások (admin: haszonkulcs, kalkulátor módok, bővítés
-// checkbox, ár-láthatóság, kalkulátor-nevek) – minden gép ugyanezt látja mostantól
+// Megosztott beállítások (admin: Célárazó paraméterek, ár-láthatóság, kalkulátor-nevek) – minden gép ugyanezt látja mostantól
 SHARED_SETTINGS = data.settings || {};
 applySharedSettings();
 // Első feltöltés ("bootstrap"): csak akkor fut le, ha a Sheets "Beallitasok"
@@ -4022,9 +3475,6 @@ localStorage.setItem('sf_settings_bootstrapped', '1'); // azonnal jelöljük, ho
 const valuesOnly = {};
 Object.keys(CALC_SETTINGS).forEach(k => { valuesOnly[k] = CALC_SETTINGS[k].value; });
 saveSettingToSheets('calc_settings', valuesOnly);
-saveSettingToSheets('calc_modes', getCalcModes());
-saveSettingToSheets('calc_bovites', getCalcBovites());
-saveSettingToSheets('calc_ar_vis', getCalcArVis());
 saveSettingToSheets('calc_names', getCalcNames());
 console.info('Beállítások első feltöltése a Sheets-be (Beallitasok munkalap létrehozva/kiegészítve).');
 }
@@ -4078,6 +3528,7 @@ const terkepView = document.getElementById('terkepek-view');
 if (tab === 'arazas') {
 if (calcTabs) calcTabs.style.display = '';
 if (syncBar) syncBar.style.display = '';
+if (ujNapBar) ujNapBar.style.display = 'flex';
 // JAVÍTVA: korábban az admin panel csak akkor záródott be automatikusan, ha
 // már eleve zárva volt (értelmetlen feltétel) – emiatt admin nézetből az
 // "Árazó" fülre kattintva az admin panel nyitva maradt, a calc-view pedig
